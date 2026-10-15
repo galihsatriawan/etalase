@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Etalase · Seller dashboard</title>
+<style>
+  :root { --ink:#202124; --muted:#5f6368; --line:#dadce0; --card:#f1f3f4; --blue:#1a73e8; --green:#188038; --red:#d93025; --amber:#b06000; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color:var(--ink); background:#fff; }
+  header { display:flex; align-items:center; justify-content:space-between; padding:16px 24px; border-bottom:1px solid var(--line); }
+  header b { font-size:18px; } header span { color:var(--muted); font-size:14px; }
+  main { max-width:1080px; margin:0 auto; padding:24px; }
+  .login { max-width:360px; margin:64px auto; display:grid; gap:12px; }
+  input, button { font:inherit; padding:10px 12px; border-radius:8px; border:1px solid var(--line); }
+  button { background:var(--blue); color:#fff; border:none; cursor:pointer; }
+  button.ghost { background:none; color:var(--blue); border:1px solid var(--line); }
+  .hint { color:var(--muted); font-size:13px; }
+  h2 { font-size:16px; margin:28px 0 12px; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:16px; }
+  .card { background:var(--card); border-radius:12px; padding:16px; }
+  .card h3 { margin:0 0 4px; font-size:15px; }
+  .pill { display:inline-block; font-size:12px; padding:2px 8px; border-radius:999px; background:#fff; border:1px solid var(--line); }
+  .published { color:var(--green); } .needs_review, .draft { color:var(--amber); }
+  table { width:100%; border-collapse:collapse; font-size:14px; }
+  th, td { text-align:left; padding:8px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { color:var(--muted); font-weight:500; }
+  .bar { height:6px; background:#fff; border-radius:3px; overflow:hidden; margin:8px 0; }
+  .bar i { display:block; height:100%; background:var(--blue); }
+  .err { color:var(--red); font-size:13px; min-height:1em; }
+  @media (max-width:600px){ main{padding:16px;} header{padding:12px 16px;} }
+</style>
+</head>
+<body>
+<header><b>Etalase</b><span id="who">Seller dashboard</span></header>
+<main>
+  <section id="login" class="login">
+    <h2>Sign in with your WhatsApp number</h2>
+    <input id="wa" placeholder="628123456789" inputmode="numeric">
+    <button id="send">Send code via WhatsApp</button>
+    <input id="code" placeholder="6-digit code" inputmode="numeric" hidden>
+    <button id="verify" hidden>Sign in</button>
+    <div class="err" id="err"></div>
+    <p class="hint">The code comes from Etalase's WhatsApp number. Your own WhatsApp account is never connected.
+      Local mode: find the code in <a href="/dev/outbox" target="_blank">/dev/outbox</a>.</p>
+  </section>
+  <section id="app" hidden>
+    <h2>Products</h2>
+    <div class="grid" id="products"></div>
+    <h2>Orders from AI agents</h2>
+    <table><thead><tr><th>Order</th><th>Items</th><th>Total</th><th>Status</th><th>Payout</th></tr></thead>
+      <tbody id="orders"></tbody></table>
+    <p><button class="ghost" id="logout">Sign out</button></p>
+  </section>
+</main>
+<script>
+const $ = (id) => document.getElementById(id);
+const rp = (n) => n == null ? "-" : "Rp" + Number(n).toLocaleString("id-ID");
+const esc = (v) => String(v ?? "").replace(/[&<>"'`]/g, (c) => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;", "`": "&#96;"}[c]));
+let token = null;
+try { token = sessionStorage.getItem("etalase_token"); } catch (e) {}
+
+async function api(path, opts = {}) {
+  const res = await fetch(path, { ...opts, headers: { "content-type": "application/json",
+    ...(token ? { authorization: "Bearer " + token } : {}) } });
+  if (!res.ok) throw new Error((await res.json()).detail || res.statusText);
+  return res.json();
+}
+
+$("send").onclick = async () => {
+  $("err").textContent = "";
+  if (!/^\d{9,15}$/.test($("wa").value)) { $("err").textContent = "Enter a number like 628123456789"; return; }
+  await api("/auth/otp", { method: "POST", body: JSON.stringify({ whatsapp: $("wa").value }) });
+  $("code").hidden = $("verify").hidden = false;
+};
+$("verify").onclick = async () => {
+  $("err").textContent = "";
+  if (!/^\d{6}$/.test($("code").value)) { $("err").textContent = "The code has 6 digits"; return; }
+  try {
+    const r = await api("/auth/verify", { method: "POST", body: JSON.stringify({ whatsapp: $("wa").value, code: $("code").value }) });
+    token = r.token;
+    try { sessionStorage.setItem("etalase_token", token); } catch (e) {}
+    load();
+  } catch (e) { $("err").textContent = "Wrong or expired code"; }
+};
+$("logout").onclick = () => { token = null; try { sessionStorage.removeItem("etalase_token"); } catch (e) {} location.reload(); };
+
+async function load() {
+  try {
+    const me = await api("/api/me");
+    $("who").textContent = me.name;
+    $("login").hidden = true; $("app").hidden = false;
+    const products = await api("/api/me/products");
+    $("products").innerHTML = products.map(p => `
+      <div class="card">
+        <h3>${esc(p.title)}</h3>
+        <span class="pill ${esc(p.status)}">${esc(p.status.replace("_", " "))}</span>
+        <div class="bar"><i style="width:${Number(p.readiness_score) || 0}%"></i></div>
+        <div class="hint">Agent readiness ${Number(p.readiness_score) || 0}/100${p.readiness_missing.length ? " · missing: " + esc(p.readiness_missing.join(", ")) : ""}</div>
+        <table>${p.variants.map(v => `<tr><td>${esc(Object.values(v.options).join(" / ") || "Default")}</td>
+          <td>${rp(v.price)}</td><td>stock ${esc(v.stock.on_hand ?? "?")}${v.stock.reserved ? ` (${Number(v.stock.reserved)} held)` : ""}</td></tr>`).join("")}</table>
+      </div>`).join("") || `<p class="hint">No products yet. Send photos and a description to Etalase on WhatsApp.</p>`;
+    const orders = await api("/api/me/orders");
+    $("orders").innerHTML = orders.map(o => `<tr><td>${esc(o.checkout_id)}<div class="hint">${esc(o.buyer_city)}</div></td>
+      <td>${o.items.map(i => `${esc(i.title)} × ${Number(i.qty)}`).join("<br>")}</td><td>${rp(o.total)}</td>
+      <td>${esc(o.status.replaceAll("_", " "))}${o.tracking ? `<div class="hint">tracking ${esc(o.tracking)}</div>` : ""}</td>
+      <td>${o.payout ? rp(o.payout.seller_amount) : "-"}</td></tr>`).join("") || `<tr><td colspan="5" class="hint">No orders yet.</td></tr>`;
+  } catch (e) { token = null; }
+}
+if (token) load();
+</script>
+</body>
+</html>

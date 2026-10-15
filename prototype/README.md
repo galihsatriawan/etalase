@@ -1,0 +1,116 @@
+# Etalase prototype
+
+Python 3.11+, FastAPI, Google ADK, MCP, deployable to Cloud Run.
+
+## Quick start (offline, no credentials)
+
+```bash
+pip install -r requirements-dev.txt
+python scripts/demo.py
+pytest -q
+```
+
+The demo walks through ten steps: seller onboarding on WhatsApp, an optional Instagram import, an agent buying over MCP, payment,
+acceptance, shipping, payout, stock updates by chat, a confirm-first order, a 50-agent race for the
+last unit, dashboard sign-in and the Connector API.
+
+## Run the server
+
+```bash
+uvicorn etalase.api.main:app --reload --port 8080
+```
+
+| URL | What |
+|---|---|
+| `/` | Seller dashboard (WhatsApp one-time-code sign-in; in dev mode the code is in `/dev/outbox`) |
+| `/docs` | Interactive API docs (OpenAPI) |
+| `/mcp/` | MCP server for AI agents (streamable HTTP) |
+| `/.well-known/ucp` | UCP-style discovery profile |
+| `/agent/v1/*` | REST mirror of the agent tools |
+| `/connector/v1/*` | Connector API for OMSs, plugins and website builders |
+| `/connect/instagram` | Instagram Login for catalog import (needs `INSTAGRAM_APP_ID` / `INSTAGRAM_APP_SECRET`) |
+| `/webhooks/whatsapp`, `/webhooks/payment`, `/webhooks/shipping` | Provider webhooks |
+| `/dev/*` | Simulation endpoints (only when `ETALASE_ENV=dev`; on a public URL they need the `X-Dev-Token` header) |
+| `/media/<file>` | Product images for agents (file names only) |
+
+Try it by hand:
+
+```bash
+curl -X POST localhost:8080/dev/sellers -H 'content-type: application/json' \
+  -d '{"name":"Toko Rina","whatsapp":"6281234567890","city":"Jakarta","postal_code":"12950"}'
+curl -X POST localhost:8080/dev/whatsapp -H 'content-type: application/json' \
+  -d '{"sender":"6281234567890","text":"Voal hijab, black 5, navy 3, mocca 10, price 85k"}'
+curl -X POST localhost:8080/dev/whatsapp -H 'content-type: application/json' \
+  -d '{"sender":"6281234567890","button_id":"publish"}'
+curl "localhost:8080/agent/v1/search?q=black%20voal%20hijab&max_price_idr=100000"
+```
+
+## Switching on real services
+
+Copy `.env.example` to `.env` and fill in what you have. Each part switches independently.
+
+| Variable(s) | Turns on |
+|---|---|
+| `GOOGLE_GENAI_USE_VERTEXAI=true` + `GOOGLE_CLOUD_PROJECT` (or `GOOGLE_API_KEY`) | Gemini catalog extraction and the ADK seller agent |
+| `WHATSAPP_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_VERIFY_TOKEN`, `WHATSAPP_APP_SECRET` | WhatsApp Business Cloud API |
+| `XENDIT_SECRET_KEY`, `XENDIT_CALLBACK_TOKEN` | QRIS via Xendit (use test-mode keys) |
+| `BITESHIP_API_KEY` | Real courier rates and bookings |
+| `INSTAGRAM_APP_ID`, `INSTAGRAM_APP_SECRET` | Instagram catalog import via Instagram Login |
+| `STORE_BACKEND=firestore` | Firestore with transactions |
+| `SELLER_LOCALE=id` | Seller messages in Bahasa Indonesia |
+
+`GET /healthz` shows which mode each part is in.
+
+## Security defaults
+
+- The app refuses to start on a non-localhost `PUBLIC_BASE_URL` without `DEV_TOKEN`, `WEBHOOK_TOKEN`
+  and a real `SESSION_SECRET`; `ETALASE_ENV=prod` also refuses mock payment, shipping and messaging.
+- Webhooks without provider signatures (shipping, mock payment, `/tasks/expire`) need
+  `?token=<WEBHOOK_TOKEN>`; WhatsApp needs Meta's signature; Xendit needs its callback token.
+- Payouts are released only after the courier confirms delivery, never on a webhook alone.
+- Details: [docs/09](../docs/09-security-privacy-compliance.md#application-security).
+
+## Demo buyer agent (needs Gemini)
+
+```bash
+export GOOGLE_API_KEY=...            # or Vertex AI settings
+export ETALASE_MCP_URL=http://localhost:8080/mcp/
+python -m etalase.agents.buyer_agent "Find a black voal hijab under Rp100k to Bandung 40135"
+```
+
+## Deploy to Cloud Run
+
+```bash
+PROJECT_ID=my-project ./scripts/deploy_cloud_run.sh
+```
+
+The script deploys to `asia-southeast2` (Jakarta) with Gemini on Vertex AI and secrets from Secret
+Manager. See the comments in the script for one-time setup.
+
+## Code map
+
+```
+etalase/
+├── api/            FastAPI app, webhooks, dashboard
+├── agents/         ADK seller agent, ADK buyer agent (MCP client)
+├── gateway/        MCP server, agent tools, UCP profile, schema.org data
+├── catalog/        Gemini / offline extraction, normalisation, readiness, intents, search
+├── checkout/       reservations, confirm-first, payment, shipping, payout, expiry
+├── seller/         WhatsApp inbox, notifications, i18n (en / id)
+├── connector/      Connector API service (push integrations, signed webhooks)
+├── adapters/       payment (Xendit, mock), shipping (Biteship, mock), messaging (WhatsApp, console), Instagram import
+├── store/          MemoryStore, FirestoreStore
+├── auth.py         WhatsApp one-time-code sign-in
+├── events.py       event bus (Pub/Sub in production)
+├── config.py       settings and country packs
+└── container.py    wiring
+```
+
+## Notes
+
+- Xendit refunds and sub-account settlement raise `ManualActionRequired` until the account setup is
+  confirmed; the order is then marked `refund_pending` / `pending_manual` and an `ops.manual_action`
+  event is published, instead of failing the webhook.
+- `FirestoreStore` is meant to be run against the Firestore emulator first; automated tests use
+  `MemoryStore`, which implements the same contract.
+- The MCP session manager starts once per process, so tests share one app lifespan.

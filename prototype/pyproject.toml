@@ -1,0 +1,10 @@
+[project]
+name = "etalase"
+version = "0.1.0"
+description = "Make WhatsApp & Instagram sellers discoverable and buyable by AI shopping agents."
+readme = "README.md"
+requires-python = ">=3.11"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+filterwarnings = ["ignore::DeprecationWarning", "ignore::UserWarning", "ignore::FutureWarning"]

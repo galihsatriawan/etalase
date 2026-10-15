@@ -89,7 +89,7 @@ which the existing button ids fit), 4,096 characters per message, and only **pri
 WhatsApp (`getFile`, up to 20 MB). The webhook must carry the secret set with `setWebhook` (`TELEGRAM_WEBHOOK_SECRET`, header `X-Telegram-Bot-Api-Secret-Token`).
 
 Replies go back through the channel the seller wrote on; messages Etalase starts go to the chosen channel. A seller can write on both.
-Linking is a bearer code, so anyone holding an unexpired code could link their own chat to that shop: it is shown only inside a signed-in session and lasts 10 minutes.
+A link code works once and lasts 10 minutes; it is shown only inside a signed-in session. Linking a different chat later is announced to the old chat and to the WhatsApp number. If the linked chat becomes unreachable (the seller blocked the bot), messages and the sign-in code go to the WhatsApp number instead.
 
 ## Seller dashboard sign-in
 

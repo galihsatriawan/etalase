@@ -176,6 +176,14 @@ class FirestoreStore:
         snap = self._col(f"doc_{kind}").document(doc_id).get()
         return snap.to_dict() if snap.exists else None
 
+    def create_doc(self, kind: str, doc_id: str, data: dict) -> bool:
+        from google.api_core.exceptions import AlreadyExists   # a Firestore dependency, so present whenever this store is
+        try:
+            self._col(f"doc_{kind}").document(doc_id).create(data)    # fails if the document exists: one winner
+        except AlreadyExists:
+            return False
+        return True
+
     def update_doc(self, kind: str, doc_id: str, change) -> dict | None:
         ref = self._col(f"doc_{kind}").document(doc_id)
         holder: dict[str, dict] = {}

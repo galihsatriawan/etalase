@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 
 from ..adapters.messaging import Template
 from ..models import OrderStatus, now
-from .format import rupiah
+from .format import defang, rupiah
 
 if TYPE_CHECKING:
     from ..container import AppContext
@@ -29,7 +29,7 @@ def register(ctx: "AppContext") -> None:
 
     def address(order) -> str:
         b = order.buyer
-        return f"{b.name}, {b.line1}, {b.city} {b.postal_code}"
+        return defang(f"{b.name}, {b.line1}, {b.city} {b.postal_code}")
 
     def courier(order) -> str:
         return f"{order.shipping_rate.courier.upper()} {order.shipping_rate.service}"
@@ -37,9 +37,9 @@ def register(ctx: "AppContext") -> None:
     def on_awaiting_confirmation(p):
         order, seller = order_and_seller(p)
         # Etalase starts these messages, so outside WhatsApp's 24-hour window they go out as approved templates.
-        wa.send_notification(seller.address, t("stock_check", items=items(order), city=order.buyer.city),
+        wa.send_notification(seller.address, t("stock_check", items=items(order), city=defang(order.buyer.city)),
                              [(f"confirm:{order.id}", t("btn_available")), (f"oos:{order.id}", t("btn_sold_out"))],
-                             Template("stock_check", [items(order), order.buyer.city],
+                             Template("stock_check", [items(order), defang(order.buyer.city)],
                                       [f"confirm:{order.id}", f"oos:{order.id}"]))
 
     def on_paid(p):
@@ -47,9 +47,9 @@ def register(ctx: "AppContext") -> None:
         if order.status == OrderStatus.PAID:
             wa.send_notification(seller.address,
                                  t("new_paid_order", items=items(order), subtotal=rupiah(order.subtotal),
-                                   city=order.buyer.city, courier=courier(order)),
+                                   city=defang(order.buyer.city), courier=courier(order)),
                                  [(f"accept:{order.id}", t("btn_accept")), (f"oos:{order.id}", t("btn_out_of_stock"))],
-                                 Template("new_paid_order", [items(order), rupiah(order.subtotal), order.buyer.city, courier(order)],
+                                 Template("new_paid_order", [items(order), rupiah(order.subtotal), defang(order.buyer.city), courier(order)],
                                           [f"accept:{order.id}", f"oos:{order.id}"]))
         else:
             wa.send_notification(seller.address, t("paid_ship_now", items=items(order), address=address(order),
@@ -93,8 +93,9 @@ def register(ctx: "AppContext") -> None:
     def on_return_requested(p):
         order, seller = order_and_seller(p)
         r = order.return_request
-        reason, note = t(f"reason_{r.reason.value}"), r.note or t("no_note")
+        reason, note = t(f"reason_{r.reason.value}"), defang(r.note) or t("no_note")
         if r.evidence:     # the links themselves stay on the dashboard: they come from the buyer and are never pushed into chat
+            # (links typed into the note are replaced too, see defang)
             note = f"{note} {t('return_photos', n=len(r.evidence))}"
         hours = ctx.settings.return_seller_response_hours
         wa.send_notification(seller.address, t("return_requested", items=items(order), reason=reason, note=note, hours=hours),

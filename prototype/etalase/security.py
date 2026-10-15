@@ -83,6 +83,16 @@ def require_webhook_token(request: Request, s: Settings) -> None:
         raise HTTPException(401, "invalid webhook token")
 
 
+def require_operator_token(request: Request, s: Settings) -> None:
+    """For endpoints that move money by hand. Header only (a query string ends up in access logs) and its own secret."""
+    if not s.operator_token:
+        if s.is_dev and s.is_local:
+            return
+        raise HTTPException(503, "OPERATOR_TOKEN not configured")
+    if not _eq(request.headers.get("x-etalase-operator-token"), s.operator_token):
+        raise HTTPException(401, "invalid operator token")
+
+
 class RateLimiter:
     """Sliding-window limiter. In-memory per instance; use Memorystore/Firestore when scaling out."""
 
@@ -107,11 +117,72 @@ class RateLimiter:
         return len(q)
 
 
+TRUSTED_PROXY_HOPS = 0     # set once at start-up from Settings.trusted_proxy_hops
+
+
+class _BodyTooLarge(BaseException):
+    """A BaseException on purpose: the handlers under this middleware catch `Exception` to acknowledge odd webhook bodies, and
+    must not swallow the signal that the request was cut off."""
+
+
+def _contains_too_large(error: BaseException) -> bool:
+    if isinstance(error, _BodyTooLarge):
+        return True
+    return isinstance(error, BaseExceptionGroup) and any(_contains_too_large(e) for e in error.exceptions)
+
+
+class BodyLimitMiddleware:
+    """Refuses request bodies over `max_bytes`: by Content-Length when it is sent, and by counting the bytes actually read
+    when it is not (a chunked upload has no Content-Length, so a check on the header alone lets any size through)."""
+
+    def __init__(self, app, max_bytes: int) -> None:
+        self.app, self.max_bytes = app, max_bytes
+
+    async def __call__(self, scope, receive, send) -> None:
+        if scope["type"] != "http":
+            return await self.app(scope, receive, send)
+        length = next((v for k, v in scope["headers"] if k == b"content-length"), b"")
+        if length.isdigit() and int(length) > self.max_bytes:
+            return await self._refuse(scope, receive, send)
+        seen = 0
+        started = False
+
+        async def counted():
+            nonlocal seen
+            message = await receive()
+            if message["type"] == "http.request":
+                seen += len(message.get("body", b""))
+                if seen > self.max_bytes:
+                    raise _BodyTooLarge()
+            return message
+
+        async def tracked(message):
+            nonlocal started
+            started = started or message["type"] == "http.response.start"
+            await send(message)
+
+        try:
+            await self.app(scope, counted, tracked)
+        except BaseException as error:      # BaseHTTPMiddleware below may have wrapped it in an exception group
+            if not _contains_too_large(error):
+                raise
+            if not started:
+                await self._refuse(scope, receive, send)
+
+    @staticmethod
+    async def _refuse(scope, receive, send) -> None:
+        from starlette.responses import JSONResponse
+        await JSONResponse({"detail": "request too large"}, status_code=413)(scope, receive, send)
+
+
 def client_ip(request: Request) -> str:
-    # Google's front end appends the address it saw to X-Forwarded-For, so the last entry is the
-    # one a client cannot forge (earlier entries can be anything the client sent).
+    # Google's front end appends the address it saw to X-Forwarded-For, so the last entry is the one a client cannot forge
+    # (earlier entries can be anything the client sent). Behind another proxy (a load balancer, Cloudflare) the last entry is
+    # that proxy, so TRUSTED_PROXY_HOPS entries are skipped from the end to reach the client.
     fwd = [p.strip() for p in request.headers.get("x-forwarded-for", "").split(",") if p.strip()]
-    return fwd[-1] if fwd else (request.client.host if request.client else "unknown")
+    if fwd:
+        return fwd[max(0, len(fwd) - 1 - TRUSTED_PROXY_HOPS)]
+    return request.client.host if request.client else "unknown"
 
 
 SECURITY_HEADERS = {

@@ -9,7 +9,7 @@
 # What it does
 #   1. Enables the Google Cloud APIs it needs.
 #   2. Creates a service account (etalase-run) with only the roles it needs.
-#   3. Creates SESSION_SECRET, DEV_TOKEN and WEBHOOK_TOKEN as random secrets (once; never printed).
+#   3. Creates SESSION_SECRET, DEV_TOKEN, WEBHOOK_TOKEN and OPERATOR_TOKEN as random secrets (once; never printed).
 #   4. Copies the keys you filled in .env into Secret Manager and the other settings into environment
 #      variables (scripts/env_to_cloud.py; values are never printed).
 #   5. Deploys from source with PUBLIC_BASE_URL already set to the service URL, so the startup security
@@ -72,6 +72,7 @@ ensure_secret() {  # create a random secret once; never print it
 ensure_secret etalase-session-secret
 ensure_secret etalase-dev-token
 ensure_secret etalase-webhook-token
+ensure_secret etalase-operator-token
 
 # ---------------------------------------------------------------- URL (deterministic on Cloud Run)
 if [[ -n "$DRY_RUN" ]]; then
@@ -89,7 +90,7 @@ SYNC="$(python3 scripts/env_to_cloud.py --project "$PROJECT_ID" --env-file "$ENV
   --fixed "ETALASE_ENV=${ENV_MODE}" --fixed "PUBLIC_BASE_URL=${URL}" --fixed "STORE_BACKEND=${STORE_BACKEND:-memory}" \
   --fixed "GOOGLE_CLOUD_PROJECT=${PROJECT_ID}")"
 ENV_VARS="$(printf '%s\n' "$SYNC" | sed -n 's/^ENV_VARS=//p')"
-SECRETS="SESSION_SECRET=etalase-session-secret:latest,DEV_TOKEN=etalase-dev-token:latest,WEBHOOK_TOKEN=etalase-webhook-token:latest"
+SECRETS="SESSION_SECRET=etalase-session-secret:latest,DEV_TOKEN=etalase-dev-token:latest,WEBHOOK_TOKEN=etalase-webhook-token:latest,OPERATOR_TOKEN=etalase-operator-token:latest"
 EXTRA_SECRETS="$(printf '%s\n' "$SYNC" | sed -n 's/^SECRETS=//p')"
 [[ -n "$EXTRA_SECRETS" ]] && SECRETS="${SECRETS},${EXTRA_SECRETS}"
 
@@ -136,5 +137,7 @@ ${DRY_RUN:+(dry run) }Deployed: ${URL}
   Expiry (optional Cloud Scheduler, every minute):  POST ${URL}/tasks/expire?token=<WEBHOOK_TOKEN>
   Dev endpoints header: X-Dev-Token: \$(gcloud secrets versions access latest --secret etalase-dev-token --project ${PROJECT_ID})
   Webhook token:        gcloud secrets versions access latest --secret etalase-webhook-token --project ${PROJECT_ID}
+  Operator token:       gcloud secrets versions access latest --secret etalase-operator-token --project ${PROJECT_ID}
+                        (header X-Etalase-Operator-Token for /tasks/disputes and /tasks/resolve-dispute; never in a URL)
 For the pilot: STORE_BACKEND=firestore, lift --max-instances, and move expiry to Cloud Tasks.
 EOF

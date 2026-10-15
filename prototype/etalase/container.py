@@ -96,6 +96,11 @@ def build_context(settings: Settings | None = None, echo_messages: bool = False)
     ctx = AppContext(settings=s, store=store, events=events, messenger=messenger, payment=payment,
                      shipping=shipping, catalog=catalog, checkout=checkout, media_dir=media_dir)
     ctx.telegram = telegram
+    if isinstance(messenger, ChannelRouter):   # a dead Telegram chat must not cut the seller off: fall back to their WhatsApp
+        def whatsapp_for(address: str) -> str | None:
+            seller = store.find_seller_by_address(address)
+            return seller.whatsapp if seller else None
+        messenger.fallback = whatsapp_for
     ctx.t = Translator(s.seller_locale)
     ctx.returns = ReturnService(checkout)
     ctx.gateway = GatewayTools(ctx)
@@ -119,7 +124,8 @@ def build_context(settings: Settings | None = None, echo_messages: bool = False)
         "payment": payment.name, "shipping": shipping.name,
         "ai": f"gemini ({s.gemini_model})" if s.gemini_enabled else "offline rules",
     }
-    from .security import validate_settings
-    validate_settings(s, ctx.modes)
+    from . import security
+    security.TRUSTED_PROXY_HOPS = max(0, s.trusted_proxy_hops)
+    security.validate_settings(s, ctx.modes)
     log.info("Etalase modes: %s", ctx.modes)
     return ctx

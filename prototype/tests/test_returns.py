@@ -494,15 +494,22 @@ def test_rest_return_route_and_the_ops_endpoints(web, monkeypatch):
     real_ctx.inbox.handle_button(s["id"], f"return_no:{o.id}")
 
     monkeypatch.setattr(real_ctx.settings, "webhook_token", "w" * 24)
+    monkeypatch.setattr(real_ctx.settings, "operator_token", "o" * 24)
     assert web.get("/tasks/disputes").status_code == 401
     assert web.post("/tasks/resolve-dispute", json={"order_id": o.id, "outcome": "refund"}).status_code == 401
-    token = {"token": "w" * 24}
-    queue = web.get("/tasks/disputes", params=token).json()
+    # The webhook token (which sits in the Biteship webhook URL and so in access logs) does not open the money endpoints,
+    # and neither does the operator token in a query string.
+    assert web.get("/tasks/disputes", params={"token": "w" * 24}).status_code == 401
+    assert web.get("/tasks/disputes", headers={"X-Etalase-Webhook-Token": "w" * 24}).status_code == 401
+    assert web.get("/tasks/disputes", params={"token": "o" * 24}).status_code == 401
+    op = {"X-Etalase-Operator-Token": "o" * 24}
+    queue = web.get("/tasks/disputes", headers=op).json()
     assert [d["order_id"] for d in queue] == [o.id]
-    assert web.post("/tasks/resolve-dispute", params=token, json={"order_id": o.id, "outcome": "maybe"}).status_code == 422
-    done = web.post("/tasks/resolve-dispute", params=token, json={"order_id": o.id, "outcome": "refund"}).json()
+    assert web.post("/tasks/resolve-dispute", headers=op, json={"order_id": o.id, "outcome": "maybe"}).status_code == 422
+    done = web.post("/tasks/resolve-dispute", headers=op, json={"order_id": o.id, "outcome": "refund"}).json()
     assert done["status"] == "refunded"
-    assert web.post("/tasks/resolve-dispute", params=token, json={"order_id": o.id, "outcome": "refund"}).status_code == 400
+    assert web.post("/tasks/resolve-dispute", headers=op, json={"order_id": o.id, "outcome": "refund"}).status_code == 400
+    token = {"token": "w" * 24}
     assert set(web.post("/tasks/expire", params=token).json()) >= {"expired", "payouts_released", "returns_lapsed"}
 
 

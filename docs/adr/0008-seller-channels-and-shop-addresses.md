@@ -38,8 +38,10 @@ reach a seller on another channel, and the seller side has no regulatory or revi
 - Adding a channel is one adapter (send, buttons, media download, a webhook parser) plus an address prefix. Telegram took one adapter file, one router, one webhook route and one
   link flow.
 - The dashboard sign-in code goes to the chosen channel, so a seller who linked Telegram is not locked out by WhatsApp's 24-hour window.
-- Telegram linking is a bearer code obtained inside a signed-in session; anyone holding an unexpired code could link their chat to that shop for up to 10 minutes. Acceptable for a
-  pilot; a one-time server-side code is the next step ([doc 09](../09-security-privacy-compliance.md)).
+- Telegram linking uses a code obtained inside a signed-in session. An independent review showed the first version could be replayed from another chat and relinked silently, so the code now works once (an atomic record per code) and a replaced chat is announced to the old chat and the WhatsApp number. Until it is used it is still a bearer value for up to 10 minutes ([doc 09](../09-security-privacy-compliance.md)).
+- A Telegram chat can become unreachable for good (the seller blocks the bot). On such a refusal (HTTP 400, 403, 404), not on temporary trouble, a message goes to the seller's WhatsApp number instead, so a seller is never locked out of sign-in or alerts.
+- A shop address is a registry entry created atomically, because checking and then saving let two shops win the same name in a race. A released address is held for its previous owner for 30 days, since old links and QR codes still point at it.
+- Any host under the base domain except the platform host is a shop or a 404, after the Host header is normalised (trailing dot, port). Before this, `shop.example.com.` fell through to the dashboard.
 - Store pages load photos we host from `/media/<file>` on their own origin. The absolute public URL would be a different origin on a shop address and, over plain http (a local try), blocked by the CSP; a real-browser screenshot run found this.
 - Subdomains give every shop its own browser origin, so scripts and storage of one shop cannot touch another's. A claimed name can still imitate a brand; the reserved list is
   small and an abuse process is not built.

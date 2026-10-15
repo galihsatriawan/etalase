@@ -2,6 +2,7 @@
 guarantee that nothing changes while STORE_BASE_DOMAIN is unset."""
 
 import re
+from datetime import timedelta
 
 import pytest
 from fastapi.testclient import TestClient
@@ -9,6 +10,7 @@ from fastapi.testclient import TestClient
 from etalase.api.main import app
 from etalase.api.main import ctx as app_ctx
 from etalase.config import Settings
+from etalase.models import now
 from etalase.security import DASHBOARD_CSP, InsecureConfig, validate_settings
 from etalase.seller import slugs
 
@@ -49,8 +51,13 @@ def test_claiming_and_assigning(ctx):
     with pytest.raises(slugs.SlugError, match="taken"):
         slugs.claim(ctx, b.id, "Toko-Rina")                                    # case does not make it different
     assert slugs.claim(ctx, a.id, "toko-rina").slug == "toko-rina"             # re-claiming your own is fine
-    slugs.claim(ctx, a.id, "rina")                                             # moving frees the old name
-    assert slugs.claim(ctx, b.id, "toko-rina").slug == "toko-rina"
+    slugs.claim(ctx, a.id, "rina")                                             # moving releases the old name...
+    with pytest.raises(slugs.SlugError, match="taken"):                        # ...but old links and QR codes still point at it
+        slugs.claim(ctx, b.id, "toko-rina")                                    # so nobody else gets it for a while
+    assert slugs.claim(ctx, a.id, "toko-rina").slug == "toko-rina"             # the previous owner can always take it back
+    slugs.claim(ctx, a.id, "rina")
+    ctx.store.update_doc("slug", "toko-rina", lambda d: d.update(released_at=(now() - slugs.RELEASE_COOLDOWN - timedelta(hours=1)).isoformat()) or True)
+    assert slugs.claim(ctx, b.id, "toko-rina").slug == "toko-rina"             # after the cooldown it is free for anyone
     assert ctx.store.find_seller_by_slug("rina").id == a.id and ctx.store.find_seller_by_slug("nobody") is None
 
 

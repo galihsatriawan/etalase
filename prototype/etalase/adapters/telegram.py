@@ -30,6 +30,12 @@ from .messaging import TELEGRAM_PREFIX, Inbound, Template
 
 log = logging.getLogger("etalase.telegram")
 
+# The Bot API puts the bot token in every URL (.../bot<token>/sendMessage), and httpx logs each request URL at INFO. Something
+# else in the process (FastMCP) configures the root logger at INFO, so without this the token would be written to the logs on
+# every call. These two loggers carry nothing Etalase needs below WARNING.
+for _noisy in ("httpx", "httpcore"):
+    logging.getLogger(_noisy).setLevel(logging.WARNING)
+
 PREFIX = TELEGRAM_PREFIX
 API = "https://api.telegram.org"
 MAX_TEXT = 4096              # characters per message
@@ -47,7 +53,8 @@ class TelegramError(RuntimeError):
 
 
 class TelegramMessenger:
-    """Telegram Bot API over HTTPS. The bot token is part of every URL, so it is never logged or put in an error."""
+    """Telegram Bot API over HTTPS. The bot token is part of every URL, so it is never logged or put in an error (httpx's own
+    request log is switched off above for the same reason)."""
 
     def __init__(self, token: str, username: str | None = None, api: str = API) -> None:
         self._token = token

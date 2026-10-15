@@ -229,7 +229,13 @@ class CheckoutService:
 
         order = self.store.update_order(found.id, pay)
         if outcome.get("paid"):
-            self.store.commit(order.id)
+            # The money is in and the order is paid. A stock problem here (say a variant removed by a catalog resync while
+            # the buyer was paying) must not stop the seller from hearing about it: log it, flag it, carry on.
+            try:
+                self.store.commit(order.id)
+            except Exception:
+                log.exception("stock commit failed for paid order %s; the stock needs a manual correction", order.id)
+                self.events.publish("ops.manual_action", {"order_id": order.id, "action": "commit_stock"})
             self.events.publish("order.paid", {"order_id": order.id})
         elif outcome.get("late"):
             order = self._refund(order, "late payment")
@@ -289,12 +295,16 @@ class CheckoutService:
         order = self.store.update_order(order_id, reject)
         if not won:
             return order
-        self.store.restock(order.id)
+        order = self._refund(order, "seller out of stock")      # money first: a stock error must not skip the refund
+        self._restock(order.id)
         seller = self.store.get_seller(seller_id)
         if seller and seller.stock_owner == StockOwner.INTERNAL:  # an OMS or store owns its own stock
             for item in order.items:
-                self.store.set_stock(seller_id, item.product_id, item.variant_id, 0, "seller_rejection")
-        order = self._refund(order, "seller out of stock")
+                try:
+                    self.store.set_stock(seller_id, item.product_id, item.variant_id, 0, "seller_rejection")
+                except Exception:
+                    log.exception("could not zero the stock of %s after a rejection", item.variant_id)
+                    self.events.publish("ops.manual_action", {"order_id": order.id, "action": "set_stock"})
         self.events.publish("order.rejected", {"order_id": order.id, "paid": True})
         return order
 
@@ -316,6 +326,11 @@ class CheckoutService:
             waybill = waybill.strip().upper()
             if not re.fullmatch(r"[A-Z0-9-]{6,40}", waybill):
                 raise CheckoutError("that does not look like a tracking number")
+            # Courier updates are matched to an order by this number, so it can belong to one order only. Otherwise a seller
+            # could type another shop's waybill and have that parcel's delivery start this order's payout.
+            taken = self._order_by_shipment_key(waybill)
+            if taken is not None and taken.id != order.id:
+                raise CheckoutError("that tracking number is already used by another order")
             shipment = Shipment(courier=order.shipping_rate.courier, service=order.shipping_rate.service,
                                 waybill=waybill, status="picked_up")
         else:

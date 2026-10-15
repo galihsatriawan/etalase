@@ -27,8 +27,8 @@ from ..gateway.mcp_server import build_mcp
 from ..gateway.tools import order_view
 from ..models import Address, CheckoutError, Connection, Seller, now
 from ..seller import channels, slugs
-from ..security import (DASHBOARD_CSP, SECURITY_HEADERS, RateLimiter, client_ip, require_dev,
-                        require_webhook_token)
+from ..security import (DASHBOARD_CSP, BodyLimitMiddleware, SECURITY_HEADERS, RateLimiter, client_ip, require_dev,
+                        require_operator_token, require_webhook_token)
 
 log = logging.getLogger("etalase.api")
 
@@ -47,6 +47,10 @@ def rate_limit(request: Request, bucket: str, limit: int, window_s: int) -> None
 
 def webhook_token(request: Request) -> None:
     require_webhook_token(request, ctx.settings)
+
+
+def operator_token(request: Request) -> None:
+    require_operator_token(request, ctx.settings)
 
 
 def dev_only(request: Request) -> None:
@@ -76,9 +80,6 @@ app.mount("/mcp", mcp.streamable_http_app())
 
 @app.middleware("http")
 async def guard(request: Request, call_next):
-    length = request.headers.get("content-length")
-    if length and length.isdigit() and int(length) > MAX_BODY_BYTES:
-        return JSONResponse({"detail": "request too large"}, status_code=413)
     response = await call_next(request)
     for k, v in SECURITY_HEADERS.items():
         response.headers.setdefault(k, v)
@@ -87,6 +88,7 @@ async def guard(request: Request, call_next):
     return response
 
 
+app.add_middleware(BodyLimitMiddleware, max_bytes=MAX_BODY_BYTES)   # counts bytes read, so chunked uploads are capped too
 app.add_middleware(ShopHostMiddleware, ctx=ctx)   # added last = outermost: it maps the host before the guard looks at the path
 
 
@@ -277,10 +279,15 @@ async def whatsapp_inbound(request: Request):
             raise HTTPException(401, "bad signature")
     else:
         require_webhook_token(request, ctx.settings)  # console mode: our own token
-    body = await request.json()
-    for failed in whatsapp_failed_statuses(body):   # delivery failures show up here, after the API accepted the send
-        log.warning("WhatsApp delivery failed: %s", failed)
-    for msg in parse_whatsapp_webhook(body):
+    try:
+        body = await request.json()
+        for failed in whatsapp_failed_statuses(body):   # delivery failures show up here, after the API accepted the send
+            log.warning("WhatsApp delivery failed: %s", failed)
+        messages = parse_whatsapp_webhook(body)
+    except Exception:   # a body we cannot read is acknowledged and dropped; a 500 would make Meta retry it for days
+        log.warning("ignoring a malformed WhatsApp webhook body", exc_info=True)
+        return {"ok": True}
+    for msg in messages:
         try:
             await ctx.inbox.handle(msg)
         except Exception:  # acknowledge anyway, or Meta retries the same message for days
@@ -300,7 +307,13 @@ async def telegram_inbound(request: Request):
             raise HTTPException(401, "bad secret")
     else:
         require_webhook_token(request, ctx.settings)
-    for msg in parse_telegram_update(await request.json()):
+    try:
+        update = await request.json()
+        messages = parse_telegram_update(update) if isinstance(update, dict) else []
+    except Exception:   # unreadable update: acknowledge it, or Telegram redelivers the same bytes
+        log.warning("ignoring a malformed Telegram update", exc_info=True)
+        return {"ok": True}
+    for msg in messages:
         if msg.callback_id and ctx.telegram is not None:
             ctx.telegram.answer_callback(msg.callback_id)
         try:
@@ -344,13 +357,13 @@ class DisputeResolution(BaseModel):
     outcome: str = Field(pattern="^(refund|release)$")
 
 
-@app.get("/tasks/disputes", dependencies=[Depends(webhook_token)])
+@app.get("/tasks/disputes", dependencies=[Depends(operator_token)])
 def open_disputes():
-    """Returns the seller disputed. Production: the operator console reads the same data."""
+    """Returns the seller disputed. Production: the operator console reads the same data. Header X-Etalase-Operator-Token."""
     return ctx.returns.disputes()
 
 
-@app.post("/tasks/resolve-dispute", dependencies=[Depends(webhook_token)])
+@app.post("/tasks/resolve-dispute", dependencies=[Depends(operator_token)])
 def resolve_dispute(body: DisputeResolution):
     try:
         return order_view(ctx.returns.resolve_dispute(body.order_id, body.outcome))

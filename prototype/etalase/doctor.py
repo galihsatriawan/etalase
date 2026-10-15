@@ -288,6 +288,7 @@ def webhook_urls(s: Settings) -> Check:
                if s.telegram_bot_token else []),
              f"Payment   {base}/webhooks/payment   (Xendit sends its callback token)",
              f"Shipping  {base}/webhooks/shipping?token={token}",
+             "Operator  header X-Etalase-Operator-Token: <OPERATOR_TOKEN> on /tasks/disputes and /tasks/resolve-dispute (never in a URL)",
              f"MCP       {base}/mcp/"]
     if s.store_base_domain:
         lines.append(f"Shops     https://<slug>.{s.store_base_domain}/  (wildcard DNS and certificate for *.{s.store_base_domain})")

@@ -6,7 +6,9 @@ Telegram chat and choose it as the channel for orders, stock checks and payouts.
 1. In the dashboard the signed-in seller asks for a link code (`start_link`). It is signed, valid for 10 minutes, and
    carried in the Telegram deep link  t.me/<bot>?start=<code>.
 2. Telegram delivers  /start <code>  to the webhook from a chat nobody has linked yet; `link_telegram` verifies the code
-   and stores the chat id on the seller. Only a code obtained inside a signed-in dashboard session can link a chat.
+   and stores the chat id on the seller. Only a code obtained inside a signed-in dashboard session can link a chat, and a
+   code works once: a copy of it (a forwarded link, a screenshot) is worth nothing after the seller used it. Replacing a
+   chat that was already linked is announced to the old chat and to the WhatsApp number.
 3. From then on the seller can write to the bot like to the WhatsApp number, and `set_channel` decides where Etalase's own
    messages go. Replies to something the seller wrote always go back through the channel it came from.
 """
@@ -46,15 +48,23 @@ def start_link(ctx: "AppContext", seller_id: str) -> dict:
 
 def link_telegram(ctx: "AppContext", sender: str, code: str) -> bool:
     """`sender` is "tg:<chat id>" from an update nobody has linked yet. Answers the chat either way."""
-    seller_id = ctx.auth.seller_from_link_code(code)
+    seller_id = ctx.auth.use_link_code(code)
     seller = ctx.store.get_seller(seller_id) if seller_id else None
     if seller is None:
         ctx.messenger.send_text(sender, ctx.t("telegram_link_invalid"))
         return False
-    seller.telegram_chat_id = sender[len(TELEGRAM_PREFIX):]
+    chat = sender[len(TELEGRAM_PREFIX):]
+    previous = seller.telegram_chat_id
+    seller.telegram_chat_id = chat
     seller.channel = "telegram"
     ctx.store.put_seller(seller)
     ctx.messenger.send_text(sender, ctx.t("telegram_linked", shop=seller.name))
+    if previous and previous != chat:    # somebody else's chat must never take over a shop silently
+        for old in (TELEGRAM_PREFIX + previous, seller.whatsapp):
+            try:
+                ctx.messenger.send_text(old, ctx.t("telegram_replaced", shop=seller.name))
+            except Exception:
+                log.info("could not tell %s that the Telegram chat changed", old[:6], exc_info=True)
     return True
 
 

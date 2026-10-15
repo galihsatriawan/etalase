@@ -104,7 +104,7 @@ There is no registration flow. An unknown number is told to sign up at the dashb
 - An approved WhatsApp *authentication* template for sign-in codes. Order alerts already fall back to *utility* templates (you create them once); codes are free-form today.
 - Event handlers swallow errors (`EventBus.publish` logs and continues), so a failed WhatsApp send silently loses an alert. Pub/Sub retries fix that ([Exercise 18](/master/exercises#_18-make-events-durable-with-pub-sub)).
 - Pricing for service messages is unclear (Meta says free; BSP rate cards list charges from October 2026). Confirm with the BSP ([Evidence](/business/evidence)).
-- **Telegram linking uses a bearer code.** The `/start <code>` code is signed and lasts 10 minutes, but it is not single-use: whoever holds an unexpired code can link their own chat to that shop. It is shown only to a signed-in seller. A one-time, server-stored code is the next step.
+- **Telegram linking uses a code that is a bearer value until it is used.** The `/start <code>` code is signed, lasts 10 minutes and works once, so a copy is worthless after the seller linked; before that, whoever uses it first links their chat. Replacing a chat is announced to the old chat and the WhatsApp number.
 - **Sign-in stays on the WhatsApp number.** A seller who moves alerts to Telegram still signs in with their WhatsApp number (the code is sent to the chosen channel). A seller with no WhatsApp number cannot register yet.
 - **The Instagram DM buyer bot is a roadmap item, not built.** Buyers would talk to each seller's own Instagram account, so the bot must be per seller (each seller connects their own account), not one shared aggregator; Meta's review (Advanced Access) is needed for accounts we do not own. Whether Instagram messages are free is not confirmed ([Evidence](/business/evidence)).
 - **Order alerts do not record the channel.** `Order.channel` (where a buyer's order came from) does not exist yet; the seller's channel is stored, the buyer's is not.
@@ -150,6 +150,15 @@ These were found while writing this guide and are now fixed in the code. Each is
 | Schema.org offers linked to a store page that did not exist | Offer `url` is `{base}/agent/v1/products/{product_id}`; untracked stock is `LimitedAvailability` | `gateway/discovery.py` |
 | REST had no shipping-options endpoint | `GET /agent/v1/products/{product_id}/shipping-options` mirrors the MCP tool | `api/main.py` |
 | Inline comments in `.env.example` became values; tests could read a developer's `.env` | Comments on their own lines; `conftest.py` clears env vars and runs from `tests/` | `.env.example`, `tests/conftest.py` |
+| The Telegram bot token appeared in the log (httpx logs request URLs at INFO) | `httpx` and `httpcore` loggers held at WARNING | `adapters/telegram.py`; `test_the_bot_token_is_not_written_to_the_log` |
+| A Telegram link code could be replayed from another chat; relinking was silent | Single-use code (atomic record), replaced chat announced | `auth.py`, `seller/channels.py`; `test_a_link_code_works_once` |
+| Two shops could claim one address in a race; a released address was free at once | Atomic registry entry (`create_doc`), 30-day hold for the previous owner | `seller/slugs.py`; `test_two_shops_racing_for_one_address_cannot_both_win` |
+| One seller could type another's tracking number and receive that parcel's payout trigger | A waybill used by any order is refused | `checkout/service.py`; `test_another_shops_waybill_cannot_be_reused` |
+| A stock error after payment skipped the paid alert; during a rejection it skipped the refund | Guarded stock calls, flagged to an operator, refund first | `checkout/service.py`; `test_a_stock_error_*` |
+| A blocked Telegram chat locked the seller out of sign-in and alerts | Permanent Telegram refusals fall back to the WhatsApp number | `adapters/messaging.py` (`ChannelRouter`); `test_the_sign_in_code_falls_back_to_whatsapp_when_the_chat_is_blocked` |
+| A trailing dot, a port or several labels in the Host header reached the dashboard | Host normalised; every unclaimed host under the base domain is 404 | `seller/slugs.py`, `gateway/hosts.py`; `test_a_name_nobody_claimed_is_never_the_dashboard` |
+| The money endpoints accepted the shared webhook token in a query string | Separate `OPERATOR_TOKEN`, header only | `security.py`; `test_operator_endpoints_need_the_operator_token_in_a_header` |
+| Chunked uploads bypassed the body limit; malformed webhook bodies returned 500 | Bytes counted as read; bad bodies acknowledged and logged | `security.py` (`BodyLimitMiddleware`), `api/main.py` |
 
 ## Before scale
 

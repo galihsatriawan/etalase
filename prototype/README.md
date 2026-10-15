@@ -80,7 +80,9 @@ Copy `.env.example` to `.env` and fill in what you have. Each part switches inde
 - The app refuses to start on a non-localhost `PUBLIC_BASE_URL` without `DEV_TOKEN`, `WEBHOOK_TOKEN`
   and a real `SESSION_SECRET`; `ETALASE_ENV=prod` also refuses mock payment, shipping and messaging.
 - Webhooks without provider signatures (shipping, mock payment, `/tasks/expire`) need
-  `?token=<WEBHOOK_TOKEN>`; WhatsApp needs Meta's signature; Xendit needs its callback token.
+  `?token=<WEBHOOK_TOKEN>`; WhatsApp needs Meta's signature; Telegram needs its secret header; Xendit needs its callback token.
+- The endpoints that move money by hand (`/tasks/disputes`, `/tasks/resolve-dispute`) need `OPERATOR_TOKEN` in the
+  `X-Etalase-Operator-Token` header, a different secret from `WEBHOOK_TOKEN` (which sits in the Biteship URL), and answer 503 until it is set.
 - Payouts are released only after the courier confirms delivery, never on a webhook alone.
 - Details: [docs/09](../docs/09-security-privacy-compliance.md#application-security).
 

@@ -72,14 +72,17 @@ class SellerInbox:
     def _unknown_sender(self, msg: Inbound) -> None:
         ctx = self.ctx
         if not msg.sender.startswith(TELEGRAM_PREFIX):
-            ctx.messenger.send_text(msg.sender, ctx.t("unregistered", url=ctx.settings.public_base_url + "/"))
+            # Anyone can message the Etalase number. Each reply is a billed WhatsApp message, so a stranger gets a few per hour.
+            if self._limits.allow(f"wa-unknown:{msg.sender}", 3, 3600):
+                ctx.messenger.send_text(msg.sender, ctx.t("unregistered", url=ctx.settings.public_base_url + "/"))
             return
         # A Telegram chat nobody has linked. "/start <code>" is the deep link from the dashboard; anything else gets one
         # short pointer (a few per hour, so a stranger cannot make the bot talk endlessly).
         from .channels import link_telegram
         parts = msg.text.split(maxsplit=1) if msg.kind == "text" else []
         if len(parts) == 2 and parts[0].split("@")[0] == "/start":
-            link_telegram(ctx, msg.sender, parts[1].strip()[:64])
+            if self._limits.allow(f"tg-link:{msg.sender}", 5, 3600):    # guesses and replays get a few answers, then silence
+                link_telegram(ctx, msg.sender, parts[1].strip()[:64])
         elif self._limits.allow(f"tg-unknown:{msg.sender}", 3, 3600):
             ctx.messenger.send_text(msg.sender, ctx.t("telegram_not_linked"))
 

@@ -128,7 +128,7 @@ pytest -q
 ........................................................................ [ 74%]
 ........................................................................ [ 92%]
 .............................                                            [100%]
-389 passed in 8.4s
+439 passed in 8.4s
 ```
 
 `tests/conftest.py` removes the provider keys (`GOOGLE_API_KEY`, `WHATSAPP_*`, `XENDIT_*`, `BITESHIP_API_KEY`, `INSTAGRAM_*`, `TELEGRAM_*`), the tokens and URLs (`DEV_TOKEN`, `WEBHOOK_TOKEN`, `SESSION_SECRET`, `PUBLIC_BASE_URL`, `STORE_BASE_DOMAIN`) and a few others from the environment, then changes into `tests/`, so no `prototype/.env` is read either. The tests always run offline, whatever is in your shell or `.env`. [Testing](/ship/testing) walks through what they cover.

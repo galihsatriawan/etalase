@@ -133,7 +133,7 @@ flowchart LR
 ## K
 
 **KYC (Know Your Customer).** Identity and bank verification. Done by the payment provider; Etalase stores only `kyc_status` and the sub-account id, and only `verified` sellers can take orders. [Checkout and orders](/architecture/checkout-and-orders)
-**Link code.** A short signed code (`<seller id>-<expiry>-<signature>`, 10 minutes) that a signed-in seller turns into a Telegram deep link or `/start CODE` command to connect a chat to their shop. It is a bearer value, not single-use ([Known gaps](/master/known-gaps)). <Badge type="tip" text="Built" /> [WhatsApp seller agent](/architecture/seller-agent)
+**Link code.** A short signed code (`<seller id>-<expiry>-<random>-<signature>`, 10 minutes, works once) that a signed-in seller turns into a Telegram deep link or `/start CODE` command to connect a chat to their shop. Until it is used it is a bearer value ([Known gaps](/master/known-gaps)). <Badge type="tip" text="Built" /> [WhatsApp seller agent](/architecture/seller-agent)
 
 
 ## M

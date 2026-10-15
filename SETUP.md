@@ -73,8 +73,8 @@ PROJECT_ID=my-project make deploy-dry   # prints every step, changes nothing; re
 PROJECT_ID=my-project make deploy       # the real thing, about 5 minutes
 ```
 
-It enables the APIs, creates a least-privilege service account, creates the random `SESSION_SECRET`, `DEV_TOKEN`
-and `WEBHOOK_TOKEN` as secrets, copies **your `.env` keys into Secret Manager** (values never printed, never on a command line,
+It enables the APIs, creates a least-privilege service account, creates the random `SESSION_SECRET`, `DEV_TOKEN`,
+`WEBHOOK_TOKEN` and `OPERATOR_TOKEN` as secrets, copies **your `.env` keys into Secret Manager** (values never printed, never on a command line,
 unchanged ones get no new version), deploys to `asia-southeast2` with `PUBLIC_BASE_URL` already set, and smoke-tests
 `/healthz` and `/.well-known/ucp`. It is safe to re-run after you change `.env`.
 
@@ -201,7 +201,11 @@ Instead of `https://<service>/stores/sel_1a2b3c4d5e`, each shop can have `https:
 5. Shops get an address from their name when created; a seller changes it in the dashboard (**Settings → Your shop address**). The old address stops working, so the dashboard says so.
 
 Local try: `STORE_BASE_DOMAIN=localhost:8080 PUBLIC_BASE_URL=http://localhost:8080 make run`, then open `http://<slug>.localhost:8080` (browsers resolve `*.localhost` to your machine).
-A host nobody claimed answers 404, and the platform host keeps the dashboard at `/`.
+A host nobody claimed answers 404 (also with a trailing dot or a port in the header), and the platform host keeps the dashboard at `/`.
+
+**Behind a load balancer or Cloudflare**, also set `TRUSTED_PROXY_HOPS=1`. Etalase takes the client address from the end of `X-Forwarded-For`
+(Cloud Run appends the address it saw); one more proxy in front means the last entry is the proxy, so every visitor would share one rate limit.
+Log the header once on your deployment to confirm the right number; we could not verify it from the sandbox.
 
 ## Everything else, `make help`
 

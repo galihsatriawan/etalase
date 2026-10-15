@@ -45,6 +45,9 @@ class Store(Protocol):
     # small JSON documents for protocol state (UCP checkout sessions, idempotency records)
     def put_doc(self, kind: str, doc_id: str, data: dict) -> None: ...
     def get_doc(self, kind: str, doc_id: str) -> dict | None: ...
+    def create_doc(self, kind: str, doc_id: str, data: dict) -> bool:
+        """Creates the document only if none exists with this id. Atomic: of two simultaneous calls exactly one returns True.
+        Used where an id must belong to one owner (a shop address, a single-use link code)."""
     def update_doc(self, kind: str, doc_id: str, change: Callable[[dict], bool]) -> dict | None:
         """Atomic read-modify-write, same contract as update_order (the callback may run more than once)."""
 

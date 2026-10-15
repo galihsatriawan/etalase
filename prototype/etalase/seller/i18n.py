@@ -181,6 +181,12 @@ MESSAGES: dict[str, dict[str, str]] = {
         "en": "That link has expired or is not valid. Open the dashboard and tap Connect Telegram again.",
         "id": "Link itu sudah kedaluwarsa atau tidak valid. Buka dashboard dan ketuk Hubungkan Telegram lagi.",
     },
+    "telegram_replaced": {
+        "en": "A different Telegram chat was just linked to {shop}, so this one no longer gets orders. If that was not you, "
+              "sign in to the dashboard and check Settings.",
+        "id": "Chat Telegram lain baru saja dihubungkan ke {shop}, jadi chat ini tidak lagi menerima pesanan. Kalau itu bukan "
+              "kamu, masuk ke dashboard dan periksa Pengaturan.",
+    },
     "channel_switched": {
         "en": "OK. Orders, stock checks and payouts will be sent here from now on.",
         "id": "Siap. Pesanan, cek stok, dan pencairan sekarang dikirim ke sini.",

@@ -12,8 +12,8 @@ What it does
   Names go to stderr; values never do.
 
 Keys the deploy script decides itself are never taken from .env (they arrive through --fixed): ETALASE_ENV,
-PUBLIC_BASE_URL, STORE_BACKEND, GOOGLE_CLOUD_PROJECT, GOOGLE_GENAI_USE_VERTEXAI. SESSION_SECRET, DEV_TOKEN and
-WEBHOOK_TOKEN get their own random values in Secret Manager, so the local ones are not copied.
+PUBLIC_BASE_URL, STORE_BACKEND, GOOGLE_CLOUD_PROJECT, GOOGLE_GENAI_USE_VERTEXAI. SESSION_SECRET, DEV_TOKEN,
+WEBHOOK_TOKEN and OPERATOR_TOKEN get their own random values in Secret Manager, so the local ones are not copied.
 
 Gemini access: with GOOGLE_API_KEY in .env the service uses that key; without it, Vertex AI with the service
 account (--gemini-auth vertex|apikey forces one of them).
@@ -42,7 +42,7 @@ PLAIN_KEYS = ["WHATSAPP_PHONE_NUMBER_ID", "INSTAGRAM_APP_ID", "SELLER_LOCALE", "
               "COMMISSION_RATE", "RESERVATION_TTL_MINUTES", "MAX_QTY_PER_ORDER", "MAX_CHECKOUTS_PER_BUYER_PER_HOUR",
               "CONFIRM_IF_STALE_DAYS", "CONFIRM_IF_AVAILABLE_LTE", "SELLER_CONFIRM_TIMEOUT_MINUTES",
               "TELEGRAM_BOT_USERNAME", "STORE_BASE_DOMAIN", "PAYOUT_HOLD_HOURS", "NEW_SELLER_HOLD_HOURS", "NEW_SELLER_ORDERS",
-              "RETURN_SELLER_RESPONSE_HOURS", "RETURN_LAPSE_DAYS", "SELLER_AI_CALLS_PER_HOUR"]
+              "RETURN_SELLER_RESPONSE_HOURS", "RETURN_LAPSE_DAYS", "SELLER_AI_CALLS_PER_HOUR", "TRUSTED_PROXY_HOPS"]
 PLACEHOLDERS = {"", "change-me-to-a-long-random-string", "etalase-dev-verify"}   # "not filled in"
 
 

@@ -105,10 +105,18 @@ class ConsoleMessenger:
 
 class ChannelRouter:
     """Sends each message through the channel its address belongs to: "tg:<chat id>" goes to Telegram, everything else to
-    the default messenger (WhatsApp, or the console outbox). Services keep calling one Messenger and never know which."""
+    the default messenger (WhatsApp, or the console outbox). Services keep calling one Messenger and never know which.
 
-    def __init__(self, default: Messenger, telegram: Messenger) -> None:
+    A Telegram chat can become unreachable for good: the seller blocked the bot or deleted the chat (Telegram answers 403,
+    or 400/404 "chat not found"). Without a way out, that seller would get no order alerts and no sign-in code, and could not
+    reach the dashboard to switch back. `fallback` maps a Telegram address to the seller's WhatsApp number (or None); on such
+    a refusal the same message goes there. Temporary trouble (429, 5xx, a timeout) is not a reason to switch and is raised."""
+
+    PERMANENT = (400, 403, 404)
+
+    def __init__(self, default: Messenger, telegram: Messenger, fallback=None) -> None:
         self.default, self.telegram = default, telegram
+        self.fallback = fallback
 
     def _for(self, address: str) -> Messenger:
         return self.telegram if address.startswith(TELEGRAM_PREFIX) else self.default
@@ -117,14 +125,24 @@ class ChannelRouter:
     def outbox(self) -> list[OutboxMessage]:     # the console outbox, for dev endpoints and tests
         return getattr(self.default, "outbox", [])
 
+    def _send(self, to: str, method: str, *args) -> None:
+        try:
+            getattr(self._for(to), method)(to, *args)
+        except Exception as e:
+            number = self.fallback(to) if self.fallback and to.startswith(TELEGRAM_PREFIX) else None
+            if not number or getattr(e, "status", None) not in self.PERMANENT:
+                raise
+            log.warning("Telegram refused a message (HTTP %s); sending it to the WhatsApp number instead", e.status)
+            getattr(self.default, method)(number, *args)
+
     def send_text(self, to, text):
-        self._for(to).send_text(to, text)
+        self._send(to, "send_text", text)
 
     def send_buttons(self, to, text, buttons):
-        self._for(to).send_buttons(to, text, buttons)
+        self._send(to, "send_buttons", text, buttons)
 
     def send_notification(self, to, text, buttons=None, template=None):
-        self._for(to).send_notification(to, text, buttons, template)
+        self._send(to, "send_notification", text, buttons, template)
 
     def download_media(self, media_id, dest_dir):
         return self._for(media_id).download_media(media_id, dest_dir)

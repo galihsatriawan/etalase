@@ -69,6 +69,13 @@ class Settings(BaseSettings):
     dev_token: str | None = None
     webhook_token: str | None = None
     whatsapp_app_secret: str | None = None
+    # OPERATOR_TOKEN protects the endpoints that move money by hand (/tasks/disputes, /tasks/resolve-dispute). It is sent only
+    # in the X-Etalase-Operator-Token header and is a different secret from WEBHOOK_TOKEN, which also sits in the Biteship
+    # webhook URL and so can end up in access logs. Unset = those endpoints answer 503 (open only on a local dev run).
+    operator_token: str | None = None
+    # How many proxy addresses sit at the END of X-Forwarded-For after the client's own. Cloud Run alone: 0. Behind an HTTPS
+    # load balancer or Cloudflare: 1. Wrong values make rate limits per proxy instead of per client; see SETUP.md section 7.
+    trusted_proxy_hops: int = 0
 
     # Business rules
     commission_rate: float = 0.04

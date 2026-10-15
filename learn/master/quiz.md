@@ -119,7 +119,7 @@ From `tool_context.state["seller_id"]`, set when the session is created for the 
 Both implement the `CatalogExtractor` protocol and return the same `ExtractedCatalog` schema. `GeminiExtractor` (multimodal, `response_schema=ExtractedCatalog`, temperature 0.1) is used when an API key or Vertex AI is configured; `HeuristicExtractor` (text and CSV rules) is used otherwise, including in all tests. See [Catalog and stock](/architecture/catalog-and-stock).
 :::
 
-**17. Multiple choice. The command that runs the 389 automated tests is:**
+**17. Multiple choice. The command that runs the 439 automated tests is:**
 (a) `python scripts/demo.py` (b) `cd prototype && pytest -q` (c) `uvicorn etalase.api.main:app --port 8080` (d) `npm run build`
 
 ::: details Answer
@@ -270,7 +270,7 @@ For a micro merchant, the QRIS MDR is 0% for transactions up to Rp500,000 (and 0
 **40. Which benchmark results can you claim today, and which are still TBD?**
 
 ::: details Answer
-Claimable: 0 units oversold when 100 concurrent reservations race for the last unit (on the in-memory store), and duplicate and late payments handled (no double stock change, late payment refunded), all in the 389 passing tests. TBD: catalog extraction accuracy, catalog build time, agent tool latency, seller alert speed and stock-update intent accuracy with Gemini. See [Testing](/ship/testing) and [Pitch and Q&A](/business/pitch-and-qa).
+Claimable: 0 units oversold when 100 concurrent reservations race for the last unit (on the in-memory store), and duplicate and late payments handled (no double stock change, late payment refunded), all in the 439 passing tests. TBD: catalog extraction accuracy, catalog build time, agent tool latency, seller alert speed and stock-update intent accuracy with Gemini. See [Testing](/ship/testing) and [Pitch and Q&A](/business/pitch-and-qa).
 :::
 
 **41. How does the same order alert reach a seller on WhatsApp or on Telegram without the core knowing which?**
@@ -282,7 +282,7 @@ The core only calls the `Messenger` interface. `ChannelRouter` implements it and
 **42. What stops a stranger from linking their own Telegram chat to someone else's shop, and what is the known gap?**
 
 ::: details Answer
-Linking needs a code issued inside a signed-in dashboard session: `<seller id>-<expiry>-<HMAC>`, valid for 10 minutes, with the purpose "link" so a sign-in token cannot be replayed as one, and a chat already linked to a shop is not moved by another code. The gap: the code is a bearer value and not single-use, so anyone holding an unexpired code could use it. A one-time server-side code is the next step. See [Security model](/architecture/security) and [Known gaps](/master/known-gaps).
+Linking needs a code issued inside a signed-in dashboard session: `<seller id>-<expiry>-<random>-<HMAC>`, valid for 10 minutes, with the purpose "link" so a sign-in token cannot be replayed as one, and a chat already linked to a shop is not moved by another code. The code also works only once (an atomic record per code), and replacing a linked chat is announced to the old chat and the WhatsApp number. What remains: until it is used it is a bearer value, so whoever uses it first links their chat. An independent review found the first, replayable version. See [Security model](/architecture/security) and [Known gaps](/master/known-gaps).
 :::
 
 **43. A friend says "use Click-to-WhatsApp ads and WhatsApp becomes free" and "Instagram DMs are free, so build an Instagram bot". What do you say?**

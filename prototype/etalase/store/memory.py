@@ -128,6 +128,13 @@ class MemoryStore:
             d = self._docs.get((kind, doc_id))
             return copy.deepcopy(d) if d is not None else None
 
+    def create_doc(self, kind: str, doc_id: str, data: dict) -> bool:
+        with self._lock:
+            if (kind, doc_id) in self._docs:
+                return False
+            self._docs[(kind, doc_id)] = copy.deepcopy(data)
+            return True
+
     def update_doc(self, kind: str, doc_id: str, change: Callable[[dict], bool]) -> dict | None:
         with self._lock:
             current = self._docs.get((kind, doc_id))

@@ -68,6 +68,8 @@ class Settings(BaseSettings):
     seller_confirm_timeout_minutes: int = 60
     max_qty_per_order: int = 10
     max_checkouts_per_buyer_per_hour: int = 5
+    # Gemini calls one seller may trigger per hour (free-text turns plus catalog builds). Only counted when Gemini is on.
+    seller_ai_calls_per_hour: int = 60
 
     @property
     def gemini_enabled(self) -> bool:

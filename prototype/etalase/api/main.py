@@ -28,8 +28,8 @@ from ..security import (DASHBOARD_CSP, SECURITY_HEADERS, RateLimiter, client_ip,
 log = logging.getLogger("etalase.api")
 
 ctx: AppContext = build_context()   # refuses to start on an insecure configuration (see security.py)
-mcp = build_mcp(ctx)
 limits = RateLimiter()
+mcp = build_mcp(ctx, limits)
 MAX_BODY_BYTES = 2_000_000
 SAMPLES_DIR = Path(__file__).resolve().parents[2] / "samples"
 

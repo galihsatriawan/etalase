@@ -37,6 +37,8 @@ MESSAGES: dict[str, dict[str, str]] = {
                      "id": "Pesanan ini sudah {status}, jadi tidak ada yang dikirim ke pembeli."},
     "which_product": {"en": "Which product? {color} is in: {titles}. Example: '<product> {color} 2 left'.",
                       "id": "Produk yang mana? Warna {color} ada di: {titles}. Contoh: '<produk> {color} tinggal 2'."},
+    "slow_down": {"en": "You are sending messages faster than I can handle. Please wait a few minutes and try again.",
+                  "id": "Pesannya terlalu cepat untuk kuproses. Tunggu beberapa menit lalu coba lagi ya."},
     "agent_unavailable": {"en": "I could not process that just now. Please try again in a minute.",
                           "id": "Maaf, belum bisa memproses itu. Coba lagi sebentar lagi ya."},
     "cannot_process": {"en": "Couldn't do that: {error}", "id": "Tidak bisa diproses: {error}"},

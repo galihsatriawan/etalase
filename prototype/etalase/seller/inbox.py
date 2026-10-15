@@ -16,6 +16,7 @@ from typing import TYPE_CHECKING
 from ..adapters.messaging import Inbound
 from ..catalog import intents
 from ..models import CheckoutError, OrderStatus, Product
+from ..security import RateLimiter
 from .format import rupiah
 
 if TYPE_CHECKING:
@@ -33,6 +34,13 @@ class SellerInbox:
         self.ctx = ctx
         self.pending_media: dict[str, list[tuple[float, str, str]]] = defaultdict(list)  # seller -> (ts, kind, path)
         self._seen: OrderedDict[str, None] = OrderedDict()
+        self._limits = RateLimiter()
+
+    def _ai_allowed(self, seller_id: str) -> bool:
+        """The gate in front of anything that costs a Gemini call. Offline mode is free, so it is never limited."""
+        if not self.ctx.settings.gemini_enabled:
+            return True
+        return self._limits.allow(f"ai:{seller_id}", self.ctx.settings.seller_ai_calls_per_hour, 3600)
 
     def _duplicate(self, message_id: str) -> bool:
         if not message_id:
@@ -80,6 +88,9 @@ class SellerInbox:
     async def handle_text(self, seller_id: str, text: str) -> None:
         if self.ctx.seller_agent is not None:
             seller = self.ctx.store.get_seller(seller_id)
+            if not self._ai_allowed(seller_id):
+                self.ctx.messenger.send_text(seller.whatsapp, self.ctx.t("slow_down"))
+                return
             try:
                 reply = await self.ctx.seller_agent.respond(seller_id, text)
             except Exception:  # rate limit, outage, blocked answer: say so instead of leaving the seller waiting
@@ -102,6 +113,9 @@ class SellerInbox:
     def create_catalog(self, seller_id: str, texts: list[str]) -> list[Product]:
         ctx = self.ctx
         seller = ctx.store.get_seller(seller_id)
+        if not self._ai_allowed(seller_id):
+            ctx.messenger.send_text(seller.whatsapp, ctx.t("slow_down"))
+            return []
         images, audio = self.take_media(seller_id)
         drafts, questions = ctx.catalog.ingest(seller_id, texts, images, audio)
         if not drafts:

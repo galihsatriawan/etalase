@@ -1,6 +1,6 @@
 # Testing
 
-How Etalase's 217 automated tests are organised, what each file proves, how to run and extend them, and what still has to be measured before a pilot.
+How Etalase's 226 automated tests are organised, what each file proves, how to run and extend them, and what still has to be measured before a pilot.
 
 ::: tip What you will learn
 - The layout of `prototype/tests/`, the fixtures in `conftest.py` and the regression tests for fixed bugs
@@ -19,7 +19,7 @@ All tests run offline in in a couple of seconds. ADR 0005 (`docs/adr/0005-adapte
 ```bash
 cd prototype
 pip install -r requirements-dev.txt
-pytest -q          # 217 passed
+pytest -q          # 226 passed
 ```
 
 ## How the suite is organised
@@ -40,6 +40,7 @@ pytest -q          # 217 passed
 | `tests/test_biteship.py` | 21 | Biteship contract with a fake HTTP layer: rate request and response, order booking body (postal code, item weights, `reference_id`), error bodies, `order.status` webhook parsing by Biteship id / tracking id / waybill, status map, delivery re-check by tracking id |
 | `tests/test_xendit.py` | 9 | Xendit QRIS contract: request headers and body, UTC expiry format, QR id kept, `qr.payment` webhook parsing and ignored events, the Rp10.000.000 cap, error logging |
 | `tests/test_whatsapp.py` | 12 | WhatsApp Cloud API contract: send bodies (`+` prefix, button limits), template payloads, free-form then template on error 131047, failed-status parsing, and a check that the template list matches what notifications send |
+| `tests/test_gatekeeper.py` | 9 | The checks before anything costly: MCP tools rate-limited per client address and sharing buckets with REST, errors returned as tool results, per-seller Gemini budget for chat turns and catalog builds, offline mode never limited |
 | `tests/test_gemini.py` | 35 | Gemini contract with a recorded client: model and key aliases, retry options, audio and image MIME types, size budget, temperature rule for Gemini 3, response parsing and errors, offline fallback, seller-agent failure replies, API-key and Vertex modes building the right backend |
 
 The parametrised tests in `test_parsing.py` count once per case, which is why 8 functions make 23 tests.

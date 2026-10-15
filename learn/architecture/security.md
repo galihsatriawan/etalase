@@ -184,7 +184,9 @@ def _same(a: str, b: str) -> bool:
 | `GET /agent/v1/search` | 120 per minute per IP |
 | `GET /agent/v1/products/{product_id}/shipping-options` | 60 per minute per IP (each call can cost a courier-API request) |
 | `POST /agent/v1/checkouts` | 20 per hour per IP |
+| The same three buckets for the MCP tools `search_products` / `get_product` (search), `get_shipping_options`, `create_checkout` | shared with the REST routes: one count per IP, whichever door the agent uses; `get_checkout_status` has 240 per minute |
 | Checkouts per buyer phone (REST and MCP) | 5 per hour |
+| Gemini calls per seller (free-text turns plus catalog builds, only when Gemini is on) | 60 per hour (`SELLER_AI_CALLS_PER_HOUR`) |
 | Units per checkout | 10 |
 | Request body | 2 MB (413 above that) |
 
@@ -197,7 +199,7 @@ def client_ip(request: Request) -> str:
 ```
 
 ::: warning Only correct behind Google's front end
-On Cloud Run the last `X-Forwarded-For` entry is added by Google. Without such a proxy, a client can send its own header and pick any "IP", bypassing per-IP limits. MCP calls have no per-IP limit, only the per-phone checkout cap.
+On Cloud Run the last `X-Forwarded-For` entry is added by Google. Without such a proxy, a client can send its own header and pick any "IP", bypassing per-IP limits. MCP tools use the same limiter and the same `client_ip`; over the limit the agent receives `{"error": "rate_limited", ...}` as a normal tool result instead of an HTTP error (`gateway/mcp_server.py`, tests in `tests/test_gatekeeper.py`).
 :::
 
 ## Dashboard: escaping and CSP
@@ -291,7 +293,7 @@ From `docs/09` plus a code review:
 - Uploaded media needs signed URLs, malware scanning and Cloud Storage.
 - Xendit refunds and settlement are manual steps (`refund_pending`, `pending_manual`, an `ops.manual_action` ERROR log); nothing pages an operator yet. Biteship tracking payloads must be verified against the live API.
 - Session tokens cannot be revoked before their 7-day expiry; sign-out only clears the browser.
-- `/mcp/` has no per-IP limit and DNS-rebinding protection is turned off in `build_mcp` (see [Known gaps](/master/known-gaps)).
+- DNS-rebinding protection is turned off in `build_mcp` (see [Known gaps](/master/known-gaps)). `/mcp/` has no authentication; it is limited per IP and per buyer phone.
 - No formal retention policy or DPIA (data protection impact assessment) yet.
 
 ## Check yourself

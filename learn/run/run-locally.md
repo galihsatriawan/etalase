@@ -124,7 +124,7 @@ pytest -q
 ```text
 ........................................................................ [ 87%]
 ..........                                                               [100%]
-217 passed in 2.15s
+226 passed in 2.15s
 ```
 
 `tests/conftest.py` removes the provider keys (`GOOGLE_API_KEY`, `WHATSAPP_*`, `XENDIT_*`, `BITESHIP_API_KEY`, `INSTAGRAM_*`), the tokens and URLs (`DEV_TOKEN`, `WEBHOOK_TOKEN`, `SESSION_SECRET`, `PUBLIC_BASE_URL`) and a few others from the environment, then changes into `tests/`, so no `prototype/.env` is read either. The tests always run offline, whatever is in your shell or `.env`. [Testing](/ship/testing) walks through what they cover.
@@ -197,6 +197,7 @@ Other variables you will meet:
 | `GEMINI_MODEL` | `gemini-3.8-flash` | Model for extraction and the seller agent |
 | `ETALASE_MEDIA_DIR` | `./media` | Where downloaded WhatsApp media is saved |
 | `COMMISSION_RATE`, `RESERVATION_TTL_MINUTES`, `MAX_QTY_PER_ORDER`, `MAX_CHECKOUTS_PER_BUYER_PER_HOUR` | `0.04`, `15`, `10`, `5` | Business rules |
+| `SELLER_AI_CALLS_PER_HOUR` | `60` | Gemini calls one seller can trigger per hour (free-text turns and catalog builds) |
 
 Turning on each real service is covered in [Turn on real services](/ship/real-services).
 

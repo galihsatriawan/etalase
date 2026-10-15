@@ -105,7 +105,7 @@ There is no registration flow. An unknown number is told to sign up at the dashb
 
 ### Security hardening
 
-- **MCP abuse.** `/mcp/` has no authentication and no per-IP limit (REST checkouts have 20 per IP per hour). Limits are per buyer phone (5 per hour) and 10 units per checkout, so a script that rotates fake phone numbers could keep a seller's stock on hold. DNS-rebinding protection is turned off in `build_mcp`, with a comment to restrict at the load balancer or with auth. See [Exercise 9](/master/exercises#_9-rate-limit-the-mcp-endpoint-per-ip).
+- **MCP abuse.** `/mcp/` has no authentication, but its tools now share the REST per-IP limits (checkout 20 per hour, shipping quotes 60 per minute, search 120 per minute), on top of 5 checkouts per buyer phone per hour and 10 units per checkout. A distributed script with many IPs and phone numbers could still hold some stock for 15 minutes at a time; the limiter is in memory per instance. DNS-rebinding protection is turned off in `build_mcp`, with a comment to restrict at the load balancer or with auth. See [Exercise 9](/master/exercises#_9-rate-limit-the-mcp-endpoint-per-ip) for the earlier coarse variant.
 - **Instagram tokens** are stored in `Connection.access_token` as plain text, and the short-lived token from `exchange_code` is stored without exchanging it for a long-lived one. Encrypt with Cloud KMS and exchange first.
 - **Media.** Cloud Storage with signed URLs and malware scanning instead of a local folder (on Cloud Run the local folder disappears on restart).
 - **Connector webhooks** check the target address and then post, so DNS could change in between; acceptable for a pilot, worth pinning the resolved IP later.

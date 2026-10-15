@@ -3,7 +3,7 @@
 Eighteen graded exercises, from beginner to advanced, that make you read recent fixes, change the Etalase code, add tests and wire Google Cloud services.
 
 ::: tip What you will learn
-- How to extend the offline parsers, the shipping mock and the readiness score without breaking the 217 existing tests
+- How to extend the offline parsers, the shipping mock and the readiness score without breaking the 226 existing tests
 - How to add a country pack, an MCP tool and a chat intent end to end
 - How to read a bug fix and its regression test, and why transaction retries need retry-safe code
 - How to test the Firestore store against the emulator
@@ -20,7 +20,7 @@ Work on a branch, and keep the baseline green:
 ```bash
 cd prototype
 pip install -r requirements-dev.txt
-pytest -q                     # 217 passed before you start
+pytest -q                     # 226 passed before you start
 python scripts/demo.py        # the ten-step story must still run
 ```
 
@@ -332,7 +332,7 @@ In `payment_succeeded`, treat `CANCELLED` like `EXPIRED` in the late-payment bra
 
 ### 9. Rate-limit the MCP endpoint per IP
 
-**Goal.** REST checkouts are limited to 20 per IP per hour, but `/mcp/` has no per-IP limit. A script that rotates fake phone numbers could hold a seller's whole stock for 15 minutes at a time. Add a limit.
+**Goal.** *(Done in the repository for the tools: `gateway/mcp_server.py` limits each tool per client address through the request on FastMCP's `Context`, and `tests/test_gatekeeper.py` covers it. The coarse middleware variant below is still a good exercise, because it also protects `initialize` and `tools/list`.)* REST checkouts were limited to 20 per IP per hour, but `/mcp/` had no per-IP limit. A script that rotates fake phone numbers could hold a seller's whole stock for 15 minutes at a time. Add a limit.
 
 **Files.** `prototype/etalase/api/main.py` (the `guard` middleware), a test in `prototype/tests/test_api.py`.
 
@@ -418,7 +418,7 @@ The current code in **`prototype/etalase/adapters/messaging.py`** (`WhatsAppClou
 - Decide what the inbox should do with a PDF (`application/pdf`): ignore it, or reply that only photos, voice notes and CSV files are read today.
 - Verify the exact MIME strings against Meta's media docs before relying on them.
 
-**Acceptance.** `extension_for("audio/ogg; codecs=opus") == ".ogg"`, `extension_for("TEXT/CSV") == ".csv"`, unknown types return `""`; `download_media` uses the function; all 217 existing tests still pass.
+**Acceptance.** `extension_for("audio/ogg; codecs=opus") == ".ogg"`, `extension_for("TEXT/CSV") == ".csv"`, unknown types return `""`; `download_media` uses the function; all 226 existing tests still pass.
 
 ::: details Solution sketch
 ```python

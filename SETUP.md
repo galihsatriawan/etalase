@@ -77,6 +77,8 @@ unchanged ones get no new version), deploys to `asia-southeast2` with `PUBLIC_BA
 `/healthz` and `/.well-known/ucp`. It is safe to re-run after you change `.env`.
 
 If `GOOGLE_API_KEY` is in `.env` the service uses it; otherwise it uses Vertex AI through the service account.
+To use Vertex AI on Cloud Run while keeping an AI Studio key in `.env` for local work, deploy with
+`GEMINI_AUTH=vertex PROJECT_ID=my-project make deploy` (the key is then not copied to Secret Manager). `GEMINI_AUTH=apikey` forces the key.
 At the end it prints every URL you need to paste into the dashboards below.
 
 The default is `STORE_BACKEND=memory` and one instance, which is right for a demo. For a pilot, set

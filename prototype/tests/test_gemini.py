@@ -257,3 +257,43 @@ def test_seller_hears_something_when_the_agent_returns_nothing(ctx):
     ctx.messenger.outbox.clear()
     asyncio.run(ctx.inbox.handle_text(seller.id, "hello"))
     assert "try again" in ctx.messenger.outbox[-1].text
+
+
+# ---------------------------------------------------------------- both auth modes
+def _backends(settings):
+    """Which Gemini backend the extractor and the ADK agents really end up on (no network call is made)."""
+    from google.adk.models.google_llm import Gemini
+    from etalase.config import export_google_env
+    from etalase.container import build_context
+
+    export_google_env(settings)
+    ctx = build_context(settings)
+    extractor_vertex = bool(ctx.catalog.extractor.primary.client._api_client.vertexai)      # None means AI Studio
+    agent_vertex = bool(Gemini(model=settings.gemini_model).api_client._api_client.vertexai)
+    return extractor_vertex, agent_vertex, ctx
+
+
+def test_api_key_mode_uses_ai_studio_for_extractor_and_agents():
+    extractor_vertex, agent_vertex, ctx = _backends(Settings(etalase_env="dev", _env_file=None, google_api_key="k"))
+    assert (extractor_vertex, agent_vertex) == (False, False)
+    assert ctx.seller_agent is not None
+
+
+def test_vertex_mode_uses_vertex_for_extractor_and_agents(monkeypatch):
+    import google.auth
+    from google.auth.credentials import AnonymousCredentials
+    monkeypatch.setattr(google.auth, "default", lambda *a, **k: (AnonymousCredentials(), "demo"))   # no ADC here
+    s = Settings(etalase_env="dev", _env_file=None, google_genai_use_vertexai=True,
+                 google_cloud_project="demo", google_cloud_location="global")
+    extractor_vertex, agent_vertex, ctx = _backends(s)
+    assert (extractor_vertex, agent_vertex) == (True, True)
+    assert ctx.seller_agent is not None
+
+
+def test_vertex_wins_when_both_are_configured(monkeypatch):
+    import google.auth
+    from google.auth.credentials import AnonymousCredentials
+    monkeypatch.setattr(google.auth, "default", lambda *a, **k: (AnonymousCredentials(), "demo"))
+    s = Settings(etalase_env="dev", _env_file=None, google_api_key="k", google_genai_use_vertexai=True,
+                 google_cloud_project="demo", google_cloud_location="global")
+    assert _backends(s)[:2] == (True, True)

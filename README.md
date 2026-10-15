@@ -47,7 +47,7 @@ More in [Problem and market](docs/01-problem-and-market.md).
 cd prototype
 pip install -r requirements-dev.txt
 python scripts/demo.py          # full end-to-end story in the terminal
-pytest -q                       # 214 tests: oversell race, payments, webhook security, OTP abuse
+pytest -q                       # 217 tests: oversell race, payments, webhook security, OTP abuse
 uvicorn etalase.api.main:app --port 8080   # API, MCP at /mcp/, dashboard at /, docs at /docs
 ```
 

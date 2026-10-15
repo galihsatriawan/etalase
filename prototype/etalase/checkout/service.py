@@ -58,9 +58,18 @@ class CheckoutService:
         product = self._published(product_id)
         seller = self.store.get_seller(product.seller_id)
         v = product.variant(variant_id)
-        rates = self.shipping.get_rates(seller.origin.postal_code if seller.origin else "", postal_code,
-                                        max(1, v.weight_gram) * qty, v.price * qty)
+        rates = self._quote(seller.origin.postal_code if seller.origin else "", postal_code,
+                            max(1, v.weight_gram) * qty, v.price * qty)
         return [r.model_dump() for r in sorted(rates, key=lambda r: r.price)]
+
+    def _quote(self, origin_postal: str, dest_postal: str, weight_gram: int, value: int):
+        """Courier rates, with a provider outage (or an empty Biteship balance) reported as a normal checkout error
+        instead of a server error the buyer's agent cannot act on."""
+        try:
+            return self.shipping.get_rates(origin_postal, dest_postal, weight_gram, value)
+        except Exception:
+            log.exception("courier rates failed")
+            raise CheckoutError("courier rates are unavailable right now; try again in a minute") from None
 
     # ------------------------------------------------------------------ checkout
     def create_checkout(self, product_id: str, variant_id: str, qty: int, buyer: Address,
@@ -82,8 +91,8 @@ class CheckoutService:
         v = product.variant(variant_id)
         mode = self.catalog.sell_mode(product, v, seller)
 
-        rates = self.shipping.get_rates(seller.origin.postal_code if seller.origin else "", buyer.postal_code,
-                                        max(1, v.weight_gram) * qty, v.price * qty)
+        rates = self._quote(seller.origin.postal_code if seller.origin else "", buyer.postal_code,
+                            max(1, v.weight_gram) * qty, v.price * qty)
         if courier:
             chosen = [r for r in rates if r.courier == courier.lower()]
             if not chosen:
@@ -103,11 +112,15 @@ class CheckoutService:
             seller_id=seller.id, buyer=buyer, sell_mode=mode,
             status=OrderStatus.AWAITING_SELLER_CONFIRMATION if mode == SellMode.CONFIRM_FIRST else OrderStatus.AWAITING_PAYMENT,
             items=[OrderItem(product_id=product.id, variant_id=v.id, sku=v.sku,
-                             title=f"{product.title} ({v.label})", qty=qty, unit_price=v.price)],
+                             title=f"{product.title} ({v.label})", qty=qty, unit_price=v.price,
+                             weight_gram=max(1, v.weight_gram))],
             currency=COUNTRY_PACKS[buyer.country].currency,
             subtotal=subtotal, shipping_rate=rate, shipping_fee=rate.price, total=subtotal + rate.price,
         )
         ttl = self.settings.seller_confirm_timeout_minutes if mode == SellMode.CONFIRM_FIRST else self.settings.reservation_ttl_minutes
+        limit = getattr(self.payment, "max_amount", None)   # QRIS caps a single payment (Xendit: Rp10,000,000)
+        if limit and order.total > limit:
+            raise CheckoutError(f"orders above Rp{limit:,} cannot be paid by QRIS; reduce the quantity".replace(",", "."))
         order.expires_at = now() + timedelta(minutes=ttl)
         try:
             self.store.reserve(order.id, product.id, v.id, qty, order.expires_at)
@@ -290,7 +303,8 @@ class CheckoutService:
                                 waybill=waybill, status="picked_up")
         else:
             origin = seller.origin
-            shipment = self.shipping.book(order, seller.name, seller.whatsapp, origin.line1 if origin else "")
+            shipment = self.shipping.book(order, seller.name, seller.whatsapp, origin.line1 if origin else "",
+                                          origin.postal_code if origin else "")
 
         def ship(o: Order) -> bool:
             if o.status != OrderStatus.ACCEPTED:
@@ -305,8 +319,9 @@ class CheckoutService:
         return order
 
     def shipment_update(self, key: str, status: str) -> Order | None:
-        """Courier webhook (key = waybill or order id). DELIVERED releases the payout."""
-        found = self.store.get_order(key) or self._order_by_waybill(key)
+        """Courier webhook (key = our order id, the waybill, or the aggregator's order/tracking id).
+        DELIVERED releases the payout."""
+        found = self.store.get_order(key) or self._order_by_shipment_key(key)
         if found is None or found.shipment is None:
             return found
         if status == "delivered":
@@ -322,6 +337,8 @@ class CheckoutService:
             if o.shipment.status in ("delivered", "returned"):
                 return False  # late or out-of-order courier events never move status backwards
             o.shipment.status = status
+            if status == "failed":
+                o.log("the courier could not deliver this parcel (cancelled, rejected or lost); the seller must follow up")
             if status == "delivered" and o.status == OrderStatus.SHIPPED:
                 o.status = OrderStatus.DELIVERED
                 o.log("delivered (confirmed with courier)")
@@ -428,10 +445,13 @@ class CheckoutService:
             raise CheckoutError("order not found")
         return order
 
-    def _order_by_waybill(self, waybill: str) -> Order | None:
-        # Prototype scan. Production: a Firestore query on shipment.waybill (single-field index).
+    def _order_by_shipment_key(self, key: str) -> Order | None:
+        # Prototype scan. Production: Firestore queries on shipment.waybill / provider_order_id / tracking_id.
+        if not key:
+            return None
         for seller_id in {p.seller_id for p in self.store.list_products()}:
             for o in self.store.list_orders(seller_id):
-                if o.shipment and o.shipment.waybill == waybill:
+                sh = o.shipment
+                if sh and key in (sh.waybill, sh.provider_order_id, sh.tracking_id):
                     return o
         return None

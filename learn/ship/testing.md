@@ -1,6 +1,6 @@
 # Testing
 
-How Etalase's 139 automated tests are organised, what each file proves, how to run and extend them, and what still has to be measured before a pilot.
+How Etalase's 214 automated tests are organised, what each file proves, how to run and extend them, and what still has to be measured before a pilot.
 
 ::: tip What you will learn
 - The layout of `prototype/tests/`, the fixtures in `conftest.py` and the regression tests for fixed bugs
@@ -19,7 +19,7 @@ All tests run offline in in a couple of seconds. ADR 0005 (`docs/adr/0005-adapte
 ```bash
 cd prototype
 pip install -r requirements-dev.txt
-pytest -q          # 139 passed
+pytest -q          # 214 passed
 ```
 
 ## How the suite is organised
@@ -34,9 +34,13 @@ pytest -q          # 139 passed
 | `tests/test_api.py` | 12 | The HTTP layer through FastAPI's `TestClient`: discovery, WhatsApp webhook, Connector key, MCP tool list, OpenAPI, `/dev` protection, webhook tokens, Meta signature, CSP and media route, oversized input |
 | `tests/test_regressions.py` | 9 | Bugs found while writing this guide, each with the test that failed before the fix: transaction retries, purpose-bound signatures, "Which product?", late Available taps, OMS-owned stock, short titles and plural search, shipment status never going backwards, unknown couriers |
 | `tests/test_ucp.py` | 16 | Etalase as a real UCP business server: the profile validates against the official `ucp-sdk` schema, a full checkout (create, update, complete, cancel) with every response validated by the SDK's `Checkout` model, idempotency, closed sessions, protocol errors, escaping, sold-out and confirm-first orders |
-| `tests/test_doctor.py` | 12 | The setup doctor: each service reports skip, ok or fail with a fix hint, with the network mocked; no key value is ever printed |
+| `tests/test_doctor.py` | 13 | The setup doctor: each service reports skip, ok or fail with a fix hint, with the network mocked; no key value is ever printed |
 | `tests/test_evals.py` | 17 | The extraction eval's scoring (title tokens, effective prices, invented price/stock/product counters, question behaviour), so the number on the slide is trustworthy |
 | `tests/test_scripts.py` | 7 | `scripts/env_to_cloud.py` and the deploy script's dry run: secrets travel on stdin only, unchanged secrets get no new version, nothing leaks into output |
+| `tests/test_biteship.py` | 21 | Biteship contract with a fake HTTP layer: rate request and response, order booking body (postal code, item weights, `reference_id`), error bodies, `order.status` webhook parsing by Biteship id / tracking id / waybill, status map, delivery re-check by tracking id |
+| `tests/test_xendit.py` | 9 | Xendit QRIS contract: request headers and body, UTC expiry format, QR id kept, `qr.payment` webhook parsing and ignored events, the Rp10.000.000 cap, error logging |
+| `tests/test_whatsapp.py` | 12 | WhatsApp Cloud API contract: send bodies (`+` prefix, button limits), template payloads, free-form then template on error 131047, failed-status parsing, and a check that the template list matches what notifications send |
+| `tests/test_gemini.py` | 32 | Gemini contract with a recorded client: model and key aliases, retry options, audio and image MIME types, size budget, temperature rule for Gemini 3, response parsing and errors, offline fallback, seller-agent failure replies |
 
 The parametrised tests in `test_parsing.py` count once per case, which is why 8 functions make 23 tests.
 

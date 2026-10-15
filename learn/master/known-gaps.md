@@ -31,11 +31,11 @@ These parts have real code paths, but the demo runs a stand-in. Each switches on
 
 | Part | Demo uses | Real adapter | What is still missing to go live |
 |---|---|---|---|
-| Catalog extraction <Badge type="warning" text="Mocked in demo" /> | `HeuristicExtractor` (text and CSV rules) | `GeminiExtractor` with Vertex AI or an API key | No accuracy eval yet; no timeout or fallback if Gemini fails |
+| Catalog extraction <Badge type="warning" text="Mocked in demo" /> | `HeuristicExtractor` (text and CSV rules) | `GeminiExtractor` with Vertex AI or an API key | Live accuracy not measured yet (run `make eval` with a key); retries and an offline fallback exist, but no explicit request timeout |
 | Seller chat <Badge type="warning" text="Mocked in demo" /> | Offline intent parser | ADK `LlmAgent` with five tools | Sessions in memory (`InMemorySessionService`); errors leave the seller with no reply |
-| Messaging <Badge type="warning" text="Mocked in demo" /> | `ConsoleMessenger` (outbox list) | `WhatsAppCloudMessenger` | Approved templates; per-message cost control; media types tested only against the mapping, not the live API |
-| Payments <Badge type="warning" text="Mocked in demo" /> | `MockPayment` (fake QRIS, instant refunds and releases) | `XenditPayment` (dynamic QRIS, callback token) | Refunds and xenPlatform settlement raise `ManualActionRequired` (an operator finishes them); field names to verify |
-| Shipping <Badge type="warning" text="Mocked in demo" /> | `MockShipping` (three couriers, `confirm_delivered` always true) | `BiteshipShipping` | Field names, tracking endpoint and booking payload to verify against the live API |
+| Messaging <Badge type="warning" text="Mocked in demo" /> | `ConsoleMessenger` (outbox list) | `WhatsAppCloudMessenger` | Templates must be created and approved by you (the code sends them); authentication template for sign-in codes; per-message cost control; media types and the template payload are tested against the documented shape, not the live API |
+| Payments <Badge type="warning" text="Mocked in demo" /> | `MockPayment` (fake QRIS, instant refunds and releases) | `XenditPayment` (dynamic QRIS, callback token) | Refunds and xenPlatform settlement raise `ManualActionRequired` (an operator finishes them); uses the `/qr_codes` endpoint that Xendit calls legacy, and its official reference could not be opened, so the payload is community-sourced and unverified |
+| Shipping <Badge type="warning" text="Mocked in demo" /> | `MockShipping` (three couriers, `confirm_delivered` always true) | `BiteshipShipping` | Checked against Biteship's public docs (rates, orders, tracking, `order.status` webhook) and pinned by tests; not run against the live API; test mode bills rate and tracking calls |
 | Database <Badge type="warning" text="Mocked in demo" /> | `MemoryStore` (one lock) | `FirestoreStore` (transactions) | Never run against the emulator in tests; see the Firestore section below |
 | KYC <Badge type="warning" text="Mocked in demo" /> | `/dev/sellers` creates sellers with `kyc_status="verified"`; `payout_account_id` is `"mock-sub-account"` only with the mock payment adapter (`None` with real Xendit test keys) | None yet | A registration flow and sub-account creation at the provider |
 | Instagram import <Badge type="warning" text="Mocked in demo" /> | `SampleInstagramSource` (three sample posts) | `InstagramGraphSource` with Instagram Login | Long-lived token exchange, token encryption, Meta App Review |
@@ -50,7 +50,7 @@ These are ordered by risk to the submission. Registration closes on 11 October, 
 | D1 | Placeholders: team in `README.md` and slide 1, screenshots on slide 10, links on slide 13 | Judges see these first | Fill them in; the deck must link the public repo, the video and the Cloud Run URL |
 | D2 | Benchmark slide has five "TBD" rows (extraction accuracy, build time, tool latency, alert speed, intent accuracy) | Technical Merit is 40%; numbers beat promises | Run what you can (see [Exercise 17](/master/exercises#_17-build-the-gemini-extraction-eval)); otherwise keep "TBD" and say why. Never fill in a guess |
 | D3 | Real WhatsApp voice notes and CSV files: the fixed MIME mapping in `download_media` has no unit test and has never run against the live Cloud API | The voice-note scene is the heart of the video | Record a test voice note and send a CSV through the real Cloud API before filming |
-| D4 | WhatsApp 24-hour window: the prototype sends only free-form messages, and messages that start a conversation need approved templates | The "New paid order" alert can fail on camera | Send a message from the seller's phone to the Etalase number just before recording, and register that phone as a test recipient |
+| D4 | WhatsApp 24-hour window: alerts Etalase starts fall back to approved templates, but only if you created them in WhatsApp Manager, and sign-in codes are never templated | The "New paid order" alert or the dashboard code can fail on camera | Create the four templates ([guide](/ship/whatsapp-templates)), and send a message from the seller's phone to the Etalase number just before recording, with that phone registered as a test recipient |
 | D5 | The demo buyer agent must point to the deployed MCP URL | Otherwise it shops on localhost | `ETALASE_MCP_URL=<cloud run url>/mcp/` (checklist in `docs/13-demo-script.md`) |
 | D6 | Evidence: the exact BPS table number is still open in `docs/15-evidence.md` | The 95% number is your headline | Download the BPS PDF and note the table |
 
@@ -99,7 +99,7 @@ There is no registration flow. An unknown number is told to sign up at the dashb
 
 ### Messaging
 
-- Approved WhatsApp templates: *utility* for order alerts outside the 24-hour window, *authentication* for sign-in codes. The code sends free-form text everywhere today.
+- An approved WhatsApp *authentication* template for sign-in codes. Order alerts already fall back to *utility* templates (you create them once); codes are free-form today.
 - Event handlers swallow errors (`EventBus.publish` logs and continues), so a failed WhatsApp send silently loses an alert. Pub/Sub retries fix that ([Exercise 18](/master/exercises#_18-make-events-durable-with-pub-sub)).
 - Pricing for service messages is unclear (Meta says free; BSP rate cards list charges from October 2026). Confirm with the BSP ([Evidence](/business/evidence)).
 
@@ -113,7 +113,7 @@ There is no registration flow. An unknown number is told to sign up at the dashb
 ### AI quality
 
 - No extraction eval and no intent eval yet: the 90% and 95% targets in `docs/12-benchmark-plan.md` are unmeasured.
-- No Gemini timeout or fallback; a failing call means no reply to the seller ([Exercise 10](/master/exercises#_10-fall-back-to-offline-rules-when-gemini-fails)).
+- Gemini calls are retried and fall back to the offline rules, and a failing seller agent tells the seller to try again; there is still no explicit request timeout ([Exercise 10](/master/exercises#_10-fall-back-to-offline-rules-when-gemini-fails)).
 - Prompt-injection defences (the `content_note`, session-scoped tenant id, no money or order actions for the model) are mitigations without a red-team test.
 
 ### Bugs and mismatches found by reading the code

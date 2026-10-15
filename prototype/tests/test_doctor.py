@@ -131,6 +131,18 @@ def test_biteship_uses_the_real_adapter(monkeypatch):
     assert doctor.check_biteship(settings(biteship_api_key="k"), live=True).status == doctor.FAIL
 
 
+def test_biteship_failures_say_what_to_do(monkeypatch):
+    def failing(msg):
+        def post(*a, **k):
+            raise RuntimeError(msg)
+        return post
+    monkeypatch.setattr(httpx, "post", failing("Biteship HTTP 402: insufficient balance (code 40001)"))
+    assert "Top up" in doctor.check_biteship(settings(biteship_api_key="biteship_test.x"), live=True).hint
+    monkeypatch.setattr(httpx, "post", failing("Biteship HTTP 401: invalid api key"))
+    assert "does not look like" in doctor.check_biteship(settings(biteship_api_key="abc"), live=True).hint
+    assert "Testing mode" in doctor.check_biteship(settings(biteship_api_key="biteship_test.x"), live=True).hint
+
+
 def test_instagram_needs_both_values():
     assert doctor.check_instagram(settings(instagram_app_id="1")).status == doctor.FAIL
     assert doctor.check_instagram(settings(instagram_app_id="1", instagram_app_secret="2")).status == doctor.INFO

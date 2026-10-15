@@ -58,7 +58,8 @@ All templates live in `seller/i18n.py` in English and Bahasa Indonesia (`SELLER_
 ## WhatsApp rules and costs
 
 - Messages that start a conversation (for example a new-order alert outside the 24-hour window) must
-  use **approved templates**; replies inside the window can be free-form.
+  use **approved templates**; replies inside the window can be free-form. The adapter tries free-form first and falls back
+  to the template on error 131047; the four utility templates are defined in `adapters/whatsapp_templates.py`.
 - Meta charges per business message; from October 2026 this includes service replies. Notifications
   are kept short and combined, and order alerts use the cheaper *utility* category.
 - Media URLs from the webhook expire, so files are downloaded immediately.

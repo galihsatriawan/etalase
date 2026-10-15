@@ -85,7 +85,7 @@ URL="https://${SERVICE}-${PROJECT_NUMBER}.${REGION}.run.app"
 say "Keys and settings from $ENV_FILE (names only; values are never printed)"
 SYNC="$(python3 scripts/env_to_cloud.py --project "$PROJECT_ID" --env-file "$ENV_FILE" --gemini-auth "${GEMINI_AUTH:-auto}" \
   ${DRY_RUN:+--dry-run} \
-  --default SELLER_LOCALE=en --default GEMINI_MODEL=gemini-2.5-flash --default GOOGLE_CLOUD_LOCATION=asia-southeast1 \
+  --default SELLER_LOCALE=en --default GEMINI_MODEL=gemini-3.8-flash --default GOOGLE_CLOUD_LOCATION=asia-southeast1 \
   --fixed "ETALASE_ENV=${ENV_MODE}" --fixed "PUBLIC_BASE_URL=${URL}" --fixed "STORE_BACKEND=${STORE_BACKEND:-memory}" \
   --fixed "GOOGLE_CLOUD_PROJECT=${PROJECT_ID}")"
 ENV_VARS="$(printf '%s\n' "$SYNC" | sed -n 's/^ENV_VARS=//p')"

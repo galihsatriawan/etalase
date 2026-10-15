@@ -11,14 +11,16 @@ from __future__ import annotations
 
 import csv
 import io
-import mimetypes
+import logging
 import re
 from pathlib import Path
 from typing import Protocol
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ValidationError
 
 from .normalize import canonical_color, clean_title, guess_category, parse_price
+
+log = logging.getLogger("etalase.extractor")
 
 
 class ExtractedAttribute(BaseModel):
@@ -191,35 +193,100 @@ Rules:
 - Titles in the seller's language, title case, no emojis."""
 
 
+class ExtractionError(RuntimeError):
+    """Gemini answered, but not with a usable catalog (blocked, empty, cut off, or not matching the schema)."""
+
+
+# Gemini accepts these audio/image types (ai.google.dev, 2026-10-15). WhatsApp voice notes are Ogg/Opus; AMR is not accepted.
+AUDIO_MIME = {".ogg": "audio/ogg", ".oga": "audio/ogg", ".opus": "audio/opus", ".mp3": "audio/mpeg", ".m4a": "audio/m4a",
+              ".aac": "audio/aac", ".wav": "audio/wav", ".flac": "audio/flac", ".aiff": "audio/aiff", ".webm": "audio/webm"}
+IMAGE_MIME = {".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png", ".webp": "image/webp",
+              ".heic": "image/heic", ".heif": "image/heif"}
+# A request may be 20 MB in total and inline data is base64 (a third larger), so stay well under in raw bytes.
+MAX_INLINE_BYTES = 14 * 1024 * 1024
+
+
 class GeminiExtractor:
     def __init__(self, model: str, use_vertex: bool = False, project: str | None = None,
                  location: str | None = None, api_key: str | None = None) -> None:
         from google import genai
+        from google.genai import types
 
+        # The SDK makes one attempt by default. Retry rate limits and transient server errors with backoff.
+        http = types.HttpOptions(retry_options=types.HttpRetryOptions(
+            attempts=4, initial_delay=1.0, max_delay=20.0, exp_base=2.0, http_status_codes=[429, 500, 503, 504]))
         if use_vertex:
-            self.client = genai.Client(vertexai=True, project=project, location=location)
+            self.client = genai.Client(vertexai=True, project=project, location=location, http_options=http)
         else:
-            self.client = genai.Client(api_key=api_key)
+            self.client = genai.Client(api_key=api_key, http_options=http)
         self.model = model
+
+    def _media_parts(self, paths: list[str], table: dict[str, str], skipped: list[str], budget: list[int]) -> list:
+        from google.genai import types
+
+        parts = []
+        for p in paths:
+            mime = table.get(Path(p).suffix.lower())
+            size = Path(p).stat().st_size
+            if mime is None or size > budget[0]:
+                skipped.append(Path(p).name)           # unsupported type (for example AMR) or no room left in the request
+                continue
+            budget[0] -= size
+            parts.append(types.Part.from_bytes(data=Path(p).read_bytes(), mime_type=mime))
+        return parts
 
     def extract(self, texts, image_paths=None, audio_paths=None) -> ExtractedCatalog:
         from google.genai import types
 
         parts: list = [types.Part.from_text(text=PROMPT)]
-        for p in (image_paths or []) + (audio_paths or []):
-            mime = mimetypes.guess_type(p)[0] or "application/octet-stream"
-            parts.append(types.Part.from_bytes(data=Path(p).read_bytes(), mime_type=mime))
+        skipped: list[str] = []
+        budget = [MAX_INLINE_BYTES]
+        parts += self._media_parts(image_paths or [], IMAGE_MIME, skipped, budget)
+        parts += self._media_parts(audio_paths or [], AUDIO_MIME, skipped, budget)
         for t in texts:
             parts.append(types.Part.from_text(text=f"Seller message:\n{t}"))
+        # Gemini 3 models are meant to run at their default temperature (Google's guide warns about looping otherwise).
+        config = dict(response_mime_type="application/json", response_schema=ExtractedCatalog)
+        if not self.model.startswith("gemini-3"):
+            config["temperature"] = 0.1
         resp = self.client.models.generate_content(
-            model=self.model,
-            contents=[types.Content(role="user", parts=parts)],
-            config=types.GenerateContentConfig(
-                response_mime_type="application/json",
-                response_schema=ExtractedCatalog,
-                temperature=0.1,
-            ),
-        )
-        if getattr(resp, "parsed", None):
-            return resp.parsed
-        return ExtractedCatalog.model_validate_json(resp.text)
+            model=self.model, contents=[types.Content(role="user", parts=parts)],
+            config=types.GenerateContentConfig(**config))
+        catalog = self._parse(resp)
+        if skipped:
+            catalog.questions.append("I could not read these files (unsupported type or too large): "
+                                     + ", ".join(skipped) + ". Please describe them in a message.")
+        return catalog
+
+    @staticmethod
+    def _parse(resp) -> ExtractedCatalog:
+        parsed = getattr(resp, "parsed", None)
+        if isinstance(parsed, ExtractedCatalog):
+            return parsed
+        text = (resp.text or "").strip()
+        if not text:
+            feedback = getattr(resp, "prompt_feedback", None)
+            reason = getattr(feedback, "block_reason", None)
+            finish = (resp.candidates[0].finish_reason if getattr(resp, "candidates", None) else None)
+            raise ExtractionError(f"Gemini returned no text (blocked: {reason}; finish reason: {finish})")
+        if text.startswith("```"):                      # JSON wrapped in a code fence
+            text = text.strip("`").removeprefix("json").strip()
+        try:
+            return ExtractedCatalog.model_validate_json(text)
+        except ValidationError as e:
+            raise ExtractionError(f"Gemini's answer did not match the catalog schema: {e.errors()[0]['msg']}") from e
+
+
+class FallbackExtractor:
+    """Gemini first. If the call fails or returns nothing usable, the offline rules still answer the seller, so a rate
+    limit or an outage degrades the catalog builder instead of silencing it. Evals and the doctor use Gemini directly."""
+
+    def __init__(self, primary: CatalogExtractor, fallback: CatalogExtractor) -> None:
+        self.primary, self.fallback = primary, fallback
+
+    def extract(self, texts, image_paths=None, audio_paths=None) -> ExtractedCatalog:
+        try:
+            return self.primary.extract(texts, image_paths, audio_paths)
+        except Exception:
+            log.warning("Gemini extraction failed; using the offline rules", exc_info=True)
+            return self.fallback.extract(texts, image_paths, audio_paths)

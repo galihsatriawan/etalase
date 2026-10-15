@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import hashlib
 import hmac
+import logging
 import secrets
 import time
 from typing import TYPE_CHECKING
@@ -19,6 +20,7 @@ if TYPE_CHECKING:
 
 CODE_TTL = 5 * 60
 SESSION_TTL = 7 * 24 * 3600
+log = logging.getLogger("etalase.auth")
 MAX_ATTEMPTS = 5              # wrong guesses per code
 RESEND_COOLDOWN = 60          # seconds between codes for one number
 MAX_CODES_PER_HOUR = 5        # codes sent per number per hour (caps WhatsApp cost)
@@ -48,7 +50,12 @@ class OtpAuth:
             return
         code = f"{secrets.randbelow(10**6):06d}"
         self._codes[number] = (self._h(code), time.time() + CODE_TTL, 0)
-        self.ctx.messenger.send_text(number, self.ctx.t("otp", code=code))
+        try:
+            self.ctx.messenger.send_text(number, self.ctx.t("otp", code=code))
+        except Exception:
+            # Outside WhatsApp's 24-hour window a free-form message is refused. Stay silent to the caller (no number
+            # enumeration); the sign-in page tells the seller to message the Etalase number first.
+            log.warning("could not send the sign-in code to %s", number[-4:].rjust(len(number), "*"), exc_info=True)
 
     def verify(self, number: str, code: str) -> str | None:
         if self.locked(number):

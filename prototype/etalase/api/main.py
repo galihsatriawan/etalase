@@ -15,7 +15,7 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, PlainTex
 from pydantic import BaseModel, Field
 
 from ..adapters import instagram
-from ..adapters.messaging import ConsoleMessenger, Inbound, parse_whatsapp_webhook
+from ..adapters.messaging import ConsoleMessenger, Inbound, parse_whatsapp_webhook, whatsapp_failed_statuses
 from ..connector.service import OrderStatusIn, ProductIn, StockIn
 from ..container import AppContext, build_context
 from ..gateway import discovery, ucp as ucp_protocol
@@ -177,7 +177,10 @@ async def whatsapp_inbound(request: Request):
             raise HTTPException(401, "bad signature")
     else:
         require_webhook_token(request, ctx.settings)  # console mode: our own token
-    for msg in parse_whatsapp_webhook(await request.json()):
+    body = await request.json()
+    for failed in whatsapp_failed_statuses(body):   # delivery failures show up here, after the API accepted the send
+        log.warning("WhatsApp delivery failed: %s", failed)
+    for msg in parse_whatsapp_webhook(body):
         try:
             await ctx.inbox.handle(msg)
         except Exception:  # acknowledge anyway, or Meta retries the same message for days

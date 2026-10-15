@@ -17,18 +17,24 @@ mock QRIS, mock courier rates, console instead of WhatsApp). What each key buys 
 
 | Section | Fill in | Without it | Needed for |
 |---|---|---|---|
-| [1. Gemini](#1-gemini-the-one-that-matters-most) | `GOOGLE_API_KEY` **or** a Google Cloud project | rule-based extraction (49% on our labelled set) | the Gen AI score: real extraction, the seller and buyer agents |
+| [1. Gemini](#1-gemini-the-one-that-matters-most) | `GOOGLE_API_KEY` (or `GEMINI_API_KEY`) **or** a Google Cloud project | rule-based extraction (49% on our labelled set) | the Gen AI score: real extraction, the seller and buyer agents |
 | [2. Deploy](#2-deploy-to-cloud-run) | a Google Cloud project with billing | runs on your laptop only | the public prototype link the submission asks for |
-| [3. WhatsApp](#3-whatsapp-business-cloud-api) | 4 values | orders print in the terminal | the "order lands in the seller's WhatsApp" demo |
+| [3. WhatsApp](#3-whatsapp-business-cloud-api) | 4 values + 4 message templates | orders print in the terminal | the "order lands in the seller's WhatsApp" demo |
 | [4. Xendit](#4-xendit-qris) | 2 values | mock QRIS | real QR codes |
-| [5. Biteship](#5-biteship-courier-rates) | 1 value | mock rates | real courier rates |
+| [5. Biteship](#5-biteship-couriers) | 1 value + a small balance | mock rates | real courier rates |
 | [6. Instagram](#6-instagram-optional) | 2 values | bundled sample posts | importing a seller's real posts |
 
 **Minimum for a convincing submission: sections 1 and 2.** Sections 3 to 6 make the demo more real; add them in order of the
-time you have. Keep Xendit and Biteship in test mode for the competition: nobody needs real money to move.
+time you have. Keep Xendit and Biteship in test mode for the competition: no real parcel moves and no customer pays. (Biteship still bills
+test-mode rate and tracking calls to your balance, a few rupiah each; see section 5.)
 
-> The provider dashboards (Meta, Xendit, Biteship) rename menus often and this sandbox cannot open them, so the menu names
-> below are my best knowledge of the current layout. If one has moved, search the dashboard for the value's name; `make doctor` is the real test.
+> **What was checked and what was not.** The request and response shapes for Gemini, WhatsApp, Xendit and Biteship were
+> compared with each provider's public documentation on 2026-10-15, and unit tests pin them (`tests/test_gemini.py`,
+> `test_whatsapp.py`, `test_xendit.py`, `test_biteship.py`). Nothing here has talked to a live provider, because this
+> sandbox has no keys. `make doctor` is the first real test. The dashboards (Meta, Xendit, Biteship) rename menus often and
+> could not be opened, so menu names below are best knowledge; if one has moved, search the dashboard for the value's name.
+> Xendit's current official reference for the QR endpoint could not be opened; its payload comes from Xendit's migration
+> guide and community-published samples (details in section 4).
 
 ## 1. Gemini (the one that matters most)
 
@@ -36,12 +42,20 @@ Pick one.
 
 **A. API key (fastest, 2 minutes)**
 1. Open <https://aistudio.google.com/apikey> and create a key.
-2. In `.env`: `GOOGLE_API_KEY=<the key>` (leave `GOOGLE_GENAI_USE_VERTEXAI=false`).
+2. In `.env`: `GOOGLE_API_KEY=<the key>` (`GEMINI_API_KEY` works too; leave `GOOGLE_GENAI_USE_VERTEXAI=false`).
 
 **B. Vertex AI (what the Cloud Run deploy uses when there is no key)**
 1. A Google Cloud project with billing enabled, and `gcloud services enable aiplatform.googleapis.com`.
 2. `gcloud auth application-default login`
 3. In `.env`: `GOOGLE_GENAI_USE_VERTEXAI=true`, `GOOGLE_CLOUD_PROJECT=<project id>`, `GOOGLE_CLOUD_LOCATION=asia-southeast1`.
+   If the doctor says the model is not found in that region, set `GOOGLE_CLOUD_LOCATION=global`.
+
+**Model.** The default is `GEMINI_MODEL=gemini-3.8-flash`. Google now limits the older `gemini-2.5-*` models to people who
+already used them, so a new key may get "not found" on 2.5. Alternatives if you want to trade quality for cost:
+`gemini-3.5-flash-lite`. Gemini 3 models are called at their default temperature on purpose.
+
+Requests are retried (4 attempts with backoff on 429/500/503/504). If Gemini still fails, catalog extraction falls back to the
+offline rules and the seller agent answers "please try again in a minute" instead of staying silent.
 
 Then `make doctor` makes one real call and shows what it extracted from a sample message, and
 **`make eval` measures extraction accuracy on 43 labelled cases** and writes `prototype/evals/results/latest.md`.
@@ -70,40 +84,80 @@ The default is `STORE_BACKEND=memory` and one instance, which is right for a dem
 
 ## 3. WhatsApp Business Cloud API
 
-You need four values: `WHATSAPP_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_APP_SECRET`, `WHATSAPP_VERIFY_TOKEN`.
-They are required together (the doctor says so if one is missing).
+You need four values: `WHATSAPP_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_APP_SECRET`, `WHATSAPP_VERIFY_TOKEN`
+(required together; the doctor says so if one is missing), plus four message templates (step 7).
 
-1. <https://developers.facebook.com/apps> → **Create app** → type **Business** → add the **WhatsApp** product.
-2. **WhatsApp → API Setup**: copy the **Phone number ID** (`WHATSAPP_PHONE_NUMBER_ID`) and the **temporary access token**
-   (`WHATSAPP_TOKEN`; it lasts 24 hours, which is fine for a rehearsal). Add the phone you will test with as a recipient.
-   For anything longer than a day, create a **System User** in Business Settings and generate a permanent token with
-   `whatsapp_business_messaging` and `whatsapp_business_management`.
-3. **App settings → Basic → App secret** → `WHATSAPP_APP_SECRET`. The server rejects any webhook without a valid
+1. <https://developers.facebook.com/apps> → **Create app** → choose the use case **Connect with customers through WhatsApp**
+   (older flow: type **Business**, then add the **WhatsApp** product). Link or create a Business portfolio when asked.
+2. **WhatsApp → API Setup**: copy the **Phone number ID** (`WHATSAPP_PHONE_NUMBER_ID`). Meta gives you a free test number;
+   you can add up to 5 recipient phones, each confirmed with a code Meta sends to it. Use your own phone as the "seller".
+3. Token. The temporary token on that page lasts 24 hours: fine for a rehearsal, not for a recording day.
+   For a permanent one: **Business Settings → Users → System users** → add a system user → **Add assets** → give it your app
+   (*Manage app*) and your WhatsApp account (*Full control*) → **Generate token** with the permissions
+   `whatsapp_business_messaging` and `whatsapp_business_management` (plus `business_management` if Meta lists it as required)
+   → `WHATSAPP_TOKEN`.
+4. **App settings → Basic → App secret** → `WHATSAPP_APP_SECRET`. The server rejects any webhook without a valid
    `X-Hub-Signature-256`, so this one is not optional.
-4. `WHATSAPP_VERIFY_TOKEN`: any long random string you invent. It must not stay `etalase-dev-verify`.
-5. **WhatsApp → Configuration → Webhook**: callback URL `https://<your service>/webhooks/whatsapp`, verify token = the string from
-   step 4, then subscribe to the **messages** field. (After `make deploy` the URL is printed. Locally, use a tunnel such as
+5. `WHATSAPP_VERIFY_TOKEN`: any long random string you invent. It must not stay `etalase-dev-verify`.
+6. **WhatsApp → Configuration → Webhook**: callback URL `https://<your service>/webhooks/whatsapp`, verify token = the string from
+   step 5, then subscribe to the **messages** field. (After `make deploy` the URL is printed. Locally, use a tunnel such as
    `cloudflared tunnel --url http://localhost:8080` and set `PUBLIC_BASE_URL` to it.)
-6. `make doctor` calls Meta with the token and prints the phone number it found.
+7. **Create the four templates**, category **Utility**, in the language of `SELLER_LOCALE` (`en` default). They are listed, with
+   exact names, bodies, buttons and sample values, in [learn/ship/whatsapp-templates.md](learn/ship/whatsapp-templates.md);
+   `cd prototype && python -m etalase.adapters.whatsapp_templates` prints the same list. Approval takes minutes to a day,
+   so do this first.
+8. `make doctor` calls Meta with the token and prints the phone number it found.
 
-Meta only lets a test number message the recipients you added, until the business is verified.
+**The 24-hour rule, in practice.** WhatsApp lets a business send free-form messages and buttons only within 24 hours of the
+person's last message to it. Everything that is a *reply* (catalog, stock updates, order buttons) works. Alerts Etalase starts
+itself (stock check, new paid order, payout) try free-form first and, if Meta answers error 131047, are re-sent as the
+templates from step 7. So: **before each demo, send "hi" from the seller phone to the Etalase WhatsApp number** (this also
+opens the window for the sign-in code of the dashboard), and have the templates approved as the safety net.
+
+**Not verified live:** the template message payload (it follows Meta's documented shape and is pinned by tests), inbound CSV
+documents (Meta's list of supported document types is not explicit about `text/csv`; send a spreadsheet as text if it fails),
+and AMR voice notes (Gemini does not accept AMR, so the seller is asked to describe the item in text).
 
 ## 4. Xendit (QRIS)
 
-1. <https://dashboard.xendit.co> → switch to **Test mode** → **Settings → API Keys** → generate a key with write access to
-   *Money-in products* → `XENDIT_SECRET_KEY` (`xnd_development_...`).
-2. **Settings → Webhooks**: copy the **Callback verification token** → `XENDIT_CALLBACK_TOKEN`. Register
-   `https://<your service>/webhooks/payment` as the URL for QR code payments.
-3. `make doctor` checks the key against the balance endpoint and warns if you pasted a live key while `ETALASE_ENV=dev`.
+1. <https://dashboard.xendit.co> → switch to **Test mode** (no business activation needed) → **Settings → API Keys** → generate
+   a secret key with **Write** on *Money-in products*, plus **Read** on *Money-out products* (that read permission is only
+   used by the doctor's balance check; without it the doctor warns "key accepted but cannot read balance", which is fine)
+   → `XENDIT_SECRET_KEY` (`xnd_development_...`).
+2. **Settings → Developers → Callbacks**: copy the **Webhook verification token** → `XENDIT_CALLBACK_TOKEN`. Set the callback
+   URL for **QR code paid & refunded** to `https://<your service>/webhooks/payment`. Xendit sends that token in the
+   `x-callback-token` header; the server rejects anything else.
+3. `make doctor` checks the key with a read-only balance call and warns if you pasted a live key while `ETALASE_ENV=dev`
+   (a key and callback token from different modes is the usual cause of a 401).
+4. To "pay" a test QR, use the payment simulator in the Xendit dashboard (QR code section, test mode) or Xendit's
+   "simulate payment" API for the QR code id. The id is stored on the order.
 
-Use your Xendit account's current API reference to confirm QR Codes availability for your region; the adapter header
-(`api-version`) and payload are in `prototype/etalase/adapters/payment.py`.
+**Limits and caveats**
+- QRIS orders are capped at **Rp10.000.000**; larger checkouts are refused with a clear message instead of failing at Xendit.
+- The adapter uses `POST /qr_codes` (`api-version: 2022-07-31`, `type: DYNAMIC`, `callback_url`, `expires_at`). Xendit's
+  migration guide calls this endpoint **legacy** (the newer one is `/v3/payment_requests` with channel code `QRIS`) but gives no
+  retirement date. Xendit's current reference page for it could not be opened here, so the exact field names are community-sourced
+  and **unverified**. If `make doctor` or the first real checkout fails with a 400, the error body is logged: compare it with
+  your dashboard's API reference and adjust `etalase/adapters/payment.py` (one small class; `tests/test_xendit.py` pins
+  the shape we send).
 
-## 5. Biteship (courier rates)
+## 5. Biteship (couriers)
 
-1. <https://biteship.com> → create an account → **Integration / API keys** → create a **test** key
-   (`biteship_test...`) → `BITESHIP_API_KEY`.
-2. `make doctor` asks for a Jakarta to Bandung rate and prints the cheapest courier.
+1. <https://biteship.com> → create an account → open the dashboard's **Integrations / API** page → switch on **Testing mode**
+   and create an API key. A test key starts with `biteship_test.` (a live one with `biteship_live.`) → `BITESHIP_API_KEY`.
+2. **Top up a small balance.** Biteship's sandbox does not give free calls: checking rates and tracking are billed even with a test key,
+   and so is the doctor's rate check. A few thousand rupiah is plenty.
+3. Webhook (for delivery updates): in the dashboard's webhook settings register `https://<your service>/webhooks/shipping?token=<WEBHOOK_TOKEN>`
+   as the **test** webhook URL (`make deploy` prints the URL with a `<WEBHOOK_TOKEN>` placeholder; the value is the Secret Manager secret `etalase-webhook-token`). Etalase reads the `order.status` events.
+   Optionally add a header/signature in the dashboard if it offers one; Etalase relies on the `token` query parameter.
+4. `make doctor` asks for a Jakarta to Bandung rate and prints the cheapest courier. Use a real Jakarta/Bandung postal code
+   pair; the doctor sample already does.
+5. To move a test parcel: in the dashboard open the test shipment and change its status (the dashboard has a status simulator
+   for test orders), and the webhook arrives. Etalase re-checks delivery with Biteship before it pays the seller out.
+
+**Requirements the adapter already handles, which matter when you set up the seller:** the origin must have a postal code
+(it is sent as `origin_postal_code`), and every item needs a weight (Etalase sends the variant weight, at least 1 g).
+Orders are booked through `POST /v1/orders` with your order id as `reference_id`.
 
 ## 6. Instagram (optional)
 

@@ -92,6 +92,8 @@ def main(argv: list[str] | None = None) -> int:
     if not args.env_file.exists():
         print(f"No {args.env_file}: nothing to sync (run `make setup` and fill it in).", file=sys.stderr)
 
+    if env.get("GOOGLE_API_KEY", "") in PLACEHOLDERS and env.get("GEMINI_API_KEY", "") not in PLACEHOLDERS:
+        env["GOOGLE_API_KEY"] = env["GEMINI_API_KEY"]     # Google's newer docs call the variable GEMINI_API_KEY
     has_key = env.get("GOOGLE_API_KEY", "") not in PLACEHOLDERS
     use_api_key = has_key if args.gemini_auth == "auto" else args.gemini_auth == "apikey"
     if use_api_key and not has_key:

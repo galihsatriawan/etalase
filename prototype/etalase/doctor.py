@@ -55,7 +55,7 @@ def check_startup(s: Settings) -> Check:
 def check_gemini(s: Settings, live: bool, extractor_factory: Callable | None = None) -> Check:
     if not s.gemini_enabled:
         return Check("gemini", SKIP, "offline rules (no Gemini configured)",
-                     "Set GOOGLE_API_KEY, or GOOGLE_GENAI_USE_VERTEXAI=true with GOOGLE_CLOUD_PROJECT.")
+                     "Set GOOGLE_API_KEY (or GEMINI_API_KEY), or GOOGLE_GENAI_USE_VERTEXAI=true with GOOGLE_CLOUD_PROJECT.")
     if s.google_genai_use_vertexai and not s.google_cloud_project:
         return Check("gemini", FAIL, "Vertex AI is on but GOOGLE_CLOUD_PROJECT is empty", "Set GOOGLE_CLOUD_PROJECT.")
     mode = (f"Vertex AI {s.google_cloud_project}/{s.google_cloud_location}" if s.google_genai_use_vertexai
@@ -95,8 +95,9 @@ def _gemini_hint(message: str, s: Settings) -> str:
         return ("The key was rejected or blocked: check its API restrictions (Generative Language API must be allowed) "
                 "and that this network can reach generativelanguage.googleapis.com.")
     if "404" in low or "not found" in low:
-        return (f"Model '{s.gemini_model}' is not available in {s.google_cloud_location}. Try "
-                "GOOGLE_CLOUD_LOCATION=global or us-central1, or another GEMINI_MODEL.")
+        return (f"Model '{s.gemini_model}' is not available to this key or in {s.google_cloud_location}. Google limits "
+                "the older 2.5 models to existing users: use GEMINI_MODEL=gemini-3.8-flash (or gemini-3.5-flash-lite). "
+                "On Vertex AI also try GOOGLE_CLOUD_LOCATION=global.")
     if "default credentials" in low or "reauthentication" in low:
         return "Run: gcloud auth application-default login"
     if "429" in low or "resource_exhausted" in low:
@@ -140,7 +141,7 @@ def check_xendit(s: Settings, live: bool) -> Check:
         return Check("xendit", SKIP, "mock QRIS (no Xendit key)", "Needed only for real QRIS: see SETUP.md section 4.")
     if not s.xendit_callback_token:
         return Check("xendit", FAIL, "XENDIT_CALLBACK_TOKEN is empty",
-                     "Copy the callback verification token from Xendit dashboard > Webhooks.")
+                     "Copy the Webhook verification token from Xendit: Settings > Developers > Callbacks.")
     mode = "LIVE" if "production" in s.xendit_secret_key else "test"
     if mode == "LIVE" and s.is_dev:
         return Check("xendit", WARN, "a LIVE Xendit key is configured while ETALASE_ENV=dev",
@@ -155,8 +156,23 @@ def check_xendit(s: Settings, live: bool) -> Check:
         return Check("xendit", FAIL, _short(e), "Network problem; retry.")
     if r.status_code == 200:
         return Check("xendit", OK, f"{mode}-mode key accepted")
+    if r.status_code == 403:  # the key is real but cannot read balances; QR creation needs only Money-in write
+        return Check("xendit", WARN, f"{mode}-mode key accepted, but it cannot read the balance (HTTP 403)",
+                     "Fine for QRIS. To silence this, give the key Money-out read as well.")
     return Check("xendit", FAIL, f"HTTP {r.status_code}: {_short(r.text)}",
-                 "Wrong key, or the key lacks the permission to read balance (Money-in read is enough).")
+                 "Wrong or revoked key, or test and live keys mixed up (use the xnd_development_ key in test mode).")
+
+
+def _biteship_hint(message: str, s: Settings) -> str:
+    low = message.lower()
+    key = s.biteship_api_key or ""
+    if "balance" in low or "saldo" in low or "insufficient" in low:
+        return "Top up your Biteship balance: even test-mode rate checks are billed."
+    if "401" in low or "403" in low or "unauthor" in low or "invalid" in low:
+        if not key.startswith(("biteship_test.", "biteship_live.")):
+            return "That does not look like a Biteship key: they start with biteship_test. or biteship_live."
+        return "The key was rejected: copy it again from the Biteship dashboard (a test key needs Testing mode switched on)."
+    return "Check the key, the Biteship balance and that couriers are enabled in your dashboard."
 
 
 def check_biteship(s: Settings, live: bool) -> Check:
@@ -169,7 +185,7 @@ def check_biteship(s: Settings, live: bool) -> Check:
     try:
         rates = BiteshipShipping(s.biteship_api_key).get_rates("12950", "40135", 500, 100000)  # Jakarta -> Bandung
     except Exception as e:
-        return Check("biteship", FAIL, _short(e), "Wrong key, or the account has no courier access yet.")
+        return Check("biteship", FAIL, _short(e), _biteship_hint(_short(e), s))
     if not rates:
         return Check("biteship", WARN, "key accepted but no rates came back for Jakarta > Bandung",
                      "Check the couriers enabled in your Biteship dashboard.")

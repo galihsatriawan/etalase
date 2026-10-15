@@ -9,7 +9,7 @@ from dataclasses import dataclass, field
 from .adapters.messaging import ConsoleMessenger, Messenger, WhatsAppCloudMessenger
 from .adapters.payment import MockPayment, PaymentProvider, XenditPayment
 from .adapters.shipping import BiteshipShipping, MockShipping, ShippingProvider
-from .catalog.extractor import GeminiExtractor, HeuristicExtractor
+from .catalog.extractor import FallbackExtractor, GeminiExtractor, HeuristicExtractor
 from .catalog.service import CatalogService
 from .checkout.service import CheckoutService
 from .config import Settings, export_google_env, get_settings
@@ -53,15 +53,16 @@ def build_context(settings: Settings | None = None, echo_messages: bool = False)
     store = build_store(s.store_backend, s.google_cloud_project)
 
     if s.whatsapp_token and s.whatsapp_phone_number_id:
-        messenger: Messenger = WhatsAppCloudMessenger(s.whatsapp_token, s.whatsapp_phone_number_id, s.whatsapp_api_version)
+        messenger: Messenger = WhatsAppCloudMessenger(s.whatsapp_token, s.whatsapp_phone_number_id, s.whatsapp_api_version,
+                                                                template_language=s.seller_locale)
     else:
         samples = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "samples")
         messenger = ConsoleMessenger(echo=echo_messages, media_roots=[samples])
     payment: PaymentProvider = XenditPayment(s.xendit_secret_key, s.xendit_callback_token) if s.xendit_secret_key else MockPayment()
     shipping: ShippingProvider = BiteshipShipping(s.biteship_api_key) if s.biteship_api_key else MockShipping()
     if s.gemini_enabled:
-        extractor = GeminiExtractor(s.gemini_model, s.google_genai_use_vertexai, s.google_cloud_project,
-                                    s.google_cloud_location, s.google_api_key)
+        extractor = FallbackExtractor(GeminiExtractor(s.gemini_model, s.google_genai_use_vertexai, s.google_cloud_project,
+                                                      s.google_cloud_location, s.google_api_key), HeuristicExtractor())
     else:
         extractor = HeuristicExtractor()
 

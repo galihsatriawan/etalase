@@ -6,6 +6,7 @@ import os
 from dataclasses import dataclass
 from functools import lru_cache
 
+from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -13,7 +14,7 @@ DEFAULT_SESSION_SECRET = "dev-only-change-me"
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore", populate_by_name=True)
 
     # dev enables /dev simulation endpoints; prod disables them
     etalase_env: str = "dev"
@@ -23,17 +24,21 @@ class Settings(BaseSettings):
 
     # Gemini. With no key and GOOGLE_GENAI_USE_VERTEXAI unset, Etalase falls back to
     # deterministic offline parsers so the whole flow still runs.
-    google_api_key: str | None = None
-    google_genai_use_vertexai: bool = False
+    # Google's docs now say GEMINI_API_KEY (older ones GOOGLE_API_KEY) and GOOGLE_GENAI_USE_ENTERPRISE (older:
+    # GOOGLE_GENAI_USE_VERTEXAI); both spellings of each are accepted.
+    google_api_key: str | None = Field(default=None, validation_alias=AliasChoices("GOOGLE_API_KEY", "GEMINI_API_KEY"))
+    google_genai_use_vertexai: bool = Field(
+        default=False, validation_alias=AliasChoices("GOOGLE_GENAI_USE_VERTEXAI", "GOOGLE_GENAI_USE_ENTERPRISE"))
     google_cloud_project: str | None = None
     google_cloud_location: str = "asia-southeast1"
-    gemini_model: str = "gemini-2.5-flash"
+    # Google limits the 2.5 models to existing users and recommends 3.8 Flash for new projects (ai.google.dev, 2026-10-15)
+    gemini_model: str = "gemini-3.8-flash"
 
     # WhatsApp Business Cloud API (Meta)
     whatsapp_token: str | None = None
     whatsapp_phone_number_id: str | None = None
     whatsapp_verify_token: str = "etalase-dev-verify"
-    whatsapp_api_version: str = "v21.0"
+    whatsapp_api_version: str = "v26.0"
 
     # Instagram API with Instagram Login (catalog import from posts)
     instagram_app_id: str | None = None

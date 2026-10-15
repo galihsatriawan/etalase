@@ -124,7 +124,7 @@ pytest -q
 ```text
 ........................................................................ [ 87%]
 ..........                                                               [100%]
-139 passed in 2.15s
+214 passed in 2.15s
 ```
 
 `tests/conftest.py` removes the provider keys (`GOOGLE_API_KEY`, `WHATSAPP_*`, `XENDIT_*`, `BITESHIP_API_KEY`, `INSTAGRAM_*`), the tokens and URLs (`DEV_TOKEN`, `WEBHOOK_TOKEN`, `SESSION_SECRET`, `PUBLIC_BASE_URL`) and a few others from the environment, then changes into `tests/`, so no `prototype/.env` is read either. The tests always run offline, whatever is in your shell or `.env`. [Testing](/ship/testing) walks through what they cover.
@@ -194,7 +194,7 @@ Other variables you will meet:
 | `SESSION_SECRET` | `dev-only-change-me` | Signs dashboard tokens |
 | `DEV_TOKEN`, `WEBHOOK_TOKEN` | unset | See the next section |
 | `SELLER_LOCALE` | `en` | `id` sends seller messages in Bahasa Indonesia |
-| `GEMINI_MODEL` | `gemini-2.5-flash` | Model for extraction and the seller agent |
+| `GEMINI_MODEL` | `gemini-3.8-flash` | Model for extraction and the seller agent |
 | `ETALASE_MEDIA_DIR` | `./media` | Where downloaded WhatsApp media is saved |
 | `COMMISSION_RATE`, `RESERVATION_TTL_MINUTES`, `MAX_QTY_PER_ORDER`, `MAX_CHECKOUTS_PER_BUYER_PER_HOUR` | `0.04`, `15`, `10`, `5` | Business rules |
 

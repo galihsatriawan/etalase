@@ -237,7 +237,7 @@ flowchart LR
 **Xendit.** The Indonesian payment provider behind `XenditPayment` (dynamic QRIS, callback-token webhooks, xenPlatform sub-accounts). Refunds and settlement raise `ManualActionRequired` for now. <Badge type="warning" text="Mocked in demo" /> [Checkout and orders](/architecture/checkout-and-orders)
 
 ::: warning Words that sound built but are not
-AP2, A2A, Pub/Sub, Cloud Tasks, Cloud Storage, KMS, Google Sheets sync, OMS adapters, the WooCommerce plugin and WhatsApp templates are all roadmap. If a judge asks, say so plainly and point to what runs today.
+AP2, A2A, Pub/Sub, Cloud Tasks, Cloud Storage, KMS, Google Sheets sync, OMS adapters, the WooCommerce plugin and the WhatsApp authentication template are all roadmap. If a judge asks, say so plainly and point to what runs today.
 :::
 
 ## Check yourself

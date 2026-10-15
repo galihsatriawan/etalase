@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from ..adapters.messaging import Template
 from ..models import OrderStatus
 from .format import rupiah
 
@@ -32,19 +33,25 @@ def register(ctx: "AppContext") -> None:
 
     def on_awaiting_confirmation(p):
         order, seller = order_and_seller(p)
-        wa.send_buttons(seller.whatsapp, t("stock_check", items=items(order), city=order.buyer.city),
-                        [(f"confirm:{order.id}", t("btn_available")), (f"oos:{order.id}", t("btn_sold_out"))])
+        # Etalase starts these messages, so outside WhatsApp's 24-hour window they go out as approved templates.
+        wa.send_notification(seller.whatsapp, t("stock_check", items=items(order), city=order.buyer.city),
+                             [(f"confirm:{order.id}", t("btn_available")), (f"oos:{order.id}", t("btn_sold_out"))],
+                             Template("stock_check", [items(order), order.buyer.city],
+                                      [f"confirm:{order.id}", f"oos:{order.id}"]))
 
     def on_paid(p):
         order, seller = order_and_seller(p)
         if order.status == OrderStatus.PAID:
-            wa.send_buttons(seller.whatsapp,
-                            t("new_paid_order", items=items(order), subtotal=rupiah(order.subtotal),
-                              city=order.buyer.city, courier=courier(order)),
-                            [(f"accept:{order.id}", t("btn_accept")), (f"oos:{order.id}", t("btn_out_of_stock"))])
+            wa.send_notification(seller.whatsapp,
+                                 t("new_paid_order", items=items(order), subtotal=rupiah(order.subtotal),
+                                   city=order.buyer.city, courier=courier(order)),
+                                 [(f"accept:{order.id}", t("btn_accept")), (f"oos:{order.id}", t("btn_out_of_stock"))],
+                                 Template("new_paid_order", [items(order), rupiah(order.subtotal), order.buyer.city, courier(order)],
+                                          [f"accept:{order.id}", f"oos:{order.id}"]))
         else:
-            wa.send_text(seller.whatsapp, t("paid_ship_now", items=items(order), address=address(order),
-                                            courier=courier(order)))
+            wa.send_notification(seller.whatsapp, t("paid_ship_now", items=items(order), address=address(order),
+                                                    courier=courier(order)),
+                                 template=Template("paid_ship_now", [items(order), address(order), courier(order)]))
 
     def on_accepted(p):
         order, seller = order_and_seller(p)
@@ -57,8 +64,9 @@ def register(ctx: "AppContext") -> None:
 
     def on_payout(p):
         order, seller = order_and_seller(p)
-        wa.send_text(seller.whatsapp, t("payout", amount=rupiah(order.payout.seller_amount),
-                                        commission=rupiah(order.payout.commission)))
+        amount, commission = rupiah(order.payout.seller_amount), rupiah(order.payout.commission)
+        wa.send_notification(seller.whatsapp, t("payout", amount=amount, commission=commission),
+                             template=Template("payout", [amount, commission]))
 
     bus.subscribe("order.awaiting_confirmation", on_awaiting_confirmation)
     bus.subscribe("order.paid", on_paid)

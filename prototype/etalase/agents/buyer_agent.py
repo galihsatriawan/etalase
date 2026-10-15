@@ -47,12 +47,15 @@ async def chat(prompts: list[str]) -> None:
     sessions = InMemorySessionService()
     runner = Runner(agent=agent, app_name="etalase-buyer", session_service=sessions)
     await sessions.create_session(app_name="etalase-buyer", user_id="buyer", session_id="demo")
-    for prompt in prompts:
-        print(f"\nBuyer: {prompt}")
-        async for event in runner.run_async(user_id="buyer", session_id="demo",
-                                            new_message=types.Content(role="user", parts=[types.Part(text=prompt)])):
-            if event.is_final_response() and event.content and event.content.parts:
-                print("Agent:", "".join(p.text or "" for p in event.content.parts))
+    try:
+        for prompt in prompts:
+            print(f"\nBuyer: {prompt}")
+            async for event in runner.run_async(user_id="buyer", session_id="demo",
+                                                new_message=types.Content(role="user", parts=[types.Part(text=prompt)])):
+                if event.is_final_response() and event.content and event.content.parts:
+                    print("Agent:", "".join(p.text or "" for p in event.content.parts))
+    finally:
+        await runner.close()      # closes the MCP session instead of leaving it to the garbage collector
 
 
 if __name__ == "__main__":

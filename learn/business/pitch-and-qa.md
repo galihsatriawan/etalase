@@ -56,7 +56,7 @@ This version follows the deck slide order (slides 2 to 12 in `submission/Etalase
 | 0:40–1:05 | 4 · Features, 6 · Wireframe 1 | Seller sends photos and a voice note; summary with readiness score; **Publish** | "Rina just sends what she already has. Gemini turns photos and a voice note into products, variants, prices and weights, and tells her what is missing." |
 | 1:05–1:45 | 5 · Process flow, 6 · Wireframe 2 | Buyer agent: search, shipping quote, checkout, QRIS | "Any agent can now find her products over MCP and check out. Stock is held for 15 minutes while the buyer pays with QRIS." |
 | 1:45–2:05 | 6 · Wireframe 3 | "New paid order" with **Accept**; seller replies "tracking JNE123456" | "Rina never leaves WhatsApp. Buttons never go through the model." |
-| 2:05–2:25 | 4 · Safe agent checkout, 11 · Benchmark | Confirm-first message; the 50-agent race (demo step 8) | "Low or stale stock? She confirms before the buyer pays. 50 agents race for the last unit; exactly one wins. 139 automated tests cover races, payments and webhook abuse." |
+| 2:05–2:25 | 4 · Safe agent checkout, 11 · Benchmark | Confirm-first message; the 50-agent race (demo step 8) | "Low or stale stock? She confirms before the buyer pays. 50 agents race for the last unit; exactly one wins. 214 automated tests cover races, payments and webhook abuse." |
 | 2:25–2:45 | 7 · Architecture, 9 · Cost | Architecture slide; unit economics | "She's paid after the courier confirms delivery, minus 4%. Etalase never holds the money. Platform cost is about IDR 2,000–3,500 per order against IDR 6,800 commission, and any OMS or website builder can plug in with one API." |
 | 2:45–3:00 | 12 · Roadmap | Four phases | "Next: a pilot with 50–100 sellers on Firestore and real payment sub-accounts. Etalase: every seller, shoppable by AI." |
 
@@ -70,7 +70,7 @@ For each criterion, have one claim, one thing to show and one place to point to.
 
 | Criterion | Your claim | Show this | Where it lives |
 |---|---|---|---|
-| **Technical Merit & Gen AI (40%)** | Gemini multimodal extraction with structured output; ADK seller agent with tenant-scoped tools; ADK buyer agent over MCP; transactional stock tested under concurrency | `GeminiExtractor` with `response_schema=ExtractedCatalog`; `build_seller_agent` tools; `pytest -q` (139 passed); demo step 8 | [Catalog and stock](/architecture/catalog-and-stock), [Seller agent](/architecture/seller-agent), [Agent gateway](/architecture/agent-gateway), [Testing](/ship/testing); `prototype/etalase/catalog/extractor.py`, `prototype/etalase/agents/seller_agent.py`, `prototype/tests/test_stock.py` |
+| **Technical Merit & Gen AI (40%)** | Gemini multimodal extraction with structured output; ADK seller agent with tenant-scoped tools; ADK buyer agent over MCP; transactional stock tested under concurrency | `GeminiExtractor` with `response_schema=ExtractedCatalog`; `build_seller_agent` tools; `pytest -q` (214 passed); demo step 8 | [Catalog and stock](/architecture/catalog-and-stock), [Seller agent](/architecture/seller-agent), [Agent gateway](/architecture/agent-gateway), [Testing](/ship/testing); `prototype/etalase/catalog/extractor.py`, `prototype/etalase/agents/seller_agent.py`, `prototype/tests/test_stock.py` |
 | **Problem Alignment & Impact (25%)** | Brings chat-commerce sellers into agent shopping; pay-per-order below marketplace fees; payout after delivery | BPS 95% / 18% with its nuance; Shopee 10% fashion fee; cost table | [The problem](/foundations/problem), [Evidence](/business/evidence), [Business model](/business/business-model); `docs/15-evidence.md` |
 | **Innovation & Creativity (25%)** | Agent-commerce layer for sellers with no store system; WhatsApp as the seller interface; confirm-first for uncertain stock; Connector API so one partner enables many stores | Confirm-first flow; Connector API in `/docs` | [The product](/foundations/product), [Integrations](/architecture/integrations); `prototype/etalase/catalog/service.py` (`sell_mode`), `prototype/etalase/connector/service.py` |
 | **UX & Solution Design (10%)** | No new app; buttons for decisions, chat for data; bilingual; honest availability for agents | WhatsApp summary with Publish / Edit; `SELLER_LOCALE=id`; dashboard sign-in | [Seller agent](/architecture/seller-agent), [Hands-on](/run/hands-on); `prototype/etalase/seller/i18n.py`, `prototype/etalase/api/dashboard.html` |
@@ -243,7 +243,7 @@ Built: catalog building and readiness score, the MCP server and REST mirror, sto
 **Q24. How do you know it works?**
 
 ::: details Answer
-`cd prototype && pytest -q` runs 139 tests: 100 threads racing for the last unit (exactly one wins), duplicate and late payments, the payment-versus-expiry race, forged webhooks, OTP brute force and input limits. `python scripts/demo.py` runs the whole story offline in ten steps. Not yet tested: `FirestoreStore` against the emulator, Gemini extraction quality and live provider payloads ([Testing](/ship/testing)).
+`cd prototype && pytest -q` runs 214 tests: 100 threads racing for the last unit (exactly one wins), duplicate and late payments, the payment-versus-expiry race, forged webhooks, OTP brute force and input limits. `python scripts/demo.py` runs the whole story offline in ten steps. Not yet tested: `FirestoreStore` against the emulator, Gemini extraction quality and live provider payloads ([Testing](/ship/testing)).
 :::
 
 **Q25. How does this scale on Cloud Run today?**
@@ -422,7 +422,7 @@ Each of these sounds better than the truth for about ten seconds. After that, a 
 ## Pitfalls on the day
 
 - **The live demo fails.** Keep a terminal ready with `cd prototype && python scripts/demo.py`. It runs the full ten-step story offline with no credentials, so you can still show everything except Gemini.
-- **WhatsApp's 24-hour window.** Messages that start a conversation need approved templates, and the prototype sends free-form text only. Before recording, send any message from the seller's phone to the Etalase number so the window is open.
+- **WhatsApp's 24-hour window.** Alerts that start a conversation fall back to approved templates (create the four, see [WhatsApp templates](/ship/whatsapp-templates)); sign-in codes do not, so before recording send any message from the seller's phone to the Etalase number to open the window.
 - **Numbers without sources.** If you can't name the source, don't say the number. Open [Evidence](/business/evidence) on a second screen.
 - **Placeholders.** Slide 1, slide 10 (screenshots), slide 13 (links) and the README team section are still placeholders. Judges see them first.
 - **Long answers.** If an answer goes past 30 seconds, stop and ask "Would you like more detail on that?"

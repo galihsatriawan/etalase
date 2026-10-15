@@ -178,7 +178,7 @@ The **Agent Development Kit (ADK)** is Google's open-source framework for buildi
 
 | Concept | What it is |
 |---|---|
-| `LlmAgent` | An agent: a `name`, a `model` (e.g. `gemini-2.5-flash`), an `instruction` (system prompt) and a list of `tools` |
+| `LlmAgent` | An agent: a `name`, a `model` (e.g. `gemini-3.8-flash`), an `instruction` (system prompt) and a list of `tools` |
 | Tools | Plain Python functions (ADK reads the signature and docstring), or toolsets such as `McpToolset`, which loads every tool from an MCP server |
 | `Runner` | Executes the agent loop: send the message to the model, run requested tools, feed results back, until a final answer. `run_async` yields **events**; `event.is_final_response()` marks the answer |
 | Sessions | Conversation history plus a `state` dict, stored by a `SessionService`. `InMemorySessionService` is the simple, non-persistent one |

@@ -3,7 +3,7 @@
 Eighteen graded exercises, from beginner to advanced, that make you read recent fixes, change the Etalase code, add tests and wire Google Cloud services.
 
 ::: tip What you will learn
-- How to extend the offline parsers, the shipping mock and the readiness score without breaking the 139 existing tests
+- How to extend the offline parsers, the shipping mock and the readiness score without breaking the 214 existing tests
 - How to add a country pack, an MCP tool and a chat intent end to end
 - How to read a bug fix and its regression test, and why transaction retries need retry-safe code
 - How to test the Firestore store against the emulator
@@ -20,7 +20,7 @@ Work on a branch, and keep the baseline green:
 ```bash
 cd prototype
 pip install -r requirements-dev.txt
-pytest -q                     # 139 passed before you start
+pytest -q                     # 214 passed before you start
 python scripts/demo.py        # the ten-step story must still run
 ```
 
@@ -361,13 +361,13 @@ Remember this limiter is in memory per instance; see [Known gaps](/master/known-
 
 ### 10. Fall back to offline rules when Gemini fails
 
-**Goal.** If Gemini times out or returns an error, the seller should still get a draft (from the offline parser) instead of silence. Today the exception travels up to the WhatsApp webhook, which logs it and replies nothing.
+**Goal.** If Gemini times out or returns an error, the seller should still get a draft (from the offline parser) instead of silence. **Partly done in the repository:** `FallbackExtractor` is now wired in `container.py` and the client retries 429/5xx with backoff; the seller agent answers "please try again in a minute" when it fails. What is left for you is the acceptance below (telling the seller that photos and voice notes were not read) and a request timeout.
 
 **Files.** `prototype/etalase/catalog/extractor.py`, `prototype/etalase/container.py`, `prototype/etalase/seller/inbox.py` (`handle_text`), tests.
 
 **Hints.**
 - Write a `FallbackExtractor(primary, fallback)` that implements the same `CatalogExtractor` protocol.
-- Do the same for the seller agent: wrap `seller_agent.respond` in `handle_text` and fall back to `handle_intent`.
+- The seller agent is deliberately *not* replayed through `handle_intent` on failure: the agent may already have changed stock before it failed, and replaying a restock would apply it twice. Think about why before you change that.
 - Set a request timeout on the Gemini client (google-genai accepts HTTP options; check the unit in its docs).
 - Test with a fake primary that raises; no network needed.
 
@@ -418,7 +418,7 @@ The current code in **`prototype/etalase/adapters/messaging.py`** (`WhatsAppClou
 - Decide what the inbox should do with a PDF (`application/pdf`): ignore it, or reply that only photos, voice notes and CSV files are read today.
 - Verify the exact MIME strings against Meta's media docs before relying on them.
 
-**Acceptance.** `extension_for("audio/ogg; codecs=opus") == ".ogg"`, `extension_for("TEXT/CSV") == ".csv"`, unknown types return `""`; `download_media` uses the function; all 139 existing tests still pass.
+**Acceptance.** `extension_for("audio/ogg; codecs=opus") == ".ogg"`, `extension_for("TEXT/CSV") == ".csv"`, unknown types return `""`; `download_media` uses the function; all 214 existing tests still pass.
 
 ::: details Solution sketch
 ```python

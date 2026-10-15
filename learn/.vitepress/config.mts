@@ -49,6 +49,7 @@ export default withMermaid(defineConfig({
         { text: 'Testing', link: '/ship/testing' },
         { text: 'Deploy to Cloud Run', link: '/ship/deploy' },
         { text: 'Turn on real services', link: '/ship/real-services' },
+        { text: 'WhatsApp templates', link: '/ship/whatsapp-templates' },
       ]},
       { text: 'Level 5 · Business and pitch', collapsed: false, items: [
         { text: 'Business model and costs', link: '/business/business-model' },

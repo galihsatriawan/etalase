@@ -27,11 +27,11 @@ Every key is optional. A missing one means the app uses a mock for that part, so
 
 | Fill in | Without it | What it unlocks |
 |---|---|---|
-| `GOOGLE_API_KEY` or a Google Cloud project (Vertex AI) | Rule-based extraction, 49% of the 43 labelled messages fully correct | Gemini extraction and the ADK agents: the Gen AI score |
+| `GOOGLE_API_KEY` (or `GEMINI_API_KEY`) or a Google Cloud project (Vertex AI) | Rule-based extraction, 49% of the 43 labelled messages fully correct | Gemini extraction and the ADK agents: the Gen AI score |
 | A Google Cloud project with billing | Runs on your laptop only | The public prototype link the submission asks for |
-| `WHATSAPP_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_APP_SECRET`, `WHATSAPP_VERIFY_TOKEN` | Orders print in the terminal | The order landing in the seller's WhatsApp |
+| `WHATSAPP_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_APP_SECRET`, `WHATSAPP_VERIFY_TOKEN`, plus four message templates created in WhatsApp Manager ([guide](/ship/whatsapp-templates)) | Orders print in the terminal | The order landing in the seller's WhatsApp, also outside the 24-hour window |
 | `XENDIT_SECRET_KEY`, `XENDIT_CALLBACK_TOKEN` | Mock QRIS | Real QR codes (test mode is enough) |
-| `BITESHIP_API_KEY` | Mock courier rates | Real rates |
+| `BITESHIP_API_KEY` (test key, small balance: test mode is billed) | Mock courier rates | Real rates, booking and tracking |
 | `INSTAGRAM_APP_ID`, `INSTAGRAM_APP_SECRET` | Sample posts | Importing a seller's real posts |
 
 The minimum for a convincing submission is Gemini plus a deploy. The rest makes the demo more real.
@@ -60,8 +60,11 @@ Settings the deploy decides itself are never copied from your laptop: `ETALASE_E
 account. `tests/test_scripts.py` checks all of this with a fake `gcloud` on the PATH, including that no secret appears in the output.
 
 ::: warning What this sandbox could not test
-The doctor and the deploy talk to Google, Meta, Xendit and Biteship, which the build sandbox cannot reach. They are tested against mocks and
-`DRY_RUN`. The first real run is yours; if a provider changed an endpoint, `make doctor` is where it will show.
+The doctor and the deploy talk to Google, Meta, Xendit and Biteship, which the build sandbox cannot reach. The request and response shapes were
+compared with each provider's public documentation and are pinned by contract tests with a fake HTTP layer (`tests/test_gemini.py`,
+`test_whatsapp.py`, `test_xendit.py`, `test_biteship.py`); the deploy is tested against mocks and `DRY_RUN`. That proves what Etalase sends and reads,
+not that a provider accepts it. The first real run is yours; if a provider changed an endpoint, `make doctor` is where it will show.
+Xendit's `/qr_codes` endpoint is marked legacy by Xendit and its current reference could not be opened, so treat that payload as the most likely to need a tweak.
 :::
 
 ## Check yourself

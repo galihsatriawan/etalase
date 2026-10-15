@@ -79,10 +79,14 @@ class SellerInbox:
 
     async def handle_text(self, seller_id: str, text: str) -> None:
         if self.ctx.seller_agent is not None:
-            reply = await self.ctx.seller_agent.respond(seller_id, text)
             seller = self.ctx.store.get_seller(seller_id)
-            if reply:
-                self.ctx.messenger.send_text(seller.whatsapp, reply)
+            try:
+                reply = await self.ctx.seller_agent.respond(seller_id, text)
+            except Exception:  # rate limit, outage, blocked answer: say so instead of leaving the seller waiting
+                log.exception("seller agent failed")
+                reply = ""
+            # Never re-run the message through the offline parser here: the agent may already have changed stock.
+            self.ctx.messenger.send_text(seller.whatsapp, reply or self.ctx.t("agent_unavailable"))
             return
         self.handle_intent(seller_id, text)
 

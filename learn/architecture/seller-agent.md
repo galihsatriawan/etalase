@@ -315,8 +315,8 @@ English is the default for the demo and the judges; Indonesian sellers get `SELL
 - **Per-message pricing.** Meta bills business messages. `docs/07-whatsapp-seller-agent.md` says that from October 2026 this includes service replies, and plans short, combined notifications with order alerts in the cheaper *utility* category. Check Meta's current pricing page before quoting numbers.
 - **Media URLs expire**, so files are downloaded as soon as the webhook arrives.
 
-::: warning Templates are not implemented yet
-`WhatsAppCloudMessenger` only sends `text` and `interactive` messages. There is no template call yet, so in production any alert outside the 24-hour window (including OTP sign-in codes, which should use an *authentication* template) would be rejected by Meta. This is <Badge type="info" text="Roadmap" /> work before a pilot.
+::: warning Templates exist for alerts, not yet for sign-in codes
+`WhatsAppCloudMessenger.send_notification` tries free-form text or buttons first. If Meta answers error 131047 (window closed) it re-sends the alert as an approved **utility template** (`send_template`; definitions in `adapters/whatsapp_templates.py`, how to create them in [WhatsApp templates](/ship/whatsapp-templates)). OTP sign-in codes are still free-form: an *authentication* template is <Badge type="info" text="Roadmap" /> work before a pilot, and until then the seller must message the Etalase number first.
 :::
 
 ## Why one agent is enough
@@ -377,7 +377,7 @@ Meta retries any delivery that is not acknowledged. An error response would make
 5. Name one change needed before sending new-order alerts to real sellers.
 
 ::: details Answer
-Approved message templates: alerts outside the 24-hour window must be template messages, and `WhatsAppCloudMessenger` has no template support yet. Others: persistent sessions and shared dedupe state.
+An authentication template for sign-in codes (order alerts already fall back to utility templates once you create them). Others: persistent sessions and shared dedupe state.
 :::
 
 ## Next

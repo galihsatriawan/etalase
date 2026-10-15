@@ -115,7 +115,7 @@ Prices per 1M tokens on Vertex AI: Gemini 2.5 Flash US$0.30 input, US$1.00 audio
 
 How the seller-agent figure is built (our arithmetic): 12,000 × 0.30 / 1M = US$0.0036 input, plus 800 × 2.50 / 1M = US$0.0020 output, ≈ US$0.006. At 2027 list prices: 12,000 × 1.50 / 1M + 800 × 7.50 / 1M = US$0.024 ≈ IDR 380, which is about **5.6% of the IDR 6,800 commission**. Even in the expensive case, AI is a small slice; WhatsApp is the big one.
 
-Two nuances from the link check: the 3.8 Flash introductory price is delivered as "50% credits back on net spend", and the pricing page lists those 3.8 Flash prices for the global endpoint, with higher prices on regional endpoints. The prototype defaults to `gemini-2.5-flash`.
+Two nuances from the link check: the 3.8 Flash introductory price is delivered as "50% credits back on net spend", and the pricing page lists those 3.8 Flash prices for the global endpoint, with higher prices on regional endpoints. The prototype defaults to `gemini-3.8-flash`, because Google now limits the 2.5 models to existing users, so a new project cannot count on them. At the introductory 3.8 Flash prices the same arithmetic gives about US$0.006 per extracted product and US$0.012 per seller-agent order (our arithmetic, text rates), still far below the commission.
 
 **Keeping AI cost low** (from `docs/10`): buttons and the offline parser handle common commands without a model call; Flash-Lite for routing and short replies; batch or flex pricing (50% off) for bulk imports; context caching (about 10% of the input price) for the agent's instructions; a free allowance per seller (for example the first 50 products), then a paid plan for very large catalogs.
 

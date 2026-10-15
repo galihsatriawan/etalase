@@ -75,7 +75,7 @@ def run_sync(tmp_path, extra=()):
     env_file = tmp_path / ".env"
     env_file.write_text(ENV)
     mod = load_env_to_cloud()
-    return mod, env_file, ["--project", "demo", "--env-file", str(env_file), "--default", "GEMINI_MODEL=gemini-2.5-flash",
+    return mod, env_file, ["--project", "demo", "--env-file", str(env_file), "--default", "GEMINI_MODEL=gemini-3.8-flash",
                            "--fixed", "PUBLIC_BASE_URL=https://x.run.app", *extra]
 
 
@@ -98,7 +98,7 @@ def test_flags_for_the_deploy_script(tmp_path, fake_gcloud, capsys):
     lines = dict(l.split("=", 1) for l in capsys.readouterr().out.splitlines())
     env = dict(p.split("=", 1) for p in lines["ENV_VARS"].split("@"))
     assert env["WHATSAPP_PHONE_NUMBER_ID"] == "1234567890" and env["SELLER_LOCALE"] == "id"
-    assert env["GEMINI_MODEL"] == "gemini-2.5-flash" and env["PUBLIC_BASE_URL"] == "https://x.run.app"
+    assert env["GEMINI_MODEL"] == "gemini-3.8-flash" and env["PUBLIC_BASE_URL"] == "https://x.run.app"
     assert env["GOOGLE_GENAI_USE_VERTEXAI"] == "false"                     # an API key was given
     assert "STORE_BACKEND" not in env and "SESSION_SECRET" not in env      # the deploy decides these, not your laptop
     assert "GOOGLE_API_KEY=etalase-google-api-key:latest" in lines["SECRETS"].split(",")

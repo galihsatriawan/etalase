@@ -141,14 +141,17 @@ class PaymentInfo(BaseModel):
     reference: str
     method: str = "qris"
     qr_string: str = ""
+    provider_id: str = ""         # the provider's own id (Xendit qr_id), needed for refunds and test-mode simulation
     status: str = "pending"       # pending -> paid -> refunded
 
 
 class Shipment(BaseModel):
     courier: str
     service: str
-    waybill: str = ""
-    status: str = "booked"        # booked -> picked_up -> in_transit -> delivered
+    waybill: str = ""             # may be empty until the courier issues it (provider bookings)
+    status: str = "booked"        # booked -> picked_up -> in_transit -> delivered; or returned / failed
+    provider_order_id: str = ""   # the aggregator's own order id (Biteship `id`); webhooks identify the order by it
+    tracking_id: str = ""         # the aggregator's tracking id (Biteship `courier.tracking_id`)
 
 
 class Payout(BaseModel):
@@ -164,6 +167,7 @@ class OrderItem(BaseModel):
     title: str
     qty: int
     unit_price: int
+    weight_gram: int = 0          # per unit, for courier bookings
 
 
 class Order(BaseModel):

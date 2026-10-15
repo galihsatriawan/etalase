@@ -2,8 +2,8 @@
 
 Free-form messages and reply buttons only work while the seller has written to the business number in the **last 24 hours**
 (the customer service window). Outside it, Meta rejects the send with error **131047** and only an **approved template** goes
-through. Etalase sends four kinds of alert that can arrive outside the window: a stock check, a new paid order, a "ship now"
-reminder and the payout notice. Each one is tried free-form first and, on error 131047 only, re-sent as the template below.
+through. Etalase sends six kinds of alert that can arrive outside the window: a stock check, a new paid order, a "ship now"
+reminder, the payout notice, a return request and a return approval (the two return alerts have buttons). Each one is tried free-form first and, on error 131047 only, re-sent as the template below.
 
 You create the templates **once**, in the same WhatsApp Business Account as your phone number. Until a template is approved,
 an alert that needs it fails and is logged; checkout is not affected, the order stays saved and visible in the seller dashboard, and only the WhatsApp alert is lost (it is not retried).
@@ -21,7 +21,7 @@ one. Creating both is harmless.
 4. Where a template lists buttons, add them as **Quick reply** buttons, in that order, with exactly that text.
 5. Submit. Review usually takes minutes, sometimes up to a day. The status turns to **Active** when approved.
 
-The Etalase code sends the button payloads (`confirm:<order>`, `oos:<order>`, `accept:<order>`) itself, so there is nothing to
+The Etalase code sends the button payloads (`confirm:<order>`, `oos:<order>`, `accept:<order>`, `return_ok:<order>`, `return_no:<order>`, `return_got:<order>`) itself, so there is nothing to
 configure for them in the template.
 
 Meta's menu names change; if one has moved, search WhatsApp Manager for "message templates". `make doctor` cannot check templates,
@@ -78,6 +78,30 @@ of truth, and a unit test keeps it in step with what the notifications send.
 
 - Body: Paket sudah diterima pembeli. {{1}} dicairkan ke rekeningmu (komisi {{2}}).
 - Sample values: `Rp163.200`, `Rp6.800`
+
+### `etalase_return_requested` / `en`
+
+- Body: Return request for {{1}}. Reason: {{2}}. Buyer's note: {{3}}. Approve or dispute within {{4}} hours; no answer counts as approval.
+- Buttons (type Quick reply): `Approve return`, `Dispute`
+- Sample values: `Voal Hijab (Black) x 2`, `damaged`, `The seam is torn`, `48`
+
+### `etalase_return_requested` / `id`
+
+- Body: Pengajuan retur untuk {{1}}. Alasan: {{2}}. Catatan pembeli: {{3}}. Setujui atau sengketakan dalam {{4}} jam; kalau tidak dijawab dianggap disetujui.
+- Buttons (type Quick reply): `Setujui retur`, `Sengketakan`
+- Sample values: `Voal Hijab (Black) x 2`, `damaged`, `The seam is torn`, `48`
+
+### `etalase_return_approved` / `en`
+
+- Body: Return approved for {{1}}. When the parcel is back with you, tap the button to start the buyer's refund. If nothing arrives within {{2}} days the return lapses.
+- Buttons (type Quick reply): `Item received`
+- Sample values: `Voal Hijab (Black) x 2`, `7`
+
+### `etalase_return_approved` / `id`
+
+- Body: Retur {{1}} disetujui. Kalau paketnya sudah kembali ke kamu, tekan tombol untuk memproses refund pembeli. Kalau tidak ada paket dalam {{2}} hari, retur hangus.
+- Buttons (type Quick reply): `Barang diterima`
+- Sample values: `Voal Hijab (Black) x 2`, `7`
 
 :::
 

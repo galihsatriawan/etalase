@@ -87,7 +87,7 @@ python scripts/demo.py
 The script imports the FastAPI `app` and drives it through `TestClient`, playing seller, buyer agent, payment provider and courier in turn. You should see ten numbered steps. Trimmed real output:
 
 ```text
-Modes: {'store': 'memory', 'messaging': 'console', 'payment': 'mock', 'shipping': 'mock', 'ai': 'offline rules'}
+Modes: {'store': 'memory', 'messaging': 'console', 'telegram': 'off', 'payment': 'mock', 'shipping': 'mock', 'ai': 'offline rules'}
 
 ==============================================================================
 2. The seller sends a product photo, then a description, on WhatsApp
@@ -103,14 +103,14 @@ Modes: {'store': 'memory', 'messaging': 'console', 'payment': 'mock', 'shipping'
   [agent → MCP] create_checkout(product_id='prd_c76945b93a', variant_id='var_4a333346eb', quantity=2)
   → checkout ord_c6478022b2 · awaiting_payment · total Rp182.000
 ...
-6. The courier webhook says delivered → payout released to the seller's sub-account
+6. The courier says delivered → the payout waits out the return window, then it is released
   [WhatsApp → seller]
    Parcel delivered ✅ Rp163.200 is on its way to your account (commission Rp6.800).
 ...
 8. Oversell race: 50 agents try to buy the last unit at the same time
   → successful checkouts: 1 of 50 (expected 1), refused as out of stock: 49. Oversold units: 0
 ...
-  Events published: 17 · WhatsApp messages sent: 15
+  Events published: 25 · WhatsApp messages sent: 23
 ```
 
 IDs (`sel_…`, `prd_…`, `ord_…`) are random, so yours will differ. The numbers should not: Rp182.000 total (2 × Rp85.000 + Rp12.000 JNE), Rp6.800 commission (4% of Rp170.000) and exactly one winner in the race.
@@ -122,12 +122,16 @@ pytest -q
 ```
 
 ```text
-........................................................................ [ 87%]
-..........                                                               [100%]
-226 passed in 2.15s
+........................................................................ [ 18%]
+........................................................................ [ 37%]
+........................................................................ [ 55%]
+........................................................................ [ 74%]
+........................................................................ [ 92%]
+.............................                                            [100%]
+389 passed in 8.4s
 ```
 
-`tests/conftest.py` removes the provider keys (`GOOGLE_API_KEY`, `WHATSAPP_*`, `XENDIT_*`, `BITESHIP_API_KEY`, `INSTAGRAM_*`), the tokens and URLs (`DEV_TOKEN`, `WEBHOOK_TOKEN`, `SESSION_SECRET`, `PUBLIC_BASE_URL`) and a few others from the environment, then changes into `tests/`, so no `prototype/.env` is read either. The tests always run offline, whatever is in your shell or `.env`. [Testing](/ship/testing) walks through what they cover.
+`tests/conftest.py` removes the provider keys (`GOOGLE_API_KEY`, `WHATSAPP_*`, `XENDIT_*`, `BITESHIP_API_KEY`, `INSTAGRAM_*`, `TELEGRAM_*`), the tokens and URLs (`DEV_TOKEN`, `WEBHOOK_TOKEN`, `SESSION_SECRET`, `PUBLIC_BASE_URL`, `STORE_BASE_DOMAIN`) and a few others from the environment, then changes into `tests/`, so no `prototype/.env` is read either. The tests always run offline, whatever is in your shell or `.env`. [Testing](/ship/testing) walks through what they cover.
 
 ## Step 4: start the server
 
@@ -182,6 +186,7 @@ Each `/healthz` mode is decided in `build_context()`:
 | `store` | `memory` | `STORE_BACKEND=firestore` (with Google Cloud credentials, or the emulator via `FIRESTORE_EMULATOR_HOST`) |
 | `messaging` | `console` | `WHATSAPP_TOKEN` and `WHATSAPP_PHONE_NUMBER_ID` are both set |
 | `payment` | `mock` | `XENDIT_SECRET_KEY` is set (needs `XENDIT_CALLBACK_TOKEN` too) |
+| `telegram` | `off` | `TELEGRAM_BOT_TOKEN` is set (then `bot`; needs `TELEGRAM_WEBHOOK_SECRET` too) |
 | `shipping` | `mock` | `BITESHIP_API_KEY` is set |
 | `ai` | `offline rules` | `GOOGLE_API_KEY` is set, or `GOOGLE_GENAI_USE_VERTEXAI=true` |
 
@@ -198,6 +203,8 @@ Other variables you will meet:
 | `ETALASE_MEDIA_DIR` | `./media` | Where downloaded WhatsApp media is saved |
 | `COMMISSION_RATE`, `RESERVATION_TTL_MINUTES`, `MAX_QTY_PER_ORDER`, `MAX_CHECKOUTS_PER_BUYER_PER_HOUR` | `0.04`, `15`, `10`, `5` | Business rules |
 | `SELLER_AI_CALLS_PER_HOUR` | `60` | Gemini calls one seller can trigger per hour (free-text turns and catalog builds) |
+| `TELEGRAM_BOT_TOKEN`, `TELEGRAM_WEBHOOK_SECRET`, `TELEGRAM_BOT_USERNAME` | unset | The optional Telegram seller channel; the secret is 16 or more characters from `A-Z a-z 0-9 _ -`. Setup in `SETUP.md` section 3b |
+| `STORE_BASE_DOMAIN` | unset | A bare host such as `example.com`. When set, sellers can claim `shop.example.com`; path links keep working |
 
 Turning on each real service is covered in [Turn on real services](/ship/real-services).
 

@@ -14,7 +14,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from ..models import Connection, Order, OutOfStock, Product, Reservation, Seller, StockChange, now
+from ..models import Connection, Order, OrderStatus, OutOfStock, Product, Reservation, Seller, StockChange, now
 
 try:
     from google.cloud import firestore  # type: ignore
@@ -46,6 +46,18 @@ class FirestoreStore:
 
     def find_seller_by_whatsapp(self, number: str) -> Seller | None:
         for snap in self._col("sellers").where("whatsapp", "==", number).limit(1).stream():
+            return Seller.model_validate(snap.to_dict())
+        return None
+
+    def find_seller_by_slug(self, slug: str) -> Seller | None:
+        for snap in self._col("sellers").where("slug", "==", slug).limit(1).stream():
+            return Seller.model_validate(snap.to_dict())
+        return None
+
+    def find_seller_by_address(self, address: str) -> Seller | None:
+        if not address.startswith("tg:"):
+            return self.find_seller_by_whatsapp(address)
+        for snap in self._col("sellers").where("telegram_chat_id", "==", address[3:]).limit(1).stream():
             return Seller.model_validate(snap.to_dict())
         return None
 
@@ -94,6 +106,10 @@ class FirestoreStore:
 
     def list_orders(self, seller_id: str) -> list[Order]:
         q = self._col("orders").where("seller_id", "==", seller_id)
+        return [Order.model_validate(s.to_dict()) for s in q.stream()]
+
+    def orders_in_status(self, statuses) -> list[Order]:
+        q = self._col("orders").where("status", "in", [OrderStatus(x).value for x in statuses])
         return [Order.model_validate(s.to_dict()) for s in q.stream()]
 
     # ---- stock (transactional)

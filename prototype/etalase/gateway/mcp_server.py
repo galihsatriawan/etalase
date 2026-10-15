@@ -19,7 +19,9 @@ if TYPE_CHECKING:
 INSTRUCTIONS = """Etalase lets you buy from independent Indonesian sellers who sell on WhatsApp.
 Flow: search_products -> get_shipping_options -> create_checkout -> show the QRIS code -> get_checkout_status.
 Only domestic delivery inside Indonesia is supported. Prices are in IDR.
-If a variant's availability is 'confirm_with_seller', tell the buyer the seller confirms stock first."""
+If a variant's availability is 'confirm_with_seller', tell the buyer the seller confirms stock first.
+Each seller shows its return_policy and track_record: weigh them for the buyer. After delivery, if the item is damaged,
+wrong or not as described, call request_return (get_checkout_status says until when); then submit_return_tracking."""
 
 
 # (bucket, calls, window in seconds) per client address. The buckets are shared with the REST routes of the same name in
@@ -31,6 +33,8 @@ TOOL_LIMITS = {
     "get_shipping_options": ("shipping", 60, 60),
     "create_checkout": ("checkout", 20, 3600),
     "get_checkout_status": ("status", 240, 60),
+    "request_return": ("return", 10, 3600),
+    "submit_return_tracking": ("return", 10, 3600),
 }
 
 
@@ -101,5 +105,22 @@ def build_mcp(ctx: "AppContext", limits: RateLimiter | None = None) -> FastMCP:
         if blocked := too_many("get_checkout_status", mcp_ctx):
             return blocked
         return tools.get_checkout_status(checkout_id)
+
+    @mcp.tool()
+    def request_return(checkout_id: str, buyer_phone: str, reason: str, note: str = "",
+                       evidence_urls: list[str] | None = None, mcp_ctx: Context = None) -> dict:
+        """Ask for a return after delivery, inside the return window (see get_checkout_status). reason is one of damaged,
+        wrong_item, not_as_described, changed_mind (changed_mind only if the seller's return_policy lists it).
+        buyer_phone must be the phone used at checkout. evidence_urls: up to 5 https links to photos."""
+        if blocked := too_many("request_return", mcp_ctx):
+            return blocked
+        return tools.request_return(checkout_id, buyer_phone, reason, note, evidence_urls)
+
+    @mcp.tool()
+    def submit_return_tracking(checkout_id: str, buyer_phone: str, waybill: str, mcp_ctx: Context = None) -> dict:
+        """After the seller approved a return: the courier tracking number of the parcel going back to the seller."""
+        if blocked := too_many("submit_return_tracking", mcp_ctx):
+            return blocked
+        return tools.submit_return_tracking(checkout_id, buyer_phone, waybill)
 
     return mcp

@@ -6,11 +6,13 @@ import logging
 import os
 from dataclasses import dataclass, field
 
-from .adapters.messaging import ConsoleMessenger, Messenger, WhatsAppCloudMessenger
+from .adapters.messaging import ChannelRouter, ConsoleMessenger, Messenger, WhatsAppCloudMessenger
+from .adapters.telegram import TelegramMessenger
 from .adapters.payment import MockPayment, PaymentProvider, XenditPayment
 from .adapters.shipping import BiteshipShipping, MockShipping, ShippingProvider
 from .catalog.extractor import FallbackExtractor, GeminiExtractor, HeuristicExtractor
 from .catalog.service import CatalogService
+from .checkout.returns import ReturnService
 from .checkout.service import CheckoutService
 from .config import Settings, export_google_env, get_settings
 from .events import EventBus
@@ -33,10 +35,29 @@ class AppContext:
     gateway: object = None
     inbox: object = None
     connector: object = None
+    returns: object = None
     auth: object = None
     seller_agent: object = None
+    telegram: TelegramMessenger | None = None
     t: object = None
     modes: dict = field(default_factory=dict)
+
+    def process_due(self, when=None) -> dict:
+        """The background job: expire unpaid checkouts, run the return timers, then pay out what is due.
+        Order matters: a return that lapses this minute is paid out this minute."""
+        # Each step already skips an order that raises; the guards here keep a failure in one step from stopping the others.
+        empty = {"returns_auto_approved": [], "returns_lapsed": [], "returns_escalated": []}
+        result: dict = {"expired": [], **empty, "payouts_released": []}
+        for key, step in (("expired", lambda: self.checkout.expire_due(when)),
+                          ("timers", lambda: self.returns.sweep(when)),
+                          ("payouts_released", lambda: self.checkout.release_due_payouts(when))):
+            try:
+                out = step()
+            except Exception:
+                log.exception("background step %s failed", key)
+                continue
+            result.update(out) if key == "timers" else result.__setitem__(key, out)
+        return result
 
 
 def build_context(settings: Settings | None = None, echo_messages: bool = False) -> AppContext:
@@ -58,6 +79,9 @@ def build_context(settings: Settings | None = None, echo_messages: bool = False)
     else:
         samples = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "samples")
         messenger = ConsoleMessenger(echo=echo_messages, media_roots=[samples])
+    telegram = TelegramMessenger(s.telegram_bot_token, s.telegram_bot_username) if s.telegram_bot_token else None
+    if telegram:   # one Messenger for the services; the address ("tg:<chat>" or a number) picks the channel
+        messenger = ChannelRouter(messenger, telegram)
     payment: PaymentProvider = XenditPayment(s.xendit_secret_key, s.xendit_callback_token) if s.xendit_secret_key else MockPayment()
     shipping: ShippingProvider = BiteshipShipping(s.biteship_api_key) if s.biteship_api_key else MockShipping()
     if s.gemini_enabled:
@@ -71,7 +95,9 @@ def build_context(settings: Settings | None = None, echo_messages: bool = False)
     media_dir = os.getenv("ETALASE_MEDIA_DIR", "./media")
     ctx = AppContext(settings=s, store=store, events=events, messenger=messenger, payment=payment,
                      shipping=shipping, catalog=catalog, checkout=checkout, media_dir=media_dir)
+    ctx.telegram = telegram
     ctx.t = Translator(s.seller_locale)
+    ctx.returns = ReturnService(checkout)
     ctx.gateway = GatewayTools(ctx)
     ctx.inbox = SellerInbox(ctx)
     ctx.connector = ConnectorService(ctx)
@@ -88,7 +114,8 @@ def build_context(settings: Settings | None = None, echo_messages: bool = False)
 
     ctx.modes = {
         "store": s.store_backend,
-        "messaging": "whatsapp" if isinstance(messenger, WhatsAppCloudMessenger) else "console",
+        "messaging": "whatsapp" if s.whatsapp_token and s.whatsapp_phone_number_id else "console",
+        "telegram": "bot" if telegram else "off",
         "payment": payment.name, "shipping": shipping.name,
         "ai": f"gemini ({s.gemini_model})" if s.gemini_enabled else "offline rules",
     }

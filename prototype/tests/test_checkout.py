@@ -4,7 +4,7 @@ import pytest
 
 from etalase.models import Address, CheckoutError, OrderStatus, now
 
-from .conftest import BUYER, make_seller, variant
+from .conftest import BUYER, after_window, make_seller, variant
 
 
 def pay(ctx, order):
@@ -25,7 +25,11 @@ def test_instant_order_end_to_end(ctx, seller, product):
     ctx.checkout.seller_accepts(seller.id, order.id)
     shipped = ctx.checkout.mark_shipped(seller.id, None, "JNE123456")
     assert shipped.status == OrderStatus.SHIPPED
-    done = ctx.checkout.shipment_update("JNE123456", "delivered")
+    delivered = ctx.checkout.shipment_update("JNE123456", "delivered")
+    assert delivered.status == OrderStatus.DELIVERED and delivered.payout is None   # the money waits out the return window
+    assert ctx.payment.releases == []
+    after_window(ctx)
+    done = ctx.store.get_order(order.id)
     assert done.status == OrderStatus.PAID_OUT
     assert done.payout.commission == round(170000 * 0.04)
     assert done.payout.seller_amount == 170000 - done.payout.commission

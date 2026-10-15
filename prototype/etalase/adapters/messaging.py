@@ -1,4 +1,5 @@
-"""Seller messaging. WhatsApp Business Cloud API in production, a console outbox locally."""
+"""Seller messaging. WhatsApp Business Cloud API in production, a console outbox locally, and optionally Telegram
+(adapters/telegram.py): the channel is chosen by the address a message is sent to."""
 
 from __future__ import annotations
 
@@ -11,10 +12,12 @@ import httpx
 
 log = logging.getLogger("etalase.messaging")
 
+TELEGRAM_PREFIX = "tg:"   # a Telegram chat is addressed as "tg:<chat id>"; anything else is a WhatsApp number
+
 
 @dataclass
 class Inbound:
-    """A normalised incoming WhatsApp message."""
+    """A normalised incoming seller message, from any channel. `sender` is the channel address (a WhatsApp number or "tg:<chat id>")."""
     sender: str
     kind: str                      # text | button | image | audio | document
     text: str = ""
@@ -22,6 +25,7 @@ class Inbound:
     media_id: str = ""
     mime_type: str = ""
     message_id: str = ""
+    callback_id: str = ""          # Telegram: the button press to acknowledge
 
 
 @dataclass
@@ -70,22 +74,26 @@ class ConsoleMessenger:
         self.echo = echo
         self.media_roots = [Path(r).resolve() for r in (media_roots or [])]
 
+    @staticmethod
+    def _label(to: str) -> str:
+        return "Telegram" if to.startswith(TELEGRAM_PREFIX) else "WhatsApp"
+
     def send_text(self, to, text):
         self.outbox.append(OutboxMessage(to, text))
         if self.echo:
-            print(f"\n  [WhatsApp → {to}]\n  {text}")
+            print(f"\n  [{self._label(to)} → {to}]\n  {text}")
 
     def send_buttons(self, to, text, buttons):
         self.outbox.append(OutboxMessage(to, text, buttons))
         if self.echo:
             labels = "  ".join(f"[{title}]" for _, title in buttons)
-            print(f"\n  [WhatsApp → {to}]\n  {text}\n  {labels}")
+            print(f"\n  [{self._label(to)} → {to}]\n  {text}\n  {labels}")
 
     def send_notification(self, to, text, buttons=None, template=None):
         self.outbox.append(OutboxMessage(to, text, list(buttons or []), template))
         if self.echo:
             labels = "  ".join(f"[{title}]" for _, title in (buttons or []))
-            print(f"\n  [WhatsApp → {to}]\n  {text}" + (f"\n  {labels}" if labels else ""))
+            print(f"\n  [{self._label(to)} → {to}]\n  {text}" + (f"\n  {labels}" if labels else ""))
 
     def download_media(self, media_id, dest_dir):
         path = Path(media_id).resolve()
@@ -93,6 +101,33 @@ class ConsoleMessenger:
         if not path.is_file() or not any(path.is_relative_to(r) for r in roots):
             raise PermissionError("media must be a file under the samples or media folder")
         return str(path)
+
+
+class ChannelRouter:
+    """Sends each message through the channel its address belongs to: "tg:<chat id>" goes to Telegram, everything else to
+    the default messenger (WhatsApp, or the console outbox). Services keep calling one Messenger and never know which."""
+
+    def __init__(self, default: Messenger, telegram: Messenger) -> None:
+        self.default, self.telegram = default, telegram
+
+    def _for(self, address: str) -> Messenger:
+        return self.telegram if address.startswith(TELEGRAM_PREFIX) else self.default
+
+    @property
+    def outbox(self) -> list[OutboxMessage]:     # the console outbox, for dev endpoints and tests
+        return getattr(self.default, "outbox", [])
+
+    def send_text(self, to, text):
+        self._for(to).send_text(to, text)
+
+    def send_buttons(self, to, text, buttons):
+        self._for(to).send_buttons(to, text, buttons)
+
+    def send_notification(self, to, text, buttons=None, template=None):
+        self._for(to).send_notification(to, text, buttons, template)
+
+    def download_media(self, media_id, dest_dir):
+        return self._for(media_id).download_media(media_id, dest_dir)
 
 
 class WhatsAppCloudMessenger:

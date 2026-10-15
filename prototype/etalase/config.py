@@ -40,6 +40,12 @@ class Settings(BaseSettings):
     whatsapp_verify_token: str = "etalase-dev-verify"
     whatsapp_api_version: str = "v26.0"
 
+    # Telegram bot (optional second seller channel, adapters/telegram.py). Create the bot with @BotFather; the secret is
+    # any 16+ characters from A-Z a-z 0-9 _ - and is checked on every webhook call.
+    telegram_bot_token: str | None = None
+    telegram_webhook_secret: str | None = None
+    telegram_bot_username: str | None = None     # optional; looked up with getMe when empty
+
     # Instagram API with Instagram Login (catalog import from posts)
     instagram_app_id: str | None = None
     instagram_app_secret: str | None = None
@@ -48,6 +54,10 @@ class Settings(BaseSettings):
     xendit_secret_key: str | None = None
     xendit_callback_token: str | None = None
     biteship_api_key: str | None = None
+
+    # Optional per-shop addresses: https://<slug>.<STORE_BASE_DOMAIN>. A host, with a port when local (rina.localhost:8080).
+    # Needs wildcard DNS and certificate, see SETUP.md. Unset = every shop link stays /stores/<id> on the shared host.
+    store_base_domain: str | None = None
 
     # Language of WhatsApp messages to sellers: "en" (default, demo) or "id" (Bahasa Indonesia)
     seller_locale: str = "en"
@@ -68,6 +78,16 @@ class Settings(BaseSettings):
     seller_confirm_timeout_minutes: int = 60
     max_qty_per_order: int = 10
     max_checkouts_per_buyer_per_hour: int = 5
+    # Payout hold. After the courier confirms delivery the seller's money stays at the payment provider for this long.
+    # It is also the buyer's window to ask for a return, so a refund never has to be clawed back from a seller. 0 pays out
+    # at once and switches returns off. Sellers with fewer than NEW_SELLER_ORDERS completed orders wait the longer time.
+    payout_hold_hours: int = 72
+    new_seller_hold_hours: int = 168
+    new_seller_orders: int = 5
+    # A return request the seller does not answer in this many hours counts as approved; an approved return that has not
+    # reached the seller after RETURN_LAPSE_DAYS lapses (or goes to an operator if the buyer gave a tracking number).
+    return_seller_response_hours: int = 48
+    return_lapse_days: int = 7
     # Gemini calls one seller may trigger per hour (free-text turns plus catalog builds). Only counted when Gemini is on.
     seller_ai_calls_per_hour: int = 60
 

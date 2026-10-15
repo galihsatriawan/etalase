@@ -194,7 +194,7 @@ def _hint(prefix: str) -> str | None:
 matches = ctx.catalog.find_variants(seller_id, it.color, it.hint)
 titles = sorted({p.title for p, _ in matches})
 if not it.hint and len(titles) > 1:  # never change several products from one vague message
-    ctx.messenger.send_text(seller.whatsapp, ctx.t("which_product", color=it.color,
+    ctx.messenger.send_text(self.to(seller), ctx.t("which_product", color=it.color,
                                                    titles=", ".join(titles)))
     return
 ```

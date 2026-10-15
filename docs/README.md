@@ -8,7 +8,7 @@
 | 4 | [Catalog and stock](04-catalog-and-stock.md) | Gemini extraction, readiness score, reservations, sell mode |
 | 5 | [Checkout, payment and payout](05-checkout-payment-payout.md) | Order states, money flow, providers, commission |
 | 6 | [Shipping](06-shipping.md) | Biteship, status mapping, weight, domestic-only |
-| 7 | [WhatsApp seller agent](07-whatsapp-seller-agent.md) | Inbox, ADK agent, buttons, costs, dashboard sign-in |
+| 7 | [WhatsApp seller agent](07-whatsapp-seller-agent.md) | Inbox, ADK agent, buttons, costs, dashboard sign-in, the Telegram channel |
 | 8 | [Integrations](08-integrations.md) | Google Sheets, OMS, e-commerce plugins, Connector API, marketplaces |
 | 9 | [Security, privacy and compliance](09-security-privacy-compliance.md) | Tenant isolation, PDP Law, payments, tax |
 | 10 | [Business model and cost](10-business-model.md) | Pricing, unit economics, go-to-market |
@@ -17,6 +17,8 @@
 | 13 | [Demo script](13-demo-script.md) | Three-minute video plan |
 | 14 | [Hackathon alignment](14-hackathon-alignment.md) | Judging criteria, Google Cloud usage, deliverables |
 | 15 | [Evidence and sources](15-evidence.md) | Every statistic with its source, quote and date; likely judge questions |
-| – | [Decision records](adr/) | Why we chose what we chose |
+| 16 | [UCP](16-ucp.md) | What we implement of the Universal Commerce Protocol, conformance results, gaps |
+| 17 | [Market fit and direction](17-market-fit-and-direction.md) | Is the idea still relevant to the market and competitors; what changed in the product because of it; what is verified |
+| – | [Decision records](adr/) | Why we chose what we chose (8 records, the latest on seller channels and shop addresses) |
 
 Diagrams render on GitHub (Mermaid). Slide renders are in [`assets/`](assets/).

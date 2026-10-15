@@ -30,7 +30,8 @@ A business advertises itself at `/.well-known/ucp`. The platform finds the REST 
 | `PUT /ucp/v1/checkout-sessions/{id}` | Send buyer, address and the chosen courier option |
 | `POST /ucp/v1/checkout-sessions/{id}/complete` | Reserve the stock and create the QRIS payment |
 | `POST /ucp/v1/checkout-sessions/{id}/cancel` | Give the stock back for an unpaid checkout |
-| `GET /checkout/{id}` | The hosted payment page that `continue_url` points to |
+| `GET /checkout/{id}` | The hosted payment page that `continue_url` points to. It shows the QRIS code and a live countdown, and swaps to "Paid" by itself when the payment arrives |
+| `GET /stores/{seller_id}/returns` | The seller's return policy as a plain page: the target of the `refund_policy` link that every checkout session carries |
 
 All of it is in **`prototype/etalase/gateway/ucp.py`**; the app mounts it in `etalase/api/main.py`. It is a thin layer: it keeps a draft session in the store and calls the same `CheckoutService` as the MCP tools and the WhatsApp flow, so stock reservation, the per-phone limit, courier quotes, payment and the seller's confirm-first rule behave identically on every channel.
 
@@ -85,7 +86,7 @@ Closed checkouts (`completed`, `canceled`) answer `409` to update and complete, 
 
 ## Testing, in three layers
 
-1. **Unit tests with the official models** (`tests/test_ucp.py`, 16 tests). The `ucp-sdk` package is generated from the UCP JSON schemas; the tests parse the profile with `BusinessSchema` and every checkout response with `Checkout`. They also run the whole flow to a paid order, plus idempotency, cancel, closed sessions, confirm-first sellers, escaping and bad input.
+1. **Unit tests with the official models** (`tests/test_ucp.py`, 18 tests). The `ucp-sdk` package is generated from the UCP JSON schemas; the tests parse the profile with `BusinessSchema` and every checkout response with `Checkout`. They also run the whole flow to a paid order, plus idempotency, cancel, closed sessions, confirm-first sellers, escaping and bad input.
 2. **The official conformance suite against Etalase.** `python -m ucp_conformance.run` clones the official repos, starts Etalase with fixed demo items and runs all 17 test files.
 3. **The same suite against the official sample server** (`--target reference`) as a control.
 

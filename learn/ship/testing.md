@@ -1,6 +1,6 @@
 # Testing
 
-How Etalase's 226 automated tests are organised, what each file proves, how to run and extend them, and what still has to be measured before a pilot.
+How Etalase's 389 automated tests are organised, what each file proves, how to run and extend them, and what still has to be measured before a pilot.
 
 ::: tip What you will learn
 - The layout of `prototype/tests/`, the fixtures in `conftest.py` and the regression tests for fixed bugs
@@ -14,12 +14,12 @@ How Etalase's 226 automated tests are organised, what each file proves, how to r
 
 Etalase holds stock for strangers' AI agents and decides when money moves. The dangerous bugs are not crashes but **wrong outcomes**: the last unit sold twice, a payout released on a forged webhook, an order expired after it was paid. Most tests therefore set up a race or an attack and assert on the **state** afterwards (stock counts, order status, refunds, messages sent).
 
-All tests run offline in in a couple of seconds. ADR 0005 (`docs/adr/0005-adapters-and-country-packs.md`) puts every external service behind a small interface with a mock, so the suite never needs a Gemini key, WhatsApp, Xendit or Biteship.
+All tests run offline in about ten seconds. ADR 0005 (`docs/adr/0005-adapters-and-country-packs.md`) puts every external service behind a small interface with a mock, so the suite never needs a Gemini key, WhatsApp, Xendit or Biteship.
 
 ```bash
 cd prototype
 pip install -r requirements-dev.txt
-pytest -q          # 226 passed
+pytest -q          # 389 passed
 ```
 
 ## How the suite is organised
@@ -33,15 +33,19 @@ pytest -q          # 226 passed
 | `tests/test_security.py` | 24 | Startup checks, OTP abuse, signed state, payment races, payout safety, input limits, media paths, webhook dedupe, SSRF, stale writes |
 | `tests/test_api.py` | 12 | The HTTP layer through FastAPI's `TestClient`: discovery, WhatsApp webhook, Connector key, MCP tool list, OpenAPI, `/dev` protection, webhook tokens, Meta signature, CSP and media route, oversized input |
 | `tests/test_regressions.py` | 9 | Bugs found while writing this guide, each with the test that failed before the fix: transaction retries, purpose-bound signatures, "Which product?", late Available taps, OMS-owned stock, short titles and plural search, shipment status never going backwards, unknown couriers |
-| `tests/test_ucp.py` | 16 | Etalase as a real UCP business server: the profile validates against the official `ucp-sdk` schema, a full checkout (create, update, complete, cancel) with every response validated by the SDK's `Checkout` model, idempotency, closed sessions, protocol errors, escaping, sold-out and confirm-first orders |
-| `tests/test_doctor.py` | 13 | The setup doctor: each service reports skip, ok or fail with a fix hint, with the network mocked; no key value is ever printed |
+| `tests/test_ucp.py` | 18 | Etalase as a real UCP business server: the profile validates against the official `ucp-sdk` schema, a full checkout (create, update, complete, cancel) with every response validated by the SDK's `Checkout` model, idempotency, closed sessions, protocol errors, escaping, sold-out and confirm-first orders |
+| `tests/test_doctor.py` | 15 | The setup doctor: each service reports skip, ok or fail with a fix hint, with the network mocked; no key value is ever printed |
 | `tests/test_evals.py` | 17 | The extraction eval's scoring (title tokens, effective prices, invented price/stock/product counters, question behaviour), so the number on the slide is trustworthy |
 | `tests/test_scripts.py` | 7 | `scripts/env_to_cloud.py` and the deploy script's dry run: secrets travel on stdin only, unchanged secrets get no new version, nothing leaks into output |
-| `tests/test_biteship.py` | 21 | Biteship contract with a fake HTTP layer: rate request and response, order booking body (postal code, item weights, `reference_id`), error bodies, `order.status` webhook parsing by Biteship id / tracking id / waybill, status map, delivery re-check by tracking id |
+| `tests/test_biteship.py` | 23 | Biteship contract with a fake HTTP layer: rate request and response, order booking body (postal code, item weights, `reference_id`), error bodies, `order.status` webhook parsing by Biteship id / tracking id / waybill, status map, delivery re-check by tracking id |
 | `tests/test_xendit.py` | 9 | Xendit QRIS contract: request headers and body, UTC expiry format, QR id kept, `qr.payment` webhook parsing and ignored events, the Rp10.000.000 cap, error logging |
 | `tests/test_whatsapp.py` | 12 | WhatsApp Cloud API contract: send bodies (`+` prefix, button limits), template payloads, free-form then template on error 131047, failed-status parsing, and a check that the template list matches what notifications send |
 | `tests/test_gatekeeper.py` | 9 | The checks before anything costly: MCP tools rate-limited per client address and sharing buckets with REST, errors returned as tool results, per-seller Gemini budget for chat turns and catalog builds, offline mode never limited |
+| `tests/test_returns.py` | 72 | The payout hold and returns: the hold and its shorter version for proven sellers, delivery starting the window, a return blocking the payout, the checkout id alone being useless, change of mind only if the seller opted in, the window fixed at checkout, approve then item received refunds once, silence approving, lapse, escalation to an operator, a refund that cannot be sent never being lost, courier returns checked with the courier, the policy in every product result and in JSON-LD, one broken order never stopping the others, every WhatsApp template matching what the app sends |
+| `tests/test_storefront.py` | 26 | The public store link: catalog and agent pointers, one script pinned by hash in the CSP, the font route, labelled swatches and no filler text, pending buttons and live polling, escaping and JSON-LD safety, buying, bad input, cross-site posts refused, the referrer policy a real browser needs, the return form |
 | `tests/test_gemini.py` | 35 | Gemini contract with a recorded client: model and key aliases, retry options, audio and image MIME types, size budget, temperature rule for Gemini 3, response parsing and errors, offline fallback, seller-agent failure replies, API-key and Vertex modes building the right backend |
+| `tests/test_telegram.py` | 28 | Telegram as a second seller channel: update parsing (text, buttons, photos, voice, files, private chats only), Bot API calls and errors that never contain the token, router choice by address, link codes (valid, expired, forged, moved), alerts and button taps over Telegram, replies on the channel the seller wrote on, sign-in code on the chosen channel, the webhook secret, startup checks |
+| `tests/test_subdomains.py` | 31 | Per-shop addresses: slug rules and reserved names, claiming and changing, `Host` to shop mapping, unclaimed host is 404, other paths pass through, canonical links, each shop a separate origin for the form check, startup checks for `STORE_BASE_DOMAIN`, the doctor's DNS check |
 
 The parametrised tests in `test_parsing.py` count once per case, which is why 8 functions make 23 tests.
 
@@ -57,13 +61,19 @@ flowchart LR
   F --> C
   R[test_regressions] --> C
   R --> IN[SellerInbox]
+  RET[test_returns] --> RS[ReturnService and the payout hold]
+  SF[test_storefront] --> PG[store link pages in gateway/storefront.py]
 ```
 
 Most tests call services directly (unit and integration level). Only `test_api.py` goes through HTTP.
 
 ## End to end over real HTTP: `scripts/e2e_http.py`
 
-The pytest suite uses FastAPI's in-process `TestClient`. `make e2e` goes further: it starts the real app with `uvicorn` on a free port, in a clean environment with no `.env`, and plays the whole story over sockets: the seller builds a catalog on WhatsApp, an agent finds it over REST, buys it over UCP (profile, create, update, courier choice, complete, hosted QRIS page), the payment webhook fires, the seller accepts and ships on WhatsApp, the courier webhook delivers, the payout is released, and a second agent sees the shop over MCP with the real client library. It fails on the first wrong step and runs in CI. It uses the mock adapters, so it proves our own wiring, not Meta, Xendit, Biteship or Gemini.
+The pytest suite uses FastAPI's in-process `TestClient`. `make e2e` goes further: it starts the real app with `uvicorn` on a free port, in a clean environment with no `.env`, and plays the whole story over sockets: the seller builds a catalog on WhatsApp, an agent finds it over REST, buys it over UCP (profile, create, update, courier choice, complete, hosted QRIS page), the payment webhook fires, the seller accepts and ships on WhatsApp, the courier webhook delivers, the payout is released, and a second agent sees the shop over MCP with the real client library. A further step links the seller's Telegram chat with a dashboard code, handles an order with Telegram buttons while nothing goes to WhatsApp, and switches back (46 checks in all). It fails on the first wrong step and runs in CI. It uses the mock adapters, so it proves our own wiring, not Meta, Xendit, Biteship or Gemini.
+
+## A real browser: `scripts/browser_check.py`
+
+`make browser` drives the buyer pages and the seller dashboard in headless Chromium through Playwright. It is optional (the machine needs Playwright and a browser) and is not part of CI. It exists because some bugs only appear in a real browser: it found a Referrer-Policy that made Chromium send `Origin: null` on the buy form, so our own same-origin check refused every real purchase, and a chip attribute name that collided with a built-in. TestClient and httpx cannot reproduce either. The dashboard's Content-Security-Policy forbids string evaluation, so the checks wait on selectors rather than on script strings.
 
 ## Fixtures: `conftest.py`
 

@@ -115,7 +115,9 @@ SEEN_MESSAGE_IDS = 5000          # WhatsApp retries webhooks, so the same messag
 
 `_seen` is an `OrderedDict` used as a bounded set: the oldest id is evicted after 5,000. This makes message handling **idempotent**: a retried delivery cannot publish a catalog twice or send two replies. `test_duplicate_whatsapp_delivery_is_ignored` in `tests/test_security.py` proves it.
 
-Next, the sender's number is looked up with `store.find_seller_by_whatsapp`. An unknown number gets the `unregistered` message with a sign-up link and nothing else happens. From here on, the **seller id comes from the verified number**, never from the message content.
+Next, the sender's address is looked up with `store.find_seller_by_address`: a WhatsApp number, or `tg:<chat id>` for a Telegram chat a seller linked. An unknown WhatsApp number gets the `unregistered` message with a sign-up link and nothing else happens. An unknown Telegram chat is told to link itself from the dashboard, unless its message is `/start <code>` with a valid link code (see below), and gets at most three pointers an hour. From here on, the **seller id comes from the verified address**, never from the message content.
+
+`handle` also stores the sender in a `ContextVar`, and every reply uses `self.to(seller)`: **back through the channel the seller wrote on**. Messages Etalase starts (a new order, a stock check, a payout) have no such sender and go to `seller.address`, the channel the seller chose.
 
 ### 4. Buttons are handled in code
 
@@ -133,9 +135,9 @@ Button ids carry the action and, for orders, the order id: `publish`, `edit`, `c
             elif action == "confirm":
                 order = ctx.checkout.seller_confirms_stock(seller_id, order_id, available=True)
                 if order.status == OrderStatus.AWAITING_PAYMENT and order.seller_confirmed:
-                    ctx.messenger.send_text(seller.whatsapp, ctx.t("confirmed"))
+                    ctx.messenger.send_text(self.to(seller), ctx.t("confirmed"))
                 else:  # expired or already answered: nothing was sent to the buyer
-                    ctx.messenger.send_text(seller.whatsapp, ctx.t("order_closed", status=order.status.value))
+                    ctx.messenger.send_text(self.to(seller), ctx.t("order_closed", status=order.status.value))
             elif action == "oos":
                 order = ctx.store.get_order(order_id)
                 if order and order.status == OrderStatus.AWAITING_SELLER_CONFIRMATION:
@@ -145,7 +147,7 @@ Button ids carry the action and, for orders, the order id: `publish`, `edit`, `c
             elif action == "accept":
                 ctx.checkout.seller_accepts(seller_id, order_id)
         except CheckoutError as e:
-            ctx.messenger.send_text(seller.whatsapp, ctx.t("cannot_process", error=e))
+            ctx.messenger.send_text(self.to(seller), ctx.t("cannot_process", error=e))
 ```
 
 A button id arrives from outside, so it is untrusted. That is fine: every checkout method calls `_seller_order(seller_id, order_id)`, which raises "order not found" when the order belongs to someone else (see [Checkout and orders](/architecture/checkout-and-orders)). One `oos` button means two different things depending on the order state: before payment it rejects the stock check, after payment it rejects and refunds.
@@ -189,7 +191,7 @@ Stock intents carry a product `hint`: the words before the colour, minus filler 
                 matches = ctx.catalog.find_variants(seller_id, it.color, it.hint)
                 titles = sorted({p.title for p, _ in matches})
                 if not it.hint and len(titles) > 1:  # never change several products from one vague message
-                    ctx.messenger.send_text(seller.whatsapp, ctx.t("which_product", color=it.color,
+                    ctx.messenger.send_text(self.to(seller), ctx.t("which_product", color=it.color,
                                                                    titles=", ".join(titles)))
                     return
 ```
@@ -308,6 +310,18 @@ class Translator:
 ```
 
 English is the default for the demo and the judges; Indonesian sellers get `SELLER_LOCALE=id`. The locale is global per deployment, not per seller, and the ADK agent replies in whatever language the seller writes.
+
+
+## Telegram as a second channel
+
+<Badge type="tip" text="Built" /> A seller can link a Telegram chat and choose it for orders, stock checks and payouts ([ADR 0008](https://github.com/galihsatriawan/etalase/blob/main/docs/adr/0008-seller-channels-and-shop-addresses.md)). The pieces:
+
+- `adapters/telegram.py`: `TelegramMessenger` (`sendMessage`, inline buttons two per row with at most 64 bytes of callback data, `answerCallbackQuery`, `getFile` for photos, voice notes and CSV files), `parse_telegram_update` (private chats only) and a `set-webhook` command. The bot token is part of every URL, so it is never logged and never appears in an error.
+- `adapters/messaging.py`: `ChannelRouter` implements `Messenger` and sends `tg:<chat id>` addresses to Telegram and everything else to WhatsApp or the console outbox. The services never know which channel they are talking to.
+- `seller/channels.py`: `start_link` (a signed 10-minute code, `Seller`-scoped, in a `t.me/<bot>?start=<code>` deep link), `link_telegram` (verifies the code when `/start <code>` arrives), `set_channel`.
+- `POST /webhooks/telegram`: the secret header is compared in constant time, and a failing update is still acknowledged.
+
+Tests: `tests/test_telegram.py` (28), plus an end-to-end step in `scripts/e2e_http.py` where one order is placed on the public shop and the seller handles it from Telegram while WhatsApp receives nothing.
 
 ## WhatsApp rules that shape the design
 

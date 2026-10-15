@@ -34,10 +34,18 @@ More in [Problem and market](docs/01-problem-and-market.md).
    are. The seller taps **Publish**.
 2. **A buyer asks their AI agent.** The agent calls Etalase's **MCP server**: search, shipping
    options, checkout. Stock is reserved while the buyer pays with **QRIS**.
-3. **The seller gets the order in WhatsApp** with **Accept** / **Out of stock** buttons, replies
-   with a tracking number, and is paid out after delivery, minus a small commission.
-4. Uncertain stock? **Confirm-first mode** asks the seller before the buyer pays.
-5. OMSs, e-commerce plugins and website builders connect through an **OpenAPI Connector API**.
+   A buyer without an agent opens the seller's **store link** (put it in an Instagram bio or a WhatsApp
+   status): the same catalog, a short buy form, the QRIS code and an order page, as plain HTML that works on a weak phone connection.
+   With a domain of your own, each shop can also have a short address such as `kopi-tuku.example.com`.
+3. **The seller gets the order in WhatsApp** with **Accept** / **Out of stock** buttons and replies
+   with a tracking number. A seller can move this to **Telegram** instead (a second channel behind the same
+   interface, with no 24-hour window and no per-message fee); WhatsApp stays the default.
+4. **Money and returns behave.** The payout is held until delivery plus a return window (72 hours; 168 for a new seller),
+   so a buyer can ask for a return (agent tool, or a form on the order page), the seller answers with buttons, and a refund never
+   depends on the seller sending money back. The seller's return policy and track record are shown to agents before they buy.
+   After the window the seller is paid, minus a small commission.
+5. Uncertain stock? **Confirm-first mode** asks the seller before the buyer pays.
+6. OMSs, e-commerce plugins and website builders connect through an **OpenAPI Connector API**.
 
 ![Process flow](docs/assets/process-flow.png)
 
@@ -47,18 +55,18 @@ More in [Problem and market](docs/01-problem-and-market.md).
 cd prototype
 pip install -r requirements-dev.txt
 python scripts/demo.py          # full end-to-end story in the terminal
-pytest -q                       # 226 tests: oversell race, payments, webhook security, OTP abuse
+pytest -q                       # 389 tests: oversell race, payments, webhook security, OTP abuse
 uvicorn etalase.api.main:app --port 8080   # API, MCP at /mcp/, dashboard at /, docs at /docs
 ```
 
 Without keys, Etalase uses offline parsers, a console WhatsApp outbox and mock payment and
-shipping. Add a Gemini key (or Vertex AI), WhatsApp Cloud API, Xendit and Biteship credentials to
-switch each part to the real service. See [prototype/README.md](prototype/README.md).
+shipping. Add a Gemini key (or Vertex AI), WhatsApp Cloud API, Xendit and Biteship credentials (and, optionally,
+a Telegram bot) to switch each part to the real service. See [prototype/README.md](prototype/README.md).
 
 **Only the keys are left to you:** [SETUP.md](SETUP.md) lists every value and where to get it. `make setup` prepares
 everything, `make doctor` tests each key against the real service, `make eval` measures extraction accuracy,
 `make deploy` ships to Cloud Run from your `.env`, and `make ucp-conformance` runs Google's official UCP conformance
-suite against Etalase (run them from `prototype/`).
+suite against Etalase, and `make e2e` / `make browser` play the whole story over real HTTP and in a real browser (run them from `prototype/`).
 
 ## Google Cloud AI usage
 
@@ -130,7 +138,8 @@ It is published to GitHub Pages by `.github/workflows/learn.yml` (Settings → P
 ## Status
 
 Hackathon prototype. Working end to end locally with mocks; live integrations (Gemini, WhatsApp
-Cloud API, Xendit QRIS, Biteship rates) are wired and switch on with credentials. Known gaps before a
+Cloud API, Telegram, Xendit QRIS, Biteship rates) are wired and switch on with credentials. Instagram DM
+selling is roadmap, not built. Known gaps before a
 pilot are listed in [Security, privacy and compliance](docs/09-security-privacy-compliance.md#known-gaps-before-a-pilot).
 
 ## Team

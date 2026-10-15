@@ -5,7 +5,8 @@
 ::: tip What you will learn
 - What `create_checkout` validates, and how it reserves stock and requests a QRIS payment
 - How confirm-first orders work, and how payment webhooks stay idempotent, including late payments
-- How sellers accept, reject, ship, and how delivery is verified before any payout
+- How sellers accept, reject, ship, and how delivery is verified before the return window starts
+- How the payout hold doubles as the buyer's return window, and the return state machine
 - The payout and commission math, with the demo's real numbers
 - The exact order state machine, and what happens when a provider step needs a human
 :::
@@ -49,7 +50,9 @@ sequenceDiagram
   W->>C: tracking JNE123456
   K->>C: webhook delivered
   C->>K: confirm_delivered
-  C->>P: release_to_seller
+  C-->>W: Delivered, payout due after the return window
+  Note over C: 72 h (168 h for a new seller)
+  C->>P: release_to_seller, if no return is open
   C-->>W: Payout released
 ```
 
@@ -72,17 +75,28 @@ stateDiagram-v2
   accepted --> refunded: seller_rejects_paid
   accepted --> shipped: mark_shipped
   shipped --> delivered: shipment_update, courier confirms
-  delivered --> paid_out: release_payout succeeds
+  delivered --> paid_out: release_due_payouts, window over and no return open
+  delivered --> return_requested: request_return, inside the window
+  return_requested --> return_approved: seller approves, or 48 h of silence
+  return_requested --> return_disputed: seller disputes
+  return_approved --> refunded: seller taps Item received
+  return_disputed --> refunded: seller taps Item received, if the buyer gave a tracking number
+  shipped --> refunded: the courier brings an undelivered parcel back
+  return_approved --> delivered: nothing arrives in 7 days, lapses
+  return_approved --> return_disputed: lapse with a buyer tracking number
+  return_disputed --> refunded: operator decides refund
+  return_disputed --> paid_out: operator decides release
   rejected --> [*]
   expired --> [*]
   refunded --> [*]
   paid_out --> [*]
 ```
 
-Three details the diagram cannot show:
+Details the diagram cannot show:
 
 - A payment that arrives for an `expired` order keeps the status `expired`; only `payment.status` changes (`paid_late`, then `refunded` or `refund_pending`).
 - If the payout needs manual action, the order stays `delivered` with `payout.status == "pending_manual"`.
+- `delivered` is no longer the moment the seller is paid: it sets `delivered_at` and `payout_due_at = delivered_at + hold`. The payout runs from a sweep (`release_due_payouts`) once that time has passed and no return is open.
 - The shipment has its own `shipment.status` (`picked_up`, `booked`, `in_transit`, `delivered`, `returned`, ...). Once it is `delivered` or `returned` it never moves backwards.
 - If `create_checkout` fails (validation, no stock, payment creation error), no order is saved at all.
 
@@ -259,7 +273,7 @@ The transition itself is again a guarded `update_order` from `accepted` to `ship
 
 ```python
 if status == "delivered":
-    # Money moves on delivery, so the webhook is only a hint: ask the courier first.
+    # Money moves because of delivery, so the webhook is only a hint: ask the courier first.
     if found.status != OrderStatus.SHIPPED or not self.shipping.confirm_delivered(found):
         log.warning("delivery for %s not confirmed by the courier; ignoring", found.id)
         return found
@@ -283,9 +297,22 @@ def update(o: Order) -> bool:
     return True
 ```
 
-`test_shipment_status_never_goes_backwards` sends `delivered` and then `in_transit` for the same waybill; the shipment stays `delivered` and the order stays `paid_out`. The webhook key can be an order id or a waybill; `_order_by_waybill` finds a waybill by scanning the orders of every seller that has products (a prototype shortcut; production would query an index on `shipment.waybill`).
+`test_shipment_status_never_goes_backwards` sends `delivered` and then `in_transit` for the same waybill; the shipment stays `delivered`, and the order stays `delivered` until the window is over and then becomes `paid_out`. The webhook key can be an order id or a waybill; `_order_by_waybill` finds a waybill by scanning the orders of every seller that has products (a prototype shortcut; production would query an index on `shipment.waybill`).
 
-### 9. Payout and commission
+### 9. The payout hold, payout and commission
+
+```python
+def hold_hours(self, seller) -> int:
+    s = self.settings
+    if s.payout_hold_hours <= 0:
+        return 0
+    done = sum(1 for o in self.store.list_orders(seller.id) if self.completed(o))
+    return max(s.payout_hold_hours, s.new_seller_hold_hours) if done < s.new_seller_orders else s.payout_hold_hours
+```
+
+When the courier confirms delivery, the order gets `delivered_at` and `payout_due_at = delivered_at + hold_hours(seller)`. The hold is 72 hours (`PAYOUT_HOLD_HOURS`), or 168 hours for a seller with fewer than 5 completed orders (`NEW_SELLER_ORDERS`). `0` pays at once and switches returns off. **The hold is also the buyer's return window**, so a refund never needs money clawed back from a seller's bank account. The terms are copied onto the order at checkout (`Order.return_terms`), so changing the policy later never changes an order already placed.
+
+Then the background job (`AppContext.process_due`, every 60 seconds and on `POST /tasks/expire`) runs three guarded steps in this order: expire unpaid checkouts, run the return timers (`ReturnService.sweep`), release due payouts (`release_due_payouts`). One broken order is logged and skipped; it never stops the others.
 
 ```python
 rate = seller.commission_rate if seller.commission_rate is not None else self.settings.commission_rate
@@ -293,11 +320,28 @@ commission = round(order.subtotal * rate)
 seller_amount = order.subtotal - commission  # the shipping fee goes to the courier
 ```
 
-Commission is 4% of the **subtotal** by default (per-seller override possible). A first `update_order` *claims* the payout by writing `Payout(status="releasing")`; only the caller that wins the claim calls `release_to_seller`. That prevents a double release (`test_manual_payout_when_provider_is_not_automated` calls `release_payout` twice).
+Commission is 4% of the **subtotal** by default (per-seller override possible), charged **only when the payout is released**, so a refunded order earns nothing. A first `update_order` *claims* the payout by writing `Payout(status="releasing")`; only the caller that wins the claim calls `release_to_seller`. That prevents a double release (`test_manual_payout_when_provider_is_not_automated` calls `release_payout` twice). A return that is open (`return_requested`, `return_approved`, `return_disputed`) is a different status from `delivered`, so the sweep cannot pay it.
 
 ### 10. Expiry
 
 `expire_due(when)` loads held reservations whose `expires_at <= when`, and for each order runs a guarded update: only `awaiting_payment` or `awaiting_seller_confirmation`, and only if `order.expires_at` has not been extended past `when`. Expired (or rejected) orders get their hold released. In the prototype, the app's lifespan task calls it every 60 seconds; `POST /tasks/expire` (with `WEBHOOK_TOKEN`) lets Cloud Scheduler call it. A paid order is never expired (`test_expiry_never_cancels_a_paid_order`).
+
+### 11. Returns (`checkout/returns.py`)
+
+`ReturnService` is the other half of the hold. Every transition is one guarded `update_order`, with the same "callback may run again, so it must be idempotent" rule as the rest of the file.
+
+| Step | Who | What the code checks | Result |
+|---|---|---|---|
+| `request(order_id, phone, reason, note, evidence)` | The buyer's agent, or the buyer on the order page | Checkout id **and** the buyer's phone (a wrong phone gets the same "checkout not found" as an unknown id), status `delivered`, inside the window, reason allowed under the order's `return_terms`, note up to 500 characters, up to 5 `https` links (stored, never fetched) | `return_requested`; the seller gets **Approve return / Dispute** |
+| `seller_responds(approve)` | The seller, scoped to their own orders (`_seller_order`) | Only on `return_requested` | `return_approved` or `return_disputed` |
+| `add_return_tracking` | The buyer's agent | Phone again; waybill format | Tracking stored; changes what a lapse does |
+| `seller_received` | The seller | Only on `return_approved` (or on `return_disputed` when the buyer gave a tracking number) | Refund first, then restock only a change-of-mind item (a damaged one is inspected first); `refunded` |
+| `sweep(when)` | The clock | 48 h without an answer counts as approval; 7 days without the parcel lapses to `delivered` (payout continues), or to `return_disputed` plus an operator alert if the buyer gave a tracking number | Timers, never a person |
+| `resolve_dispute` | An operator (`POST /tasks/resolve-dispute`, behind `WEBHOOK_TOKEN`) | `refund` or `release` | `refunded` or `paid_out` |
+
+Refund amount: the full total (shipping included) for `damaged`, `wrong_item` and `not_as_described`; the subtotal only for `changed_mind`, which exists only if the seller opted in. The buyer pays the return shipping and Etalase does not reimburse it in this version (an open decision, [ADR 0007](https://github.com/galihsatriawan/etalase/blob/main/docs/adr/0007-payout-hold-and-returns.md)). `XenditPayment.refund` still raises `ManualActionRequired`, so a refund becomes `payment.status = "refund_pending"` and an operator sends it. This is separate from the courier's own `returned` status: a parcel that never reached the buyer and is brought back to the seller (confirmed with the courier by `confirm_returned`, only from `shipped`) refunds the buyer and restocks automatically, and `return_in_transit` only maps to `in_transit` and never refunds.
+
+Two properties to keep when you change this code: **refund and payout can never both happen** (each is an atomic claim on the same order), and a refund is recorded **before** the stock is restored, so a crash cannot restock an item whose refund was never recorded.
 
 ## When a human must finish the job
 
@@ -345,7 +389,7 @@ From `python scripts/demo.py` (steps 3 to 6): the agent buys 2 Black voal hijabs
 | Commission | round(170,000 × 0.04) | Rp6.800 |
 | Seller payout | 170,000 − 6,800 | Rp163.200 |
 
-Black stock goes from 5 to 3 at payment (`commit`). The order ends as `paid_out`, and the seller sees "Parcel delivered ✅ Rp163.200 is on its way to your account (commission Rp6.800)." The 12,000 shipping fee is not part of the payout; how it reaches the courier depends on the provider setup and is not modelled in the prototype.
+Black stock goes from 5 to 3 at payment (`commit`). When the courier confirms delivery the seller sees "Parcel delivered ✅ Rp163.200 will be paid out on `<date>` if the buyer does not open a return." The order ends as `paid_out` once the window is over (the demo moves its clock forward), and the seller then sees "Parcel delivered ✅ Rp163.200 is on its way to your account (commission Rp6.800)." The 12,000 shipping fee is not part of the payout; how it reaches the courier depends on the provider setup and is not modelled in the prototype.
 
 ## Pitfalls
 
@@ -356,6 +400,7 @@ Black stock goes from 5 to 3 at payment (`commit`). The order ends as `paid_out`
 - **Outer flags in a callback.** If you add a new `update_order` callback that reports back through an outer dict, clear it on the first line, like every existing callback does. Otherwise the code passes every `MemoryStore` test and breaks only on Firestore under contention.
 - A crash between the payout claim (`releasing`) and the provider call leaves `payout.status = "releasing"`, and the guard (`order.payout is not None`) prevents a retry. A reconciliation job is needed before the pilot.
 - If a seller types a waybill for a different courier than the one chosen at checkout, the Biteship delivery check uses the checkout courier and will fail.
+- The hold is Etalase choosing **when to call** `release_to_seller`. Whether Xendit xenPlatform lets the money sit in the seller's sub-account until then, or needs a delayed split rule, is not verified (see [Known gaps](/master/known-gaps)).
 - Tapping [Out of stock] on a confirmed but unpaid order does nothing: `seller_rejects_paid` only acts on `paid` or `accepted`.
 
 ## Check yourself
@@ -381,7 +426,7 @@ The order expired at 15 minutes and its hold was released. `pay` sees `expired` 
 4. Why is a courier "delivered" webhook not enough to release money?
 
 ::: details Answer
-Webhooks can be forged and waybills typed by sellers can be fake. `shipment_update` calls `confirm_delivered`, which asks the courier directly, and only then moves the order to `delivered` and releases the payout.
+Webhooks can be forged and waybills typed by sellers can be fake. `shipment_update` calls `confirm_delivered`, which asks the courier directly, and only then moves the order to `delivered`. That starts the return window; the payout follows when it ends.
 :::
 
 5. Why does every `update_order` callback start with something like `outcome.clear()`?
@@ -394,6 +439,18 @@ Firestore may run a transaction callback more than once when it conflicts. The s
 
 ::: details Answer
 Commission is round(170,000 × 0.04) = Rp6.800; the seller receives 170,000 − 6,800 = Rp163.200. The Rp12.000 shipping fee is outside both.
+:::
+
+7. A buyer opens a return 71 hours after delivery, and the payout sweep runs at hour 72. Does the seller get paid?
+
+::: details Answer
+No. `request` moves the order to `return_requested` inside one guarded update, and `release_due_payouts` only looks at `delivered` orders, so the sweep never sees it. If the sweep had claimed the payout first (`order.payout is not None`), the buyer's `open_return` update would return `False` and the buyer would be told the window is over. Either way the order is claimed exactly once, so refund and payout cannot both happen.
+:::
+
+8. The seller never answers a return request and the buyer never ships the parcel. How does the order end?
+
+::: details Answer
+`sweep` approves the return after 48 hours of silence (`return_approved`). After 7 more days with no parcel it lapses back to `delivered` with `payout_due_at` set to now, and the same minute's payout sweep pays the seller. If the buyer had reported a tracking number, the lapse goes to `return_disputed` and an operator decides instead.
 :::
 
 ## Next

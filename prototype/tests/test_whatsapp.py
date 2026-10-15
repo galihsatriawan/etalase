@@ -10,7 +10,7 @@ from etalase.adapters.messaging import (ConsoleMessenger, Template, WhatsAppClou
                                          whatsapp_failed_statuses)
 from etalase.adapters.whatsapp_templates import LANGUAGES, TEMPLATES, clean_param, template_name
 
-from .conftest import BUYER, make_product, make_seller, variant
+from .conftest import BUYER, after_window, make_product, make_seller, variant
 from .test_biteship import Resp
 
 
@@ -135,6 +135,7 @@ def test_every_server_started_notification_carries_a_template_that_matches_its_d
     ctx.checkout.seller_accepts(seller.id, order2.id)
     ctx.checkout.mark_shipped(seller.id, order2.id, "JNE123456")
     ctx.checkout.shipment_update("JNE123456", "delivered")
+    after_window(ctx)                                                                   # the payout notice follows the hold
     seen = {t.key: t for t in collect_templates(ctx)}
     assert {"stock_check", "new_paid_order", "paid_ship_now", "payout"} <= set(seen)
     for key, tpl in seen.items():

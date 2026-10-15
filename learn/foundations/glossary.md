@@ -70,6 +70,8 @@ flowchart LR
 
 ## C
 
+**Channel router.** The `ChannelRouter` class: it implements the `Messenger` interface and picks WhatsApp or Telegram from the address string (`tg:<chat id>` means Telegram, anything else is a WhatsApp number). Replies go back through the channel the seller wrote on. <Badge type="tip" text="Built" /> [Architecture overview](/architecture/overview)
+
 **Cloud Run.** Google Cloud's service for running containers that scale with HTTP traffic. The prototype deploys there as one service in `asia-southeast2` (Jakarta). <Badge type="tip" text="Built" /> [Deploy to Cloud Run](/ship/deploy)
 
 **Cloud Tasks, Cloud Storage, Cloud KMS.** Planned replacements for in-process pieces: one task per order for reservation expiry, a bucket for media, and encryption keys for stored OAuth tokens. <Badge type="info" text="Roadmap" /> [Architecture overview](/architecture/overview)
@@ -83,6 +85,8 @@ flowchart LR
 **Container (`container.py`).** The one place where settings, store, adapters and services are created and wired into an `AppContext`. Swapping an implementation means changing this file only. [Architecture overview](/architecture/overview)
 
 **Country pack.** A `CountryPack` entry in `prototype/etalase/config.py` naming a market's currency, locale, payment provider, shipping provider and tax profile. Only `"ID"` exists. [Architecture overview](/architecture/overview)
+
+**CTWA (Click-to-WhatsApp ads).** Meta ads that open a WhatsApp chat. Replies to a chat started this way fall in a longer free window, but this helps only Etalase's own acquisition ads and the sellers' chats with buyers, not Etalase's alerts to sellers. The window length is not confirmed ([Evidence](/business/evidence)).
 
 ## D
 
@@ -129,6 +133,8 @@ flowchart LR
 ## K
 
 **KYC (Know Your Customer).** Identity and bank verification. Done by the payment provider; Etalase stores only `kyc_status` and the sub-account id, and only `verified` sellers can take orders. [Checkout and orders](/architecture/checkout-and-orders)
+**Link code.** A short signed code (`<seller id>-<expiry>-<signature>`, 10 minutes) that a signed-in seller turns into a Telegram deep link or `/start CODE` command to connect a chat to their shop. It is a bearer value, not single-use ([Known gaps](/master/known-gaps)). <Badge type="tip" text="Built" /> [WhatsApp seller agent](/architecture/seller-agent)
+
 
 ## M
 
@@ -207,8 +213,12 @@ flowchart LR
 **Streamable HTTP.** The MCP transport Etalase uses: JSON-RPC over plain HTTP POST, stateless, with JSON responses, so it scales on Cloud Run. [Agent gateway](/architecture/agent-gateway)
 
 **Sub-account (xenPlatform).** A Xendit sub-account per seller; payments land there (header `for-user-id`) and Etalase only decides when they are released. Automated settlement is not built yet. <Badge type="warning" text="Mocked in demo" /> [Checkout and orders](/architecture/checkout-and-orders)
+**Shop address (slug).** The 3 to 30 character name of a shop, such as `kopi-tuku`. With `STORE_BASE_DOMAIN` set, the shop is also served at `kopi-tuku.<your domain>`; the path link `/stores/<id>` always keeps working. Reserved names (`www`, `api`, `admin` and more) are refused. <Badge type="tip" text="Built" /> [Architecture overview](/architecture/overview)
+
 
 ## T
+
+**Telegram (seller channel).** A second place where a seller can receive order alerts and tap Confirm, Cancel or Ship, through a bot (the Bot API). No 24-hour window, no templates, no per-message fee once the seller has started the bot. The seller chooses WhatsApp or Telegram in the dashboard. <Badge type="warning" text="Mocked in demo" /> [WhatsApp seller agent](/architecture/seller-agent)
 
 **Template vs free-form message.** WhatsApp messages that start a conversation outside the 24-hour window must use a Meta-approved template; replies inside the window can be free-form. The prototype sends only free-form text and buttons. <Badge type="info" text="Roadmap" /> [WhatsApp seller agent](/architecture/seller-agent)
 

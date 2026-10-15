@@ -48,7 +48,8 @@ def test_connector_requires_key_and_otp_rejects_wrong_code(c):
 
 def test_mcp_exposes_the_agent_tools():
     names = {t.name for t in asyncio.run(mcp.list_tools())}
-    assert names == {"search_products", "get_product", "get_shipping_options", "create_checkout", "get_checkout_status"}
+    assert names == {"search_products", "get_product", "get_shipping_options", "create_checkout", "get_checkout_status",
+                     "request_return", "submit_return_tracking"}
 
 
 def test_openapi_documents_connector_api(c):

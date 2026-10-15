@@ -23,6 +23,8 @@ class ShippingProvider(Protocol):
         """Return (waybill_or_order_id, internal_status)."""
     def confirm_delivered(self, order: Order) -> bool:
         """Ask the courier directly before money moves. Webhooks alone are never trusted for payouts."""
+    def confirm_returned(self, order: Order) -> bool:
+        """Same for a refund: the parcel is really back with the seller, not just on its way."""
 
 
 def _postal(code: str) -> int:
@@ -55,6 +57,9 @@ class MockShipping:
     def confirm_delivered(self, order):
         return True  # simulation only; prod refuses the mock adapter
 
+    def confirm_returned(self, order):
+        return True
+
 
 class BiteshipShipping:
     """Biteship aggregator (https://biteship.com/docs/api). Checked against the official docs on 2026-10-15; the
@@ -69,7 +74,7 @@ class BiteshipShipping:
     # Webhook / tracking statuses -> our internal statuses (docs: help.biteship.com "Courier Status Availability").
     STATUS_MAP = {"confirmed": "booked", "scheduled": "booked", "allocated": "booked", "picking_up": "booked",
                   "picked": "picked_up", "dropping_off": "in_transit", "in_transit": "in_transit", "on_hold": "in_transit",
-                  "delivered": "delivered", "return_in_transit": "returned", "returned": "returned",
+                  "delivered": "delivered", "return_in_transit": "in_transit", "returned": "returned",
                   "cancelled": "failed", "rejected": "failed", "courier_not_found": "failed", "disposed": "failed"}
 
     def __init__(self, api_key: str, couriers: str = "jne,sicepat,jnt,anteraja") -> None:
@@ -133,18 +138,25 @@ class BiteshipShipping:
         """Ask Biteship before money moves, so a forged webhook or a made-up waybill typed by the seller cannot release
         a payout. Orders booked through the Order API are checked by tracking id; a waybill the seller typed by hand
         is checked through public tracking by waybill and courier."""
+        return self._tracking_status(order) == "delivered"
+
+    def confirm_returned(self, order):
+        """A refund is money too: only the final `returned` status counts, not `return_in_transit`."""
+        return self._tracking_status(order) == "returned"
+
+    def _tracking_status(self, order) -> str:
         s = order.shipment
         if not s:
-            return False
+            return ""
         if s.tracking_id:
             url = f"{self.BASE}/v1/trackings/{s.tracking_id}"
         elif s.waybill:
             url = f"{self.BASE}/v1/trackings/{s.waybill}/couriers/{s.courier}"
         else:
-            return False
+            return ""
         try:
             resp = httpx.get(url, headers=self.headers, timeout=15)
             resp.raise_for_status()
         except httpx.HTTPError:
-            return False
-        return str(resp.json().get("status", "")).lower() == "delivered"
+            return ""
+        return str(resp.json().get("status", "")).lower()

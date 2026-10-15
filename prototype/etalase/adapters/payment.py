@@ -27,7 +27,8 @@ class PaymentProvider(Protocol):
     def create_payment(self, order: Order, seller_account_id: str | None = None) -> PaymentInfo: ...
     def parse_webhook(self, headers: dict[str, str], body: dict) -> tuple[str, str] | None:
         """Return (payment_reference, status) or None if the event is not relevant."""
-    def refund(self, order: Order) -> None: ...
+    def refund(self, order: Order, amount: int | None = None) -> None:
+        """Give the buyer money back: the whole payment, or `amount` of it (a change-of-mind return keeps the shipping)."""
     def release_to_seller(self, order: Order, seller_account_id: str | None, amount: int, commission: int) -> str: ...
 
 
@@ -38,6 +39,7 @@ class MockPayment:
 
     def __init__(self) -> None:
         self.refunds: list[str] = []
+        self.refund_amounts: dict[str, int] = {}
         self.releases: list[tuple[str, int, int]] = []
 
     def create_payment(self, order: Order, seller_account_id: str | None = None) -> PaymentInfo:
@@ -52,8 +54,9 @@ class MockPayment:
             return body["reference"], body["status"]
         return None
 
-    def refund(self, order: Order) -> None:
+    def refund(self, order: Order, amount: int | None = None) -> None:
         self.refunds.append(order.id)
+        self.refund_amounts[order.id] = order.total if amount is None else amount
 
     def release_to_seller(self, order, seller_account_id, amount, commission) -> str:
         self.releases.append((order.id, amount, commission))
@@ -121,8 +124,11 @@ class XenditPayment:
             return ref, "paid"
         return None
 
-    def refund(self, order: Order) -> None:
-        raise ManualActionRequired("Xendit QR refunds are not automated yet (see docs/05); refund from the dashboard.")
+    def refund(self, order: Order, amount: int | None = None) -> None:
+        # Xendit's own pages disagree on how long a QR payment can be refunded (7 or 30 days) and on partial refunds, and
+        # an issuer that is not supported needs a disbursement instead. An operator decides per case until that is settled.
+        raise ManualActionRequired(f"Xendit QR refund of Rp{order.total if amount is None else amount:,} is not automated "
+                                   "yet (see docs/05); refund from the dashboard or send a disbursement.".replace(",", "."))
 
     def release_to_seller(self, order, seller_account_id, amount, commission) -> str:
         raise ManualActionRequired("xenPlatform settlement is not automated yet (see docs/05); release from the dashboard.")

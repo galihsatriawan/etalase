@@ -163,12 +163,13 @@ In Q&A, open this page, find the card, read the quote, then give the "If a judge
 - **Data year:** 2026. **Source:** [Retail Brew, 11 Feb 2026](https://www.retailbrew.com/stories/2026/02/11/google-makes-etsy-and-wayfair-items-shoppable-within-agentic-ai-search)
 - **If a judge asks** "Is anyone actually buying this way?": "Yes, in the US since February 2026 for Etsy and Wayfair items in AI Mode and Gemini."
 
-### 16. Australia is the first Asia-Pacific market (June 2026) <Badge type="tip" text="Verified" />
+### 16. Australia is the first Asia-Pacific market (June 2026) <Badge type="warning" text="Nuance" />
 
 > "Australia is the first market in the Asia-Pacific region to go live with the protocol."
 
 - **Data year:** 2026. **Source:** [Ragtrader, 19 Jun 2026](https://www.ragtrader.com.au/news/the-iconic-kogan-test-google-s-agentic-ai-checkout) · [Shopifreaks, 17 Jun 2026](https://www.shopifreaks.com/google-launches-its-ai-shopping-tool-in-australia-with-retailers-like-kogan-and-bunnings-its-first-such-rollout-in-asia-pacific/)
-- **If a judge asks** "Why does Australia matter to you?": "It shows the rollout has reached Asia-Pacific within six months of launch."
+- **Nuance:** it is a rollout with select retailers (Kogan and others). Google's own 20 May 2026 post says checkout reaches Australia "in the coming months" ([Google blog](https://blog.google/products-and-platforms/products/shopping/shopping-updates-google-marketing-live)), and PPC Land (7 Oct 2026) reports the self-serve Merchant Center hub is US-only with Australia and Canada expected in 2027 ([PPC Land](https://ppc.land/canada-and-australia-face-2027-wait-for-googles-merchant-center-ucp-hub/)). Indonesia is not named in either. Say "started in Australia", never "live in Australia".
+- **If a judge asks** "Why does Australia matter to you?": "It shows the rollout has started in Asia-Pacific, but even Australia is only beginning, which is why we do not depend on it."
 
 ### 17. India: Flipkart checkout in Gemini is a limited test <Badge type="warning" text="Nuance" />
 
@@ -178,7 +179,7 @@ In Q&A, open this page, find the card, read the quote, then give the "If a judge
 
 - **Data year:** 2026. **Source:** [TechCrunch](https://techcrunch.com/?p=3170226) · plan announced in [Storyboard18, 12 Mar 2026](https://storyboard18.com/digital/google-and-flipkart-to-launch-universal-commerce-platform-soon-91935.html)
 - **Nuance:** TechCrunch notes the checkout looks Flipkart-branded, unlike Google-hosted UCP checkout. Say "testing in India", never "live in India".
-- **If a judge asks** "Is UCP live in India?": "Google is testing Flipkart checkout in Gemini with some users; TechCrunch says it is unclear whether UCP powers it. So: live in the US and Australia, testing in India."
+- **If a judge asks** "Is UCP live in India?": "Google is testing Flipkart checkout in Gemini with some users; TechCrunch says it is unclear whether UCP powers it. So: live in the US, started in Australia, testing in India."
 
 ### 18. Indonesia is named among the next markets <Badge type="warning" text="Nuance" />
 
@@ -437,6 +438,36 @@ These are the facts as reported by the sources on the dates shown. Indonesian ru
 - **Changed on re-check:** what started on 18 May 2026 is a higher **cap** on TikTok Shop's dynamic commission (Rp40,000 to Rp650,000), not a new dynamic commission. An earlier `docs/01` also said Tokopedia raised fees; no source backed that, and `docs/01` no longer claims it. `docs/01` and `docs/15` now describe the TikTok Shop change as a higher cap on the dynamic commission. The integrated Tokopedia and TikTok Shop Seller Center is confirmed ("The integrated Tokopedia and TikTok Shop Seller Center was officially launched today", [Tokopedia blog, 11 Jun 2025](https://www.tokopedia.com/blog/tokopedia-and-tiktok-shop-seller-center-officially-launches-)).
 - **If a judge asks**: "Shopee's fashion admin fee is 10% and TikTok Shop's non-Mall commission is mostly 9–10%. That is the price our sellers compare us with."
 
+## Channels and messaging windows
+
+### 51. A Click-to-WhatsApp (CTWA) window is free, but the length is unconfirmed <Badge type="warning" text="Nuance" />
+
+> respond.io (6 Oct 2026): "Windows opened from Click-to-WhatsApp ads last up to 7 days, extended from 72 hours" · Wati (10 Jul 2026): "still get their free 72-hour entry-point window"
+
+- **Source:** [respond.io](https://respond.io/blog/whatsapp-pricing-change-2026), [Wati](https://www.wati.io/en/blog/whatsapp-business-api-pricing-changes-2026-what-august-and-october-actually-cost-you/)
+- **Nuance:** two resellers, and they disagree on the length (7 days vs 72 hours) and on whether service messages keep a free allowance. Meta's own pricing page, as we could read it, still showed the old rules. Do not quote a number.
+- **Our analysis (not a source):** the window frees the business's chat with a person who clicked the ad. Etalase's alerts go to a seller on events that no ad opens, so CTWA does not make them free. It helps Etalase's own acquisition ads and the buyer chats of sellers who run CTWA ads.
+- **If a judge asks** "Why not just use CTWA to make WhatsApp free?": "It frees conversations that start from an ad. Our alerts are not that, so we keep messages few and combined and offer Telegram as a channel with no per-message fee."
+
+### 52. Instagram and Messenger: a 24-hour window, professional accounts, Advanced Access <Badge type="tip" text="Verified" />
+
+> "Your app has 24 hours to respond to any message sent from an Instagram user to your app user" · "Advanced Access if your app serves Instagram professional accounts you don't own or manage"
+
+- **Source:** [Meta: Instagram messaging API](https://developers.facebook.com/docs/instagram-platform/instagram-api-with-instagram-login/messaging-api), [Meta: Send a Message](https://developers.facebook.com/docs/messenger-platform/send-messages) (read 15 and 16 Oct 2026)
+- **Verified for what the pages say.** Neither page states a price. Whether an automatic out-of-window "new paid order" alert is possible on Instagram is not stated; our reading that it is not reliable is unverified.
+- **If a judge asks** "Why not Instagram for seller alerts?": "Meta's pages describe a 24-hour window and no one-time notifications on Instagram, and an app serving accounts it does not own needs Advanced Access. We use Instagram as an input and a door, and keep it on the roadmap as a channel."
+
+### 53. "Instagram DMs are free from Meta, WhatsApp is not" <Badge type="danger" text="Not supported" />
+
+- It came from a vendor cost-comparison table shared with us as a screenshot. We could not find it on Meta's page, and a vendor page we read says nothing about Meta's fees. Do not quote it. Software subscriptions for DM tools are a separate cost.
+- **If a judge asks** "Isn't Instagram free?": "We have not been able to confirm that from Meta's own pages, so we do not rely on it."
+
+### 54. Telegram Bot API facts used by the Telegram channel <Badge type="tip" text="Verified" />
+
+- **Source:** [Bot API](https://core.telegram.org/bots/api), [Bot features: deep linking](https://core.telegram.org/bots/features) (read 16 Oct 2026): `setWebhook` `secret_token` is 1 to 256 characters of `A-Z a-z 0-9 _ -`, sent in the `X-Telegram-Bot-Api-Secret-Token` header; the deep-link start parameter is `A-Z a-z 0-9 _ -`, up to 64 characters, and the bot receives `/start <parameter>`; messages carry `photo`, `voice`, `audio`, `document`, `caption` and `chat.type`.
+- **Not re-read on that date, used defensively:** 4,096 characters per message, 64 bytes of callback data, 20 MB per download.
+- **If a judge asks** "Is the Telegram channel live?": "The code follows the documented Bot API and is tested against stubs; we have not called the live service yet."
+
 ## How to cite in the pitch
 
 1. **Number, source, year, in one breath.** "95% of Indonesian e-commerce businesses sell through chat apps, according to Statistics Indonesia's 2023 survey."
@@ -459,8 +490,9 @@ These are the facts as reported by the sources on the dates shown. Indonesian ru
 | "QRIS costs 0.7%" for our sellers | 0% MDR for micro merchants up to Rp500,000 since Oct 2026 | Claim 30, plus the gateway fee |
 | "WhatsApp replies are free" | Sources conflict since 1 Oct 2026 | Claim 28 |
 | "Big retailers are agent-ready by default" | PYMNTS: 19% of large merchants | Claim 11 wording |
+| "Instagram DMs are free" or "CTWA makes our alerts free" | Unverified vendor table; CTWA frees ad-started chats, not our alerts | Claims 51 and 53 |
 | Settlement "T+7" | Xendit documents T+2 business days for QRIS | Claim 32 |
-| Catalog accuracy, build time, latency results | Deck lists them as TBD | Only "226 automated tests pass" and the in-memory race result |
+| Catalog accuracy, build time, latency results | Deck lists them as TBD | Only "389 automated tests pass" and the in-memory race result |
 | Number of Indonesian e-commerce businesses | Databoks cites "approximately 3.81 million e-commerce businesses in Indonesia in 2024", but the deck does not use it | If you add it, cite it as a 2024 BPS estimate via Databoks |
 
 ## Link check log (10 October 2026)

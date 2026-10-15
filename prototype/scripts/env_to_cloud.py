@@ -35,10 +35,14 @@ SECRET_KEYS = {  # env var -> Secret Manager name
     "XENDIT_CALLBACK_TOKEN": "etalase-xendit-callback",
     "BITESHIP_API_KEY": "etalase-biteship-key",
     "INSTAGRAM_APP_SECRET": "etalase-instagram-app-secret",
+    "TELEGRAM_BOT_TOKEN": "etalase-telegram-bot-token",
+    "TELEGRAM_WEBHOOK_SECRET": "etalase-telegram-webhook-secret",
 }
 PLAIN_KEYS = ["WHATSAPP_PHONE_NUMBER_ID", "INSTAGRAM_APP_ID", "SELLER_LOCALE", "GEMINI_MODEL", "GOOGLE_CLOUD_LOCATION",
               "COMMISSION_RATE", "RESERVATION_TTL_MINUTES", "MAX_QTY_PER_ORDER", "MAX_CHECKOUTS_PER_BUYER_PER_HOUR",
-              "CONFIRM_IF_STALE_DAYS", "CONFIRM_IF_AVAILABLE_LTE", "SELLER_CONFIRM_TIMEOUT_MINUTES"]
+              "CONFIRM_IF_STALE_DAYS", "CONFIRM_IF_AVAILABLE_LTE", "SELLER_CONFIRM_TIMEOUT_MINUTES",
+              "TELEGRAM_BOT_USERNAME", "STORE_BASE_DOMAIN", "PAYOUT_HOLD_HOURS", "NEW_SELLER_HOLD_HOURS", "NEW_SELLER_ORDERS",
+              "RETURN_SELLER_RESPONSE_HOURS", "RETURN_LAPSE_DAYS", "SELLER_AI_CALLS_PER_HOUR"]
 PLACEHOLDERS = {"", "change-me-to-a-long-random-string", "etalase-dev-verify"}   # "not filled in"
 
 

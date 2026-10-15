@@ -41,6 +41,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from ..models import Address, CheckoutError, OrderStatus, now
 from ..security import RateLimiter, client_ip
+from . import pages
 
 if TYPE_CHECKING:
     from ..container import AppContext
@@ -56,7 +57,8 @@ SESSION_TTL = timedelta(minutes=30)
 API_PREFIX = "/ucp/v1"
 SESSION_KIND, IDEMPOTENCY_KIND = "ucp_session", "ucp_idempotency"
 
-PAID_STATES = {OrderStatus.PAID, OrderStatus.ACCEPTED, OrderStatus.SHIPPED, OrderStatus.DELIVERED, OrderStatus.PAID_OUT}
+PAID_STATES = {OrderStatus.PAID, OrderStatus.ACCEPTED, OrderStatus.SHIPPED, OrderStatus.DELIVERED, OrderStatus.PAID_OUT,
+               OrderStatus.RETURN_REQUESTED, OrderStatus.RETURN_APPROVED, OrderStatus.RETURN_DISPUTED}
 DEAD_STATES = {OrderStatus.REJECTED, OrderStatus.EXPIRED, OrderStatus.REFUNDED}
 AGENT_RE = re.compile(r'profile="([^"]*)"')
 VERSION_RE = re.compile(r'version="([^"]*)"')
@@ -304,8 +306,8 @@ class UcpCheckout:
         # state ---------------------------------------------------------------------------------
         if order is not None:
             expires = order.expires_at or expires
-            if order.status in PAID_STATES:
-                status = "completed"
+            if order.status in PAID_STATES or (order.status == OrderStatus.REFUNDED and order.shipment is not None):
+                status = "completed"     # the sale happened; a later return or courier refund is not a cancelled checkout
             elif order.status in DEAD_STATES:
                 status = "canceled"
             else:
@@ -350,7 +352,7 @@ class UcpCheckout:
         totals.append({"type": "total", "amount": grand})
 
         out: dict[str, Any] = {"ucp": envelope(), "id": s["id"], "status": status, "currency": currency,
-                               "line_items": line_items, "totals": totals, "links": [],
+                               "line_items": line_items, "totals": totals, "links": self._links(product),
                                "expires_at": expires.isoformat()}
         buyer = {k: v for k, v in s["buyer"].items() if v}
         if buyer:
@@ -364,6 +366,13 @@ class UcpCheckout:
         elif status != "canceled":
             out["continue_url"] = self._url(s["id"])
         return out
+
+    def _links(self, product) -> list[dict]:
+        """The seller's return policy as a UCP `refund_policy` link (a well-known link type in the checkout spec)."""
+        if product is None:
+            return []
+        return [{"type": "refund_policy", "title": "Return policy",
+                 "url": f"{self.base}/stores/{product.seller_id}/returns"}]
 
     def _fulfillment_view(self, s: dict, order, currency: str) -> dict:
         method: dict[str, Any] = {"id": "shipping_1", "type": "shipping", "line_item_ids": ["li_1"], "destinations": []}
@@ -494,48 +503,37 @@ class UcpCheckout:
     def pay_page(self, session_id: str) -> str:
         s = self.ctx.store.get_doc(SESSION_KIND, session_id)
         if s is None:
-            return _page("Checkout not found", "<p>This checkout link is not valid.</p>")
+            return pages.layout("Checkout not found", pages.status("info", "This checkout link is not valid",
+                                                                   "<p>Ask the shopping assistant to start the checkout again.</p>", icon="search"),
+                                heading=False)
         v = self.view(s)
         order = self.ctx.store.get_order(s["order_id"]) if s.get("order_id") else None
         total = next(t["amount"] for t in v["totals"] if t["type"] == "total") // 100
         item = v["line_items"][0]
-        rows = (f"<p class=item>{escape(item['item']['title'])} &times; {item['quantity']}</p>"
-                f"<p class=total>{escape(rupiah(total))}</p>")
-        refresh = False
+        rows = pages.summary([(f"{item['item']['title']} × {item['quantity']}", rupiah(total))])
+        live = ""
         if order is None:
-            body = rows + "<p>This checkout is not placed yet. The shopping assistant will finish it for you.</p>"
+            body = (pages.status("info", "Not placed yet", "<p>This checkout is not placed yet. The shopping assistant will finish it for you.</p>")
+                    + rows)
         elif order.status == OrderStatus.AWAITING_SELLER_CONFIRMATION:
-            body, refresh = rows + "<p class=note>The seller is confirming stock. This page updates by itself.</p>", True
+            live = order.status.value
+            body = (pages.status("wait", "Waiting for the seller", "<p>The seller is confirming stock. This page updates by itself.</p>") + rows)
         elif order.status == OrderStatus.AWAITING_PAYMENT and order.payment:
-            body, refresh = rows + _qr_block(order.payment.qr_string) + "<p class=note>Scan with any QRIS app. " \
-                                                                      "This page updates when the payment arrives.</p>", True
+            live = f"{order.status.value}:{order.payment.status}"
+            left = max(0, int((order.expires_at - now()).total_seconds())) if order.expires_at else None
+            body = (pages.pay_card(rupiah(total), order.payment.qr_string, left, pages.clock(order.expires_at) if order.expires_at else "") + rows)
         elif order.status in PAID_STATES:
-            body = rows + "<p class=ok>Paid. The seller will ship your order.</p>"
+            body = (pages.status("ok", "Paid", "<p>The seller will ship your order.</p>") + rows
+                    + f'<p class=links><a href="{escape(self.base)}/stores/{escape(order.seller_id)}/returns">{pages.ico("shield", "sm")}Return policy</a></p>')
+        elif order.status == OrderStatus.REFUNDED:
+            body = (pages.status("ok", "Refunded", "<p>This order was refunded. If the money has not reached you yet, ask the shopping assistant for the status.</p>")
+                    + rows)
         else:
-            body = rows + "<p class=bad>This checkout expired or was cancelled. Nothing was charged.</p>"
-        return _page("Pay for your order", body, refresh)
+            body = pages.status("bad", "Expired or cancelled", "<p>This checkout expired or was cancelled. Nothing was charged.</p>") + rows
+        return pages.layout("Pay for your order", f"<div class=stack><h1 class=sr>Pay for your order</h1>{body}</div>", live=live, heading=False)
 
 
-def _qr_block(payload: str) -> str:
-    import io
-
-    import segno
-    buf = io.BytesIO()
-    segno.make(payload or "-", error="m").save(buf, kind="svg", scale=5, border=2, xmldecl=False, svgns=True)
-    return f'<div class=qr>{buf.getvalue().decode()}</div>'
-
-
-def _page(title: str, body: str, refresh: bool = False) -> str:
-    meta = '<meta http-equiv="refresh" content="5">' if refresh else ""
-    return ("<!doctype html><html lang=en><head><meta charset=utf-8>"
-            '<meta name=viewport content="width=device-width,initial-scale=1">' + meta +
-            f"<title>{escape(title)}</title><style>body{{font:16px system-ui;max-width:420px;margin:2rem auto;padding:0 1rem;"
-            "color:#222}.total{font-size:1.8rem;font-weight:700;margin:.2rem 0 1rem}.qr svg{width:100%;height:auto}"
-            ".note{color:#555}.ok{color:#116611;font-weight:600}.bad{color:#a11}</style></head><body>"
-            f"<h1>{escape(title)}</h1>{body}</body></html>")
-
-
-PAY_PAGE_CSP = "default-src 'none'; style-src 'unsafe-inline'; img-src data:; base-uri 'none'; frame-ancestors 'none'"
+PAY_PAGE_CSP = pages.csp()
 
 
 # ------------------------------------------------------------------ HTTP layer
@@ -608,6 +606,38 @@ def build_router(ctx: "AppContext", limits: RateLimiter) -> APIRouter:
 async def _in_thread(fn: Callable[[bytes], tuple[int, dict]], raw: bytes) -> tuple[int, dict]:
     import asyncio
     return await asyncio.to_thread(fn, raw)
+
+
+def policy_page_response(ctx: "AppContext", seller_id: str) -> HTMLResponse:
+    """The seller's return policy as a plain page: the target of the UCP refund_policy link."""
+    seller = ctx.store.get_seller(seller_id[:64])
+    if seller is None:
+        return HTMLResponse(pages.layout("Return policy", pages.status("info", "This store was not found", icon="search"), heading=False),
+                            status_code=404, headers={"Content-Security-Policy": PAY_PAGE_CSP})
+    policy = ctx.returns.policy_view(seller)
+    back = (f"/stores/{seller.id}", seller.name)
+    if not policy["window_hours"]:
+        body = pages.status("info", "This store does not offer returns through Etalase", "<p>Check the item details before you order.</p>", icon="alert")
+    else:
+        hours = policy["window_hours"]
+        reasons = "".join(f"<li>{pages.ico('check')}<span>{escape(_REASON_TEXT.get(r, r.replace('_', ' ')))}</span></li>" for r in policy["reasons"])
+        refund = "".join(f"<li>{pages.ico('wallet')}<span><b>{escape(k.replace('_', ' ').capitalize())}:</b> {escape(v)}</span></li>" for k, v in policy["refund"].items())
+        body = (pages.status("ok", f"Returns accepted for {pages.window(hours)} after delivery",
+                             f"<p>That is {hours} hours, counted from the moment the courier confirms delivery.</p>", icon="shield")
+                + f'<section class=band><h2 class=cap>You can return an item if it is</h2><ul class=checks>{reasons}</ul></section>'
+                + f'<section class=band><h2 class=cap>What you get back</h2><ul class=checks>{refund}</ul></section>'
+                + '<section class=band><h2 class=cap>How it works</h2><ol class=num>'
+                  "<li>Ask for the return from your order page, or through your shopping assistant.</li>"
+                  f"<li>The seller answers within {policy['seller_answers_within_hours']} hours. No answer counts as approval.</li>"
+                  "<li>You send the item back and pay that shipping. When the seller confirms it arrived, you are refunded.</li></ol></section>")
+    if policy["note"]:
+        body += f"<div class=sellernote><b>A note from the seller (written by the seller, not by Etalase)</b>{escape(policy['note'])}</div>"
+    return HTMLResponse(pages.layout("Return policy", f"<div class=stack>{body}</div>", h1=f"Return policy: {seller.name}", back=back),
+                        headers={"Content-Security-Policy": PAY_PAGE_CSP})
+
+
+_REASON_TEXT = {"damaged": "Damaged", "wrong_item": "Not the item you ordered", "not_as_described": "Not as described",
+                "changed_mind": "Returned because you changed your mind"}
 
 
 def pay_page_response(ctx: "AppContext", session_id: str) -> HTMLResponse:

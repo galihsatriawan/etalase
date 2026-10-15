@@ -1,7 +1,7 @@
 """The WhatsApp message templates Etalase needs, in one place.
 
 WhatsApp only lets a business send free-form messages inside the 24 hours after the customer last wrote to it.
-Everything else (a new paid order, a stock check, a payout notice) must be a pre-approved template, otherwise the
+Everything else (a new paid order, a stock check, a return request, a payout notice) must be a pre-approved template, otherwise the
 Cloud API answers error 131047 and the seller is never told. WhatsAppCloudMessenger tries the free-form message first
 and falls back to these templates only when the window is closed.
 
@@ -43,6 +43,18 @@ TEMPLATES: dict[str, dict] = {
                  "id": "Paket sudah diterima pembeli. {{1}} dicairkan ke rekeningmu (komisi {{2}})."},
         "buttons": {"en": [], "id": []},
         "example": ["Rp163.200", "Rp6.800"],
+    },
+    "return_requested": {
+        "body": {"en": "Return request for {{1}}. Reason: {{2}}. Buyer's note: {{3}}. Approve or dispute within {{4}} hours; no answer counts as approval.",
+                 "id": "Pengajuan retur untuk {{1}}. Alasan: {{2}}. Catatan pembeli: {{3}}. Setujui atau sengketakan dalam {{4}} jam; kalau tidak dijawab dianggap disetujui."},
+        "buttons": {"en": ["Approve return", "Dispute"], "id": ["Setujui retur", "Sengketakan"]},
+        "example": ["Voal Hijab (Black) x 2", "damaged", "The seam is torn", "48"],
+    },
+    "return_approved": {
+        "body": {"en": "Return approved for {{1}}. When the parcel is back with you, tap the button to start the buyer's refund. If nothing arrives within {{2}} days the return lapses.",
+                 "id": "Retur {{1}} disetujui. Kalau paketnya sudah kembali ke kamu, tekan tombol untuk memproses refund pembeli. Kalau tidak ada paket dalam {{2}} hari, retur hangus."},
+        "buttons": {"en": ["Item received"], "id": ["Barang diterima"]},
+        "example": ["Voal Hijab (Black) x 2", "7"],
     },
 }
 

@@ -35,7 +35,7 @@ def good_extractor(_settings):
 def test_nothing_configured_runs_in_offline_mode_without_failures():
     checks = by_name(doctor.run_checks(settings(), live=True))
     assert checks["startup"].status == doctor.OK
-    for name in ("gemini", "whatsapp", "xendit", "biteship", "instagram"):
+    for name in ("gemini", "whatsapp", "telegram", "domain", "xendit", "biteship", "instagram"):
         assert checks[name].status == doctor.SKIP, name
     assert checks["store"].status == doctor.OK
 
@@ -160,3 +160,29 @@ def test_render_summarises_and_exit_code_follows_failures(capsys):
     assert "[FAIL] b" in text and "-> fix it" in text and "1 failing" in text
     assert doctor.main(["--offline", "--json"]) == 0
     assert '"name": "startup"' in capsys.readouterr().out
+
+
+def test_returns_check_reports_the_hold_and_warns_when_it_is_off():
+    ok = doctor.check_returns(settings())
+    assert ok.status == doctor.OK and "72h" in ok.detail and "168h" in ok.detail
+    assert doctor.check_returns(settings(payout_hold_hours=0)).status == doctor.WARN
+    live = doctor.check_returns(settings(xendit_secret_key="xnd_development_x", xendit_callback_token="t"))
+    assert live.status == doctor.INFO and "refund_pending" in live.hint
+
+
+def test_doctor_checks_the_wildcard_dns_for_shop_addresses(monkeypatch):
+    import socket
+    live = lambda **kw: by_name(doctor.run_checks(settings(**kw), live=True))["domain"]
+    assert live().status == doctor.SKIP
+    seen = []
+    monkeypatch.setattr(socket, "getaddrinfo", lambda host, *a, **k: seen.append(host) or [("ok",)])
+    ok = live(store_base_domain="etalase.test")
+    assert ok.status == doctor.OK and seen == ["etalase-doctor-probe.etalase.test"]
+
+    def no_dns(host, *a, **k):
+        raise socket.gaierror("Name or service not known")
+    monkeypatch.setattr(socket, "getaddrinfo", no_dns)
+    bad = live(store_base_domain="etalase.test:8080")
+    assert bad.status == doctor.WARN and "*.etalase.test" in bad.hint and ":8080" not in bad.hint
+    offline = by_name(doctor.run_checks(settings(store_base_domain="etalase.test"), live=False))["domain"]
+    assert offline.status == doctor.INFO

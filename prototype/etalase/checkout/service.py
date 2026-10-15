@@ -4,7 +4,12 @@ Order lifecycle
 
   instant:        AWAITING_PAYMENT -> PAID -> ACCEPTED -> SHIPPED -> DELIVERED -> PAID_OUT
   confirm_first:  AWAITING_SELLER_CONFIRMATION -> AWAITING_PAYMENT -> ACCEPTED -> SHIPPED -> ...
-  exits:          REJECTED (seller says out of stock), EXPIRED (unpaid), REFUNDED (rejected after payment)
+  exits:          REJECTED (seller says out of stock), EXPIRED (unpaid), REFUNDED (rejected after payment,
+                  parcel returned by the courier, or a return the seller accepted)
+
+The payout does not follow delivery at once. DELIVERED starts the return window (payout_hold_hours); the money is
+released when it ends and no return is open. The return states (RETURN_REQUESTED -> RETURN_APPROVED | RETURN_DISPUTED
+-> REFUNDED, or back to DELIVERED) live in checkout/returns.py.
 """
 
 from __future__ import annotations
@@ -19,7 +24,7 @@ from ..catalog.service import CatalogService
 from ..config import COUNTRY_PACKS, Settings
 from ..events import EventBus
 from ..models import (Address, CheckoutError, Order, OrderItem, OrderStatus, OutOfStock, Payout, ProductStatus,
-                      SellMode, StockOwner, now)
+                      ReturnTerms, SellMode, StockOwner, now)
 from ..security import RateLimiter
 from ..store import Store
 
@@ -28,6 +33,12 @@ log = logging.getLogger("etalase.checkout")
 PHONE_RE = re.compile(r"^\+?[0-9]{8,15}$")
 POSTAL_RE = {"ID": re.compile(r"^[0-9]{5}$")}
 LIMITS = {"name": 80, "line1": 200, "city": 60}
+
+
+def normalize_phone(phone: str) -> str:
+    """Digits only, with a leading 0 read as Indonesia's 62, so 0857..., +62 857... and 62857... compare equal."""
+    digits = "".join(ch for ch in phone if ch.isdigit())
+    return "62" + digits[1:] if digits.startswith("0") else digits
 
 
 def validate_buyer(buyer: Address) -> None:
@@ -117,6 +128,8 @@ class CheckoutService:
             currency=COUNTRY_PACKS[buyer.country].currency,
             subtotal=subtotal, shipping_rate=rate, shipping_fee=rate.price, total=subtotal + rate.price,
         )
+        order.return_terms = ReturnTerms(window_hours=self.hold_hours(seller),
+                                         accepts_change_of_mind=seller.return_policy.accepts_change_of_mind)
         ttl = self.settings.seller_confirm_timeout_minutes if mode == SellMode.CONFIRM_FIRST else self.settings.reservation_ttl_minutes
         limit = getattr(self.payment, "max_amount", None)   # QRIS caps a single payment (Xendit: Rp10,000,000)
         if limit and order.total > limit:
@@ -222,10 +235,13 @@ class CheckoutService:
             order = self._refund(order, "late payment")
         return order
 
-    def _refund(self, order: Order, reason: str) -> Order:
+    def _refund(self, order: Order, reason: str, amount: int | None = None) -> Order:
+        """Money back to the buyer: all of it, or `amount`. Never loses track of a refund the provider cannot do yet."""
+        amount = order.total if amount is None else amount
         try:
-            self.payment.refund(order)
-            status, note = "refunded", f"refunded ({reason})"
+            self.payment.refund(order, amount)
+            status = "refunded"
+            note = f"refunded ({reason})" if amount == order.total else f"refunded {amount} of {order.total} ({reason})"
         except Exception as e:  # ManualActionRequired or a provider error: never lose track of the money
             if not isinstance(e, ManualActionRequired):
                 log.exception("refund failed for %s", order.id)
@@ -234,6 +250,7 @@ class CheckoutService:
 
         def mark(o: Order) -> bool:
             o.payment.status = status
+            o.payment.refunded_amount = amount if status == "refunded" else 0
             o.log(note)
             return True
         return self.store.update_order(order.id, mark)
@@ -320,40 +337,98 @@ class CheckoutService:
 
     def shipment_update(self, key: str, status: str) -> Order | None:
         """Courier webhook (key = our order id, the waybill, or the aggregator's order/tracking id).
-        DELIVERED releases the payout."""
+        DELIVERED starts the return window; the payout follows when it ends. RETURNED (the courier brought the parcel
+        back to the seller) refunds the buyer."""
         found = self.store.get_order(key) or self._order_by_shipment_key(key)
         if found is None or found.shipment is None:
             return found
         if status == "delivered":
-            # Money moves on delivery, so the webhook is only a hint: ask the courier first.
+            # Money moves because of delivery, so the webhook is only a hint: ask the courier first.
             if found.status != OrderStatus.SHIPPED or not self.shipping.confirm_delivered(found):
                 log.warning("delivery for %s not confirmed by the courier; ignoring", found.id)
                 return found
-        delivered = {}
+        if status == "returned":
+            # A refund is money moving as well: ask the courier whether the parcel is really back.
+            if found.status != OrderStatus.SHIPPED or not self.shipping.confirm_returned(found):
+                log.warning("return of %s not confirmed by the courier; ignoring", found.id)
+                return found
+        hold = timedelta(0)
+        if status == "delivered":
+            # The window the buyer was promised at checkout; orders from before returns existed use today's rule.
+            terms = found.return_terms
+            seller = self.store.get_seller(found.seller_id)
+            hold = timedelta(hours=terms.window_hours if terms else self.hold_hours(seller))
+        what: dict[str, bool] = {}
 
         def update(o: Order) -> bool:
 
-            delivered.clear()  # Firestore may retry callbacks
+            what.clear()  # Firestore may retry callbacks
             if o.shipment.status in ("delivered", "returned"):
                 return False  # late or out-of-order courier events never move status backwards
-            o.shipment.status = status
+            previous, o.shipment.status = o.shipment.status, status
             if status == "failed":
                 o.log("the courier could not deliver this parcel (cancelled, rejected or lost); the seller must follow up")
+                what["failed"] = previous != "failed"
             if status == "delivered" and o.status == OrderStatus.SHIPPED:
-                o.status = OrderStatus.DELIVERED
-                o.log("delivered (confirmed with courier)")
-                delivered["yes"] = True
+                o.status, o.delivered_at = OrderStatus.DELIVERED, now()
+                o.payout_due_at = o.delivered_at + hold
+                o.log(f"delivered (confirmed with courier); payout due {o.payout_due_at.isoformat(timespec='seconds')}")
+                what["delivered"] = True
+            if status == "returned" and o.status == OrderStatus.SHIPPED:
+                o.status = OrderStatus.REFUNDED
+                o.log("the courier brought the parcel back to the seller; refunding the buyer")
+                what["returned"] = True
             return True
         order = self.store.update_order(found.id, update)
-        if delivered:
+        if what.get("failed"):
+            self.events.publish("ops.manual_action", {"order_id": order.id, "action": "undelivered_parcel"})
+        if what.get("returned"):
+            order = self._refund(order, "parcel returned by the courier")      # money first: a stock error must not skip it
+            self._restock(order.id)                                             # the goods are back on the seller's shelf
+            self.events.publish("order.returned_to_sender", {"order_id": order.id})
+            return order
+        if what.get("delivered"):
             self.events.publish("order.delivered", {"order_id": order.id})
-            return self.release_payout(order.id)
+            return self.release_payout(order.id)   # releases at once only when there is no hold
         return order
 
-    def release_payout(self, order_id: str) -> Order:
+    # ------------------------------------------------------------------ payout
+    def hold_hours(self, seller) -> int:
+        """How long the payout waits after delivery (= the buyer's return window). A seller with few completed orders
+        waits longer: an unproven seller is where a refund is most likely."""
+        s = self.settings
+        if s.payout_hold_hours <= 0:
+            return 0
+        done = sum(1 for o in self.store.list_orders(seller.id) if self.completed(o))
+        return max(s.payout_hold_hours, s.new_seller_hold_hours) if done < s.new_seller_orders else s.payout_hold_hours
+
+    @staticmethod
+    def completed(o: Order) -> bool:
+        """A sale that went all the way: paid out, or its payout claimed and waiting for an operator (Xendit payouts are
+        manual today and stay `delivered` with payout.status pending_manual)."""
+        return o.status == OrderStatus.PAID_OUT or (o.status == OrderStatus.DELIVERED and o.payout is not None)
+
+    def _restock(self, order_id: str) -> None:
+        try:
+            self.store.restock(order_id)
+        except Exception:
+            log.exception("restock failed for %s; the stock needs a manual correction", order_id)
+            self.events.publish("ops.manual_action", {"order_id": order_id, "action": "restock"})
+
+    def track_record(self, seller_id: str) -> dict:
+        """What a buyer's agent may weigh: how many orders this seller completed and how many ended in a refunded return.
+        Counted from the orders on every read; production keeps these as counters on the seller document."""
+        orders = self.store.list_orders(seller_id)
+        return {"orders_completed": sum(1 for o in orders if self.completed(o)),
+                "returns_refunded": sum(1 for o in orders if o.return_request and o.return_request.outcome == "refunded")}
+
+    def release_payout(self, order_id: str, when: datetime | None = None) -> Order:
+        when = when or now()
         order = self.store.get_order(order_id)
         if order.status != OrderStatus.DELIVERED or order.payout is not None:
             return order
+        if order.payout_due_at and order.payout_due_at > when:
+            return order   # still inside the return window
         seller = self.store.get_seller(order.seller_id)
         rate = seller.commission_rate if seller.commission_rate is not None else self.settings.commission_rate
         commission = round(order.subtotal * rate)
@@ -361,6 +436,8 @@ class CheckoutService:
 
         def claim(o: Order) -> bool:  # exactly one caller may release money
             if o.status != OrderStatus.DELIVERED or o.payout is not None:
+                return False
+            if o.payout_due_at and o.payout_due_at > when:
                 return False
             o.payout = Payout(seller_amount=seller_amount, commission=commission, status="releasing")
             return True
@@ -385,6 +462,20 @@ class CheckoutService:
             self.events.publish("payout.released", {"order_id": order.id})
         return order
 
+    def release_due_payouts(self, when: datetime | None = None) -> list[str]:
+        """Pay out every delivered order whose return window has ended and that has no return open."""
+        when = when or now()
+        released = []
+        for o in self.store.orders_in_status([OrderStatus.DELIVERED]):
+            if o.payout is not None or (o.payout_due_at and o.payout_due_at > when):
+                continue
+            try:
+                if self.release_payout(o.id, when).status == OrderStatus.PAID_OUT:
+                    released.append(o.id)
+            except Exception:    # one broken order must not stop the payouts of everyone else
+                log.exception("payout sweep failed for %s", o.id)
+        return released
+
     def expire_due(self, when: datetime | None = None) -> list[str]:
         """Release reservations that ran out of time. Production: one Cloud Task per order at expires_at."""
         when = when or now()
@@ -405,12 +496,15 @@ class CheckoutService:
                 o.log("expired, stock released")
                 won["yes"] = True
                 return True
-            order = self.store.update_order(res.order_id, expire)
-            if order is None or order.status in (OrderStatus.EXPIRED, OrderStatus.REJECTED):
-                self.store.release(res.order_id)  # also cleans up holds left by a crash
-            if won:
-                self.events.publish("order.expired", {"order_id": order.id})
-                expired.append(order.id)
+            try:
+                order = self.store.update_order(res.order_id, expire)
+                if order is None or order.status in (OrderStatus.EXPIRED, OrderStatus.REJECTED):
+                    self.store.release(res.order_id)  # also cleans up holds left by a crash
+                if won:
+                    self.events.publish("order.expired", {"order_id": order.id})
+                    expired.append(order.id)
+            except Exception:    # one broken order must not stop the job for everyone else
+                log.exception("expiry failed for %s", res.order_id)
         return expired
 
     def cancel_unpaid(self, order_id: str, reason: str = "cancelled by the buyer's agent") -> Order | None:

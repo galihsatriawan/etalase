@@ -43,8 +43,35 @@ class OrderStatus(str, Enum):
     EXPIRED = "expired"
     REFUNDED = "refunded"
     SHIPPED = "shipped"
-    DELIVERED = "delivered"
+    DELIVERED = "delivered"      # the courier confirmed delivery; the payout waits out the return window
+    RETURN_REQUESTED = "return_requested"  # the buyer asked for a return; the seller has to answer
+    RETURN_APPROVED = "return_approved"    # the seller (or silence) agreed; waiting for the item to come back
+    RETURN_DISPUTED = "return_disputed"    # the seller disagrees; an operator decides
     PAID_OUT = "paid_out"
+
+
+class ReturnReason(str, Enum):
+    DAMAGED = "damaged"
+    WRONG_ITEM = "wrong_item"
+    NOT_AS_DESCRIBED = "not_as_described"
+    CHANGED_MIND = "changed_mind"
+
+
+DEFECT_REASONS = (ReturnReason.DAMAGED, ReturnReason.WRONG_ITEM, ReturnReason.NOT_AS_DESCRIBED)
+
+
+class ReturnPolicy(BaseModel):
+    """What a seller offers on top of the platform minimum. Damaged, wrong and not-as-described items can always be
+    returned inside the window; a change of mind only when the seller opts in."""
+    accepts_change_of_mind: bool = False
+    note: str = Field(default="", max_length=300)    # free text from the seller, shown to agents as seller content
+
+
+class ReturnTerms(BaseModel):
+    """The return terms a checkout was created under. Fixed at checkout so that what the buyer's agent saw when it bought
+    is what applies, even if the seller changes the policy or completes more orders before the parcel arrives."""
+    window_hours: int = 0
+    accepts_change_of_mind: bool = False
 
 
 class Address(BaseModel):
@@ -66,6 +93,19 @@ class Seller(BaseModel):
     kyc_status: str = "pending"   # verified by the payment provider, never stored here
     payout_account_id: str | None = None  # payment-provider sub-account id
     commission_rate: float | None = None
+    return_policy: ReturnPolicy = Field(default_factory=ReturnPolicy)
+    # Where Etalase talks to the seller. WhatsApp is the default and is also the sign-in identity; "telegram" is used
+    # only after the seller linked a Telegram chat (adapters/telegram.py), and the seller can switch back at any time.
+    channel: str = "whatsapp"
+    telegram_chat_id: str | None = None
+    slug: str | None = None       # the shop's own address <slug>.<STORE_BASE_DOMAIN> (seller/slugs.py); unique
+
+    @property
+    def address(self) -> str:
+        """The address every seller message is sent to: a WhatsApp number, or "tg:<chat id>" on Telegram."""
+        if self.channel == "telegram" and self.telegram_chat_id:
+            return f"tg:{self.telegram_chat_id}"
+        return self.whatsapp
 
 
 class Stock(BaseModel):
@@ -142,7 +182,8 @@ class PaymentInfo(BaseModel):
     method: str = "qris"
     qr_string: str = ""
     provider_id: str = ""         # the provider's own id (Xendit qr_id), needed for refunds and test-mode simulation
-    status: str = "pending"       # pending -> paid -> refunded
+    status: str = "pending"       # pending -> paid -> refunded (or refund_pending when an operator must finish it)
+    refunded_amount: int = 0
 
 
 class Shipment(BaseModel):
@@ -158,6 +199,21 @@ class Payout(BaseModel):
     seller_amount: int
     commission: int
     status: str = "scheduled"     # scheduled -> released
+
+
+class ReturnRequest(BaseModel):
+    reason: ReturnReason
+    note: str = ""                # written by the buyer's agent: untrusted text
+    evidence: list[str] = Field(default_factory=list)   # https links to photos; stored, never fetched by the server
+    requested_at: datetime = Field(default_factory=now)
+    respond_by: datetime          # the seller's silence after this moment counts as approval
+    approved_by: str = ""         # "seller" | "auto"
+    approved_at: datetime | None = None
+    lapse_at: datetime | None = None   # after approval: the item must be back by then, or the return lapses
+    return_waybill: str = ""      # the buyer's courier tracking number for the way back
+    outcome: str = ""             # "" while open; then refunded | lapsed | rejected (an operator sided with the seller)
+    refund_amount: int = 0
+    resolved_at: datetime | None = None
 
 
 class OrderItem(BaseModel):
@@ -186,6 +242,10 @@ class Order(BaseModel):
     shipment: Shipment | None = None
     payout: Payout | None = None
     seller_confirmed: bool = False
+    delivered_at: datetime | None = None
+    payout_due_at: datetime | None = None     # the end of the return window: the payout is released from here on
+    return_terms: ReturnTerms | None = None   # the policy shown at checkout; None on orders created before returns existed
+    return_request: ReturnRequest | None = None
     created_at: datetime = Field(default_factory=now)
     expires_at: datetime | None = None
     history: list[str] = Field(default_factory=list)

@@ -1,11 +1,11 @@
 # Pitch and Q&A playbook
 
-How to pitch Etalase in 30 seconds and in 3 minutes, how to prove each judging criterion, and how to answer 47 hard judge questions honestly.
+How to pitch Etalase in 30 seconds and in 3 minutes, how to prove each judging criterion, and how to answer 51 hard judge questions honestly.
 
 ::: tip What you will learn
 - A 30-second pitch and a 3-minute pitch that follow the deck's slide order and the demo script in `docs/13-demo-script.md`
 - Which file, test or page proves each judging criterion and each special award
-- Model answers to 47 hard questions, each tagged as Built, Mocked in demo or Roadmap
+- Model answers to 51 hard questions, each tagged as Built, Mocked in demo or Roadmap
 - The overclaims that lose a judge's trust, and what to say instead
 :::
 
@@ -41,7 +41,7 @@ Each box is one idea. If you run out of time, cut from the business box, never f
 
 Learn this word for word. It fits in about 75 words.
 
-> AI assistants have started buying things for people. Google's checkout protocol is already live in the US and Australia. But agents only read structured catalogs, and in Indonesia 95% of online businesses sell through chat apps like WhatsApp, with catalogs in photos and voice notes. Etalase turns those photos and chats into a shop that any AI agent can find and buy from over MCP. Stock is held while the buyer pays with QRIS, and every order comes back to the seller's WhatsApp.
+> AI assistants have started buying things for people. Google's checkout protocol is already live in the US and has started in Australia. But agents only read structured catalogs, and in Indonesia 95% of online businesses sell through chat apps like WhatsApp, with catalogs in photos and voice notes. Etalase turns those photos and chats into a shop that any AI agent can find and buy from over MCP. Stock is held while the buyer pays with QRIS, and every order comes back to the seller's WhatsApp.
 
 If a judge asks "where is the AI?", add one sentence: "Gemini builds the catalog from photos, voice and text with structured output, and an ADK agent runs the seller's WhatsApp chat."
 
@@ -51,12 +51,12 @@ This version follows the deck slide order (slides 2 to 12 in `submission/Etalase
 
 | Time | Deck slide | What you show | What you say (key lines) |
 |---|---|---|---|
-| 0:00–0:20 | 2 · Brief about the idea | "Why now" and the four numbers | "AI assistants are starting to shop for people. Checkout through Google's UCP is live in the US and Australia. But agents only read structured catalogs. Platforms are making their own merchants agent-ready; independent chat sellers have no path in." |
+| 0:00–0:20 | 2 · Brief about the idea | "Why now" and the four numbers | "AI assistants are starting to shop for people. Checkout through Google's UCP is live in the US and has started in Australia. But agents only read structured catalogs. Platforms are making their own merchants agent-ready; independent chat sellers have no path in." |
 | 0:20–0:40 | 2 · The problem | 95% / 18% (BPS) and 11% (PYMNTS × Visa) | "95% of Indonesian online businesses sell through chat apps; only 18% use marketplaces. Only 11% of small merchants are ready for agents." |
 | 0:40–1:05 | 4 · Features, 6 · Wireframe 1 | Seller sends photos and a voice note; summary with readiness score; **Publish** | "Rina just sends what she already has. Gemini turns photos and a voice note into products, variants, prices and weights, and tells her what is missing." |
 | 1:05–1:45 | 5 · Process flow, 6 · Wireframe 2 | Buyer agent: search, shipping quote, checkout, QRIS | "Any agent can now find her products over MCP and check out. Stock is held for 15 minutes while the buyer pays with QRIS." |
 | 1:45–2:05 | 6 · Wireframe 3 | "New paid order" with **Accept**; seller replies "tracking JNE123456" | "Rina never leaves WhatsApp. Buttons never go through the model." |
-| 2:05–2:25 | 4 · Safe agent checkout, 11 · Benchmark | Confirm-first message; the 50-agent race (demo step 8) | "Low or stale stock? She confirms before the buyer pays. 50 agents race for the last unit; exactly one wins. 226 automated tests cover races, payments and webhook abuse." |
+| 2:05–2:25 | 4 · Safe agent checkout, 11 · Benchmark | Confirm-first message; the 50-agent race (demo step 8) | "Low or stale stock? She confirms before the buyer pays. 50 agents race for the last unit; exactly one wins. 389 automated tests cover races, payments and webhook abuse." |
 | 2:25–2:45 | 7 · Architecture, 9 · Cost | Architecture slide; unit economics | "She's paid after the courier confirms delivery, minus 4%. Etalase never holds the money. Platform cost is about IDR 2,000–3,500 per order against IDR 6,800 commission, and any OMS or website builder can plug in with one API." |
 | 2:45–3:00 | 12 · Roadmap | Four phases | "Next: a pilot with 50–100 sellers on Firestore and real payment sub-accounts. Etalase: every seller, shoppable by AI." |
 
@@ -70,7 +70,7 @@ For each criterion, have one claim, one thing to show and one place to point to.
 
 | Criterion | Your claim | Show this | Where it lives |
 |---|---|---|---|
-| **Technical Merit & Gen AI (40%)** | Gemini multimodal extraction with structured output; ADK seller agent with tenant-scoped tools; ADK buyer agent over MCP; transactional stock tested under concurrency | `GeminiExtractor` with `response_schema=ExtractedCatalog`; `build_seller_agent` tools; `pytest -q` (226 passed); demo step 8 | [Catalog and stock](/architecture/catalog-and-stock), [Seller agent](/architecture/seller-agent), [Agent gateway](/architecture/agent-gateway), [Testing](/ship/testing); `prototype/etalase/catalog/extractor.py`, `prototype/etalase/agents/seller_agent.py`, `prototype/tests/test_stock.py` |
+| **Technical Merit & Gen AI (40%)** | Gemini multimodal extraction with structured output; ADK seller agent with tenant-scoped tools; ADK buyer agent over MCP; transactional stock tested under concurrency | `GeminiExtractor` with `response_schema=ExtractedCatalog`; `build_seller_agent` tools; `pytest -q` (389 passed); demo step 8 | [Catalog and stock](/architecture/catalog-and-stock), [Seller agent](/architecture/seller-agent), [Agent gateway](/architecture/agent-gateway), [Testing](/ship/testing); `prototype/etalase/catalog/extractor.py`, `prototype/etalase/agents/seller_agent.py`, `prototype/tests/test_stock.py` |
 | **Problem Alignment & Impact (25%)** | Brings chat-commerce sellers into agent shopping; pay-per-order below marketplace fees; payout after delivery | BPS 95% / 18% with its nuance; Shopee 10% fashion fee; cost table | [The problem](/foundations/problem), [Evidence](/business/evidence), [Business model](/business/business-model); `docs/15-evidence.md` |
 | **Innovation & Creativity (25%)** | Agent-commerce layer for sellers with no store system; WhatsApp as the seller interface; confirm-first for uncertain stock; Connector API so one partner enables many stores | Confirm-first flow; Connector API in `/docs` | [The product](/foundations/product), [Integrations](/architecture/integrations); `prototype/etalase/catalog/service.py` (`sell_mode`), `prototype/etalase/connector/service.py` |
 | **UX & Solution Design (10%)** | No new app; buttons for decisions, chat for data; bilingual; honest availability for agents | WhatsApp summary with Publish / Edit; `SELLER_LOCALE=id`; dashboard sign-in | [Seller agent](/architecture/seller-agent), [Hands-on](/run/hands-on); `prototype/etalase/seller/i18n.py`, `prototype/etalase/api/dashboard.html` |
@@ -101,7 +101,7 @@ Practice: read the question, answer out loud, then open the model answer. Each a
 **Q1. Is agent commerce actually live in Indonesia?**
 
 ::: details Answer
-No, and we say so. Agent checkout through Google's UCP is live in the US (February 2026) and Australia (June 2026, the first Asia-Pacific market), Google is testing Flipkart checkout in India, and Google has named Indonesia among the next markets ([Evidence](/business/evidence)). Meanwhile our MCP server works with any MCP-capable agent today; the ADK buyer agent in `prototype/etalase/agents/buyer_agent.py` proves that.
+No, and we say so. Agent checkout through Google's UCP is live in the US (February 2026) and started with select retailers in Australia (June 2026); Google is testing Flipkart checkout in India; Indonesia was named as a future market in January 2026 but no date is known ([Evidence](/business/evidence)). Etalase does not need UCP to work: the seller side runs today, and any MCP or REST agent can buy. Meanwhile our MCP server works with any MCP-capable agent today; the ADK buyer agent in `prototype/etalase/agents/buyer_agent.py` proves that.
 :::
 
 **Q2. How big is your segment, really?**
@@ -237,13 +237,13 @@ Yes, at the protocol level. `/.well-known/ucp` is a valid UCP profile (checked a
 **Q23. Exactly what is real in your demo and what is mocked?**
 
 ::: details Answer
-Built: catalog building and readiness score, the MCP server and REST mirror, stock reservations and confirm-first, the WhatsApp inbox, the ADK seller and buyer agents, Instagram import, the Connector API, dashboard OTP sign-in and the startup security checks. Mocked in the demo: QRIS payments, courier rates and delivery, payouts, KYC (the dev seller is created as verified) and the database (`MemoryStore`); Gemini runs only when a key or Vertex AI is configured. Roadmap: Pub/Sub, Cloud Tasks, Cloud Storage, KMS, Google Sheets sync, OMS adapters and AP2.
+Built: catalog building and readiness score, the MCP server and REST mirror, stock reservations and confirm-first, the WhatsApp inbox, the Telegram channel and per-shop addresses (tested with stubs, never against the live Bot API or real DNS), the ADK seller and buyer agents, Instagram import, the Connector API, dashboard OTP sign-in and the startup security checks. Mocked in the demo: QRIS payments, courier rates and delivery, payouts, KYC (the dev seller is created as verified) and the database (`MemoryStore`); Gemini runs only when a key or Vertex AI is configured. Roadmap: Pub/Sub, Cloud Tasks, Cloud Storage, KMS, Google Sheets sync, OMS adapters and AP2.
 :::
 
 **Q24. How do you know it works?**
 
 ::: details Answer
-`cd prototype && pytest -q` runs 226 tests: 100 threads racing for the last unit (exactly one wins), duplicate and late payments, the payment-versus-expiry race, forged webhooks, OTP brute force and input limits. `python scripts/demo.py` runs the whole story offline in ten steps. Not yet tested: `FirestoreStore` against the emulator, Gemini extraction quality and live provider payloads ([Testing](/ship/testing)).
+`cd prototype && pytest -q` runs 389 tests: 100 threads racing for the last unit (exactly one wins), duplicate and late payments, the payment-versus-expiry race, forged webhooks, OTP brute force and input limits. `python scripts/demo.py` runs the whole story offline in ten steps. Not yet tested: `FirestoreStore` against the emulator, Gemini extraction quality and live provider payloads ([Testing](/ship/testing)).
 :::
 
 **Q25. How does this scale on Cloud Run today?**
@@ -321,7 +321,7 @@ Data is keyed by `seller_id`, and services check ownership before acting (`_sell
 **Q36. What stops someone from forging a webhook or brute-forcing the dashboard?**
 
 ::: details Answer
-WhatsApp webhooks need Meta's `X-Hub-Signature-256`; Xendit needs its callback token; webhooks without a provider signature need our `WEBHOOK_TOKEN`; all compared in constant time. The app refuses to start on a public URL without `DEV_TOKEN`, `WEBHOOK_TOKEN` and a real `SESSION_SECRET`, and `prod` refuses mock adapters (`prototype/etalase/security.py`). Sign-in codes expire in 5 minutes, allow 5 tries, and lock a number after 10 wrong tries per hour.
+WhatsApp webhooks need Meta's `X-Hub-Signature-256`; Telegram needs the secret set with `setWebhook`; Xendit needs its callback token; webhooks without a provider signature need our `WEBHOOK_TOKEN`; all compared in constant time. The app refuses to start on a public URL without `DEV_TOKEN`, `WEBHOOK_TOKEN` and a real `SESSION_SECRET`, and `prod` refuses mock adapters (`prototype/etalase/security.py`). Sign-in codes expire in 5 minutes, allow 5 tries, and lock a number after 10 wrong tries per hour.
 :::
 
 ### Business
@@ -367,7 +367,7 @@ State held in memory (rate limits, OTP codes, message de-duplication, pending ph
 **Q43. What is your roadmap?**
 
 ::: details Answer
-Four phases (`docs/11-roadmap.md`): the hackathon MVP; an Indonesia pilot with 50–100 sellers on Firestore, Pub/Sub and Cloud Tasks, with KYC and payouts through sub-accounts and approved WhatsApp templates; more channels (OMS adapters, WooCommerce first, marketplace stock sync); then regional country packs and chat adapters for LINE, Zalo and Messenger. Dates after the hackathon depend on pilot results.
+Four phases (`docs/11-roadmap.md`): the hackathon MVP; an Indonesia pilot with 50–100 sellers on Firestore, Pub/Sub and Cloud Tasks, with KYC and payouts through sub-accounts and approved WhatsApp templates; more channels (OMS adapters, WooCommerce first, marketplace stock sync); then regional country packs and more chat adapters. Telegram is already built as the second seller channel; Instagram DMs, LINE, Zalo and Messenger are next. Dates after the hackathon depend on pilot results.
 :::
 
 **Q44. How do you expand to other countries?**
@@ -396,13 +396,39 @@ Fill this in before the pitch. `README.md` and slide 1 still have placeholders, 
 The repository was created fresh for the hackathon (`docs/14-hackathon-alignment.md`). If you used an AI assistant to design or write code, say so plainly, then show that you understand every part: walk through `create_checkout` or the confirm-first rule without notes. That is what this Academy is for.
 :::
 
+### Channels, addresses and cost
+
+**Q48. Can a seller use something other than WhatsApp?**
+
+::: details Answer
+Yes, on the seller side. The `Messenger` interface sits behind a `ChannelRouter`, and Telegram is built as the second channel: the seller links a chat from the dashboard, then order alerts, Confirm/Cancel/Ship buttons, photos and voice notes work there exactly as on WhatsApp. It is a proof that the channel is replaceable, not a claim that Indonesian sellers are leaving WhatsApp: WhatsApp stays the main channel. Sign-in still uses the seller's WhatsApp number. Telegram has only been tested against stubs of the Bot API, not the live service ([Seller agent](/architecture/seller-agent)).
+:::
+
+**Q49. Wouldn't an Instagram DM bot make you stronger? Instagram messaging is said to be free.**
+
+::: details Answer
+It could, but it is roadmap, not built. The buyer side has to be per seller: a buyer talks to the seller's own Instagram account, so each seller would connect their own account and Etalase would answer under it. Nobody buys from an "Etalase" Instagram account. The seller-to-Etalase side can stay central. Meta's app review (Advanced Access) is needed to message accounts we do not own, and we have not confirmed that Instagram DMs are free; sources disagree, so we say "unverified" ([Evidence](/business/evidence)).
+:::
+
+**Q50. Does Click-to-WhatsApp advertising make your WhatsApp costs zero?**
+
+::: details Answer
+No. A chat started from a Click-to-WhatsApp ad opens a longer free window, but Etalase's seller alerts are not replies to such a chat. It helps our own acquisition ads and the sellers' own chats with buyers. The length of the window is also reported differently by different sources, so we have not relied on it. Telegram is the channel where these costs do not exist ([Business model](/business/business-model)).
+:::
+
+**Q51. Can every seller get their own address, like `kopi-tuku.example.com`?**
+
+::: details Answer
+Yes, as an option. Set `STORE_BASE_DOMAIN` and a seller can claim a slug in the dashboard; `slug.<domain>` then shows their shop, and the path link keeps working. Reserved names are refused and an unclaimed name returns 404. What is not done: the wildcard DNS record and wildcard TLS certificate (or a load balancer that does it), because they cannot be set up from the sandbox, and per-shop UCP profiles. Each shop is its own browser origin, so the same-origin checks on forms still hold ([Security](/architecture/security)).
+:::
+
 ## Answers to never give
 
 Each of these sounds better than the truth for about ten seconds. After that, a judge who checks will mark you down on every other claim too.
 
 | Never say | Why it is wrong | Say instead |
 |---|---|---|
-| "AI agents are already buying from Indonesian sellers." | UCP checkout is not live in Indonesia | "Live in the US and Australia, testing in India; Indonesia is named as a next market. Our MCP works with any agent today." |
+| "AI agents are already buying from Indonesian sellers." | UCP checkout is not live in Indonesia | "Live in the US, started in Australia, testing in India; Indonesia was named as a future market with no date. Our MCP works with any agent today." |
 | "We're integrated with Google AI Mode." or "We're UCP certified." | Never tried with Google's surfaces; UCP has a test suite, not a certification | "We implement UCP checkout over REST and pass the applicable part of Google's conformance suite; failures are listed and explained." |
 | "Our extraction is 90%+ accurate." | Not measured; the deck says TBD | "Our target is 90% of fields correct on 50 labelled products; that eval runs with Gemini on Vertex AI." |
 | "Payments are live." | QRIS is mocked in the demo | "The Xendit QRIS adapter is wired; the demo uses a mock provider." |

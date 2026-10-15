@@ -11,7 +11,7 @@ import threading
 from datetime import datetime
 from typing import Callable
 
-from ..models import Connection, Order, OutOfStock, Product, Reservation, Seller, StockChange, now
+from ..models import Connection, Order, OrderStatus, OutOfStock, Product, Reservation, Seller, StockChange, now
 
 
 class MemoryStore:
@@ -39,6 +39,22 @@ class MemoryStore:
         with self._lock:
             for s in self._sellers.values():
                 if s.whatsapp == number:
+                    return s.model_copy(deep=True)
+        return None
+
+    def find_seller_by_slug(self, slug: str) -> Seller | None:
+        with self._lock:
+            for s in self._sellers.values():
+                if s.slug and s.slug == slug:
+                    return s.model_copy(deep=True)
+        return None
+
+    def find_seller_by_address(self, address: str) -> Seller | None:
+        if not address.startswith("tg:"):
+            return self.find_seller_by_whatsapp(address)
+        with self._lock:
+            for s in self._sellers.values():
+                if s.telegram_chat_id and s.telegram_chat_id == address[3:]:
                     return s.model_copy(deep=True)
         return None
 
@@ -87,6 +103,10 @@ class MemoryStore:
     def list_orders(self, seller_id: str) -> list[Order]:
         with self._lock:
             return [o.model_copy(deep=True) for o in self._orders.values() if o.seller_id == seller_id]
+
+    def orders_in_status(self, statuses: list[OrderStatus]) -> list[Order]:
+        with self._lock:
+            return [o.model_copy(deep=True) for o in self._orders.values() if o.status in statuses]
 
     def update_order(self, order_id: str, change: Callable[[Order], bool]) -> Order | None:
         with self._lock:

@@ -20,6 +20,7 @@ if TYPE_CHECKING:
 
 CODE_TTL = 5 * 60
 SESSION_TTL = 7 * 24 * 3600
+LINK_TTL = 10 * 60
 log = logging.getLogger("etalase.auth")
 MAX_ATTEMPTS = 5              # wrong guesses per code
 RESEND_COOLDOWN = 60          # seconds between codes for one number
@@ -51,7 +52,9 @@ class OtpAuth:
         code = f"{secrets.randbelow(10**6):06d}"
         self._codes[number] = (self._h(code), time.time() + CODE_TTL, 0)
         try:
-            self.ctx.messenger.send_text(number, self.ctx.t("otp", code=code))
+            # The sign-in identity is the WhatsApp number, but the code goes where the seller reads Etalase's messages:
+            # a seller who linked Telegram gets it there, with no 24-hour window to worry about.
+            self.ctx.messenger.send_text(seller.address, self.ctx.t("otp", code=code))
         except Exception:
             # Outside WhatsApp's 24-hour window a free-form message is refused. Stay silent to the caller (no number
             # enumeration); the sign-in page tells the seller to message the Etalase number first.
@@ -98,6 +101,21 @@ class OtpAuth:
 
     def _h(self, code: str) -> str:
         return hashlib.sha256(self.secret + code.encode()).hexdigest()
+
+    def link_code(self, seller_id: str) -> str:
+        """A 10-minute code for linking a chat to this seller (Telegram deep link: only A-Z a-z 0-9 _ - allowed, 64 max)."""
+        exp = format(int(time.time()) + LINK_TTL, "x")
+        return f"{seller_id}-{exp}-{self._sig(f'{seller_id}-{exp}', 'link')[:20]}"
+
+    def seller_from_link_code(self, code: str) -> str | None:
+        try:
+            seller_id, exp, sig = code.strip().rsplit("-", 2)
+            expires = int(exp, 16)
+        except ValueError:
+            return None
+        if not _same(sig, self._sig(f"{seller_id}-{exp}", "link")[:20]) or expires < time.time():
+            return None
+        return seller_id
 
     def sign(self, payload: str) -> str:
         """Short-lived signed value, e.g. OAuth state."""

@@ -275,7 +275,7 @@ def test_pay_page_escapes_everything_and_unknown_ids_are_harmless(client, item):
     s = ready_session(client, v)
     post(client, f"/checkout-sessions/{s['id']}/complete", {})
     page = client.get(f"/checkout/{s['id']}").text
-    assert "<script>" not in page and "&lt;script&gt;" in page
+    assert "<script>alert" not in page and "&lt;script&gt;" in page
     assert "not valid" in client.get("/checkout/chk_unknown").text
     assert client.get("/checkout/" + "x" * 500).status_code == 200
 
@@ -285,3 +285,32 @@ def test_sold_out_item_cannot_start_a_session(client, item):
     ctx.store.set_stock(product.seller_id, product.id, v.id, 0, "test")
     r = post(client, "/checkout-sessions", {"line_items": [{"item": {"id": v.id}, "quantity": 1}]})
     assert r.json()["messages"][0]["code"] == "out_of_stock"
+
+
+def test_checkout_links_to_the_sellers_return_policy(client, item):
+    product, v = item
+    data = new_session(client, v)       # valid() has already checked the response against the official UCP models
+    base = ctx.settings.public_base_url
+    assert data["links"] == [{"type": "refund_policy", "title": "Return policy", "url": f"{base}/stores/{product.seller_id}/returns"}]
+    page = client.get(f"/stores/{product.seller_id}/returns")
+    assert page.status_code == 200 and "168 hours" in page.text
+
+
+def test_a_returned_and_refunded_order_stays_completed_and_the_pay_page_does_not_say_nothing_was_charged(client, item):
+    product, v = item
+    s = ready_session(client, v, 1)
+    valid(post(client, f"/checkout-sessions/{s['id']}/complete", {}))
+    order = ctx.store.list_orders(product.seller_id)[0]
+    ctx.checkout.payment_succeeded(order.payment.reference)
+    ctx.checkout.seller_accepts(product.seller_id, order.id)
+    ctx.checkout.mark_shipped(product.seller_id, order.id, "JNE919191")
+    ctx.checkout.shipment_update("JNE919191", "delivered")
+    phone = ctx.store.get_order(order.id).buyer.phone
+    ctx.returns.request(order.id, phone, "damaged", "torn")
+    ctx.returns.seller_responds(product.seller_id, order.id, approve=True)
+    ctx.returns.seller_received(product.seller_id, order.id)
+    assert ctx.store.get_order(order.id).status.value == "refunded"
+    final = valid(client.get(f"{API}/checkout-sessions/{s['id']}", headers=HEADERS))
+    assert final["status"] == "completed"
+    page = client.get(f"/checkout/{s['id']}").text
+    assert "refunded" in page and "Nothing was charged" not in page

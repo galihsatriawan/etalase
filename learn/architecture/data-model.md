@@ -21,7 +21,7 @@ Three ideas shape the data model.
 | Part | Status |
 |---|---|
 | Models (`models.py`) | <Badge type="tip" text="Built" /> |
-| `MemoryStore` (used by the demo and all 226 tests) | <Badge type="tip" text="Built" /> |
+| `MemoryStore` (used by the demo and all 389 tests) | <Badge type="tip" text="Built" /> |
 | `FirestoreStore` (transactions; exercised manually against the emulator, not in CI) | <Badge type="tip" text="Built" /> <Badge type="warning" text="Mocked in demo" /> |
 | Cloud Storage for media, Firestore emulator in CI | <Badge type="info" text="Roadmap" /> |
 
@@ -38,6 +38,9 @@ erDiagram
   ORDER ||--o| PAYMENT_INFO : embeds
   ORDER ||--o| SHIPMENT : embeds
   ORDER ||--o| PAYOUT : embeds
+  ORDER ||--o| RETURN_TERMS : "fixed at checkout"
+  ORDER ||--o| RETURN_REQUEST : embeds
+  SELLER ||--|| RETURN_POLICY : embeds
   ORDER ||--o{ RESERVATION : holds
   VARIANT ||--o{ RESERVATION : "reserved by"
   VARIANT ||--o{ STOCK_CHANGE : logs
@@ -78,6 +81,24 @@ erDiagram
     int shipping_fee
     int total
     datetime expires_at
+    datetime delivered_at
+    datetime payout_due_at "end of the return window"
+  }
+  RETURN_TERMS {
+    int window_hours
+    bool accepts_change_of_mind
+  }
+  RETURN_REQUEST {
+    string reason "damaged, wrong_item, not_as_described, changed_mind"
+    datetime respond_by "silence after this counts as approval"
+    datetime lapse_at "item must be back by then"
+    string return_waybill
+    string outcome "refunded, lapsed, rejected"
+    int refund_amount
+  }
+  RETURN_POLICY {
+    bool accepts_change_of_mind
+    string note "up to 300 characters, shown as the seller's words"
   }
   RESERVATION {
     string id PK
@@ -89,7 +110,7 @@ erDiagram
   }
 ```
 
-"Embeds" means the child lives *inside* the parent document: a product's variants and their stock are one record, and an order carries its items, payment, shipment and payout. Reservations, stock changes and connections are separate records.
+"Embeds" means the child lives *inside* the parent document: a product's variants and their stock are one record, and an order carries its items, payment, shipment, payout, return terms and return request. Reservations, stock changes and connections are separate records.
 
 ## Model by model
 
@@ -97,15 +118,17 @@ All models are in **`prototype/etalase/models.py`**. IDs come from `new_id(prefi
 
 | Model | What it is | Notes |
 |---|---|---|
-| `Seller` | A shop, identified by its WhatsApp number | `kyc_status` must be `"verified"` before checkout works. `origin` (an `Address`) gives the courier pickup postal code |
+| `Seller` | A shop, identified by its WhatsApp number | `channel` (`whatsapp` default, or `telegram`) with `telegram_chat_id` decide where Etalase writes: `Seller.address` is the WhatsApp number or `tg:<chat id>`. `slug` is the optional shop address `<slug>.<STORE_BASE_DOMAIN>`, unique. `kyc_status` must be `"verified"` before checkout works. `origin` (an `Address`) gives the courier pickup postal code. `return_policy` (`ReturnPolicy`) holds the two things a seller may choose: whether a change of mind is accepted, and a 300-character note shown to buyers and agents as the seller's own words |
 | `Product` | One item for sale | `status` starts as `draft` or `needs_review`; only `published` is visible to agents. `ships_to` defaults to `["ID"]` |
 | `Variant` | A sellable option (colour, size) | `price` is in minor units of the currency; IDR has none, so 85000 means Rp85.000 |
 | `Stock` | Counters inside each variant | `on_hand = None` means the seller does not count stock |
-| `Order` | One checkout | Contains `OrderItem`s, the buyer `Address`, the chosen `ShippingRate`, and later `PaymentInfo`, `Shipment`, `Payout`. `history` is a human-readable log |
+| `Order` | One checkout | Contains `OrderItem`s, the buyer `Address`, the chosen `ShippingRate`, and later `PaymentInfo`, `Shipment`, `Payout`. `history` is a human-readable log. `delivered_at` and `payout_due_at` mark the start and the end of the return window |
+| `ReturnTerms` | The return terms a checkout was created under | `window_hours` and `accepts_change_of_mind`, copied onto the order at checkout so that what the buyer's agent saw is what applies, even if the seller changes the policy or completes more orders meanwhile. `None` on orders created before returns existed |
+| `ReturnRequest` | One return, from the request to the outcome | `reason`, the buyer's `note` (500 characters, untrusted) and `evidence` (up to 5 `https` links, stored and never fetched). `respond_by` and `lapse_at` are the two timers; `return_waybill` is the buyer's tracking number; `outcome` stays empty while the return is open |
 | `Reservation` | Units held for an order | One per order item; drives stock commits, releases and expiry |
 | `PaymentInfo` | The provider's payment record | `reference` is how payment webhooks find the order |
 | `Shipment` | Courier and waybill | Created when the order ships |
-| `Payout` | Seller amount and commission | Created once, on delivery |
+| `Payout` | Seller amount and commission | Created once, when the return window has ended and no return is open (`release_due_payouts`) |
 | `Connection` | A connected OMS, store plugin or Instagram account | Only the SHA-256 of the API key is stored |
 | `StockChange` | Audit log of `set_stock` | Who (`seller_id`), what (`before`, `after`), how (`source`), when (`at`) |
 
@@ -139,7 +162,9 @@ Several models keep status as a free string. The inline comments in `models.py` 
 | `PaymentInfo.status` | `pending`, `paid`, `paid_late`, `refunded`, `refund_pending` |
 | `Shipment.status` | `booked`, `picked_up`, `in_transit`, `delivered`, `returned` |
 | `Payout.status` | `releasing`, `released`, `pending_manual` (the default `scheduled` is never used) |
-| `Order.status` | the 10 `OrderStatus` values, see [Checkout and orders](/architecture/checkout-and-orders) |
+| `Order.status` | the 13 `OrderStatus` values (including `return_requested`, `return_approved`, `return_disputed`), see [Checkout and orders](/architecture/checkout-and-orders) |
+| `ReturnRequest.outcome` | empty while open, then `refunded`, `lapsed` (the item never came back) or `rejected` (an operator sided with the seller) |
+| `ReturnRequest.approved_by` | `seller` or `auto` (the seller stayed silent for 48 hours) |
 
 ## The Store protocol
 
@@ -187,7 +212,7 @@ The lock gives the same guarantee a transaction does: nobody else can read or wr
 
 | Collection | Document | Written by |
 |---|---|---|
-| `sellers` | `Seller` | `put_seller` |
+| `sellers` | `Seller` | `put_seller`; looked up by `find_seller_by_whatsapp`, `find_seller_by_address` (a number or `tg:<chat id>`) and `find_seller_by_slug` (Firestore: single-field queries, no composite index needed) |
 | `products` | `Product` with variants and stock embedded | `put_product`, and the stock functions |
 | `orders` | `Order` with items, payment, shipment, payout | `put_order` (creation only), `update_order` |
 | `reservations` | `Reservation` plus an extra `expires_ts` timestamp field | `reserve`, `_apply`, `extend` |
@@ -249,8 +274,9 @@ Firestore indexes every single field automatically. A query that combines an equ
 | `held_reservations_expiring_before` | `status == "held"`, `expires_ts <= when` | Composite `(status, expires_ts)`, noted in the code |
 | `_apply`, `extend` | `order_id ==`, `status ==` | Automatic single-field; add a composite if Firestore asks |
 | `list_products` | `seller_id ==`, optional `status ==` | Same |
-| `find_seller_by_whatsapp` | `whatsapp ==` | Automatic |
+| `find_seller_by_whatsapp`, `find_seller_by_address`, `find_seller_by_slug` | `whatsapp ==`, `telegram_chat_id ==`, `slug ==` | Automatic |
 | `find_order_by_payment_ref` | `payment.reference ==` | Automatic (nested field) |
+| `orders_in_status` (the background job: return timers, due payouts, disputes) | `status in [...]` | Automatic single-field; it reads every order in those states across all sellers, which is fine for a pilot and should become a query on `payout_due_at` once volume grows |
 | `list_orders`, `stock_log`, `list_connections` | `seller_id ==` | Automatic |
 | `find_connection_by_key_hash` | `api_key_hash ==` | Automatic |
 
@@ -270,7 +296,7 @@ A few lookups are deliberately not seller-scoped. Know them, because judges may 
 |---|---|
 | `CatalogService.search` uses `list_products(status=PUBLISHED)` | The public catalogue is meant to be searched across shops |
 | `get_order(checkout_id)` for `get_checkout_status` | The random checkout id acts as the buyer's handle; the view contains no buyer address |
-| `find_order_by_payment_ref`, `find_seller_by_whatsapp`, `find_connection_by_key_hash` | They establish *who* is calling, so they cannot be scoped yet |
+| `find_order_by_payment_ref`, `find_seller_by_whatsapp`, `find_seller_by_address`, `find_seller_by_slug`, `find_connection_by_key_hash` | They establish *who* is calling, so they cannot be scoped yet |
 | `CheckoutService._order_by_waybill` | Courier webhooks only know the waybill. It collects the unique sellers from all products and scans each seller's orders; still a full scan, which should become a query on `shipment.waybill` (a single-field index) |
 
 ## Pitfalls

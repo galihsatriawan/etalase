@@ -29,7 +29,7 @@ Every key is optional. A missing one means the app uses a mock for that part, so
 |---|---|---|
 | `GOOGLE_API_KEY` (or `GEMINI_API_KEY`) or a Google Cloud project (Vertex AI) | Rule-based extraction, 49% of the 43 labelled messages fully correct | Gemini extraction and the ADK agents: the Gen AI score |
 | A Google Cloud project with billing | Runs on your laptop only | The public prototype link the submission asks for |
-| `WHATSAPP_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_APP_SECRET`, `WHATSAPP_VERIFY_TOKEN`, plus four message templates created in WhatsApp Manager ([guide](/ship/whatsapp-templates)) | Orders print in the terminal | The order landing in the seller's WhatsApp, also outside the 24-hour window |
+| `WHATSAPP_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_APP_SECRET`, `WHATSAPP_VERIFY_TOKEN`, plus six message templates created in WhatsApp Manager ([guide](/ship/whatsapp-templates)) | Orders print in the terminal | The order landing in the seller's WhatsApp, also outside the 24-hour window |
 | `XENDIT_SECRET_KEY`, `XENDIT_CALLBACK_TOKEN` | Mock QRIS | Real QR codes (test mode is enough) |
 | `BITESHIP_API_KEY` (test key, small balance: test mode is billed) | Mock courier rates | Real rates, booking and tracking |
 | `INSTAGRAM_APP_ID`, `INSTAGRAM_APP_SECRET` | Sample posts | Importing a seller's real posts |

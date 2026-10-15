@@ -1,10 +1,11 @@
 # Agent gateway
 
-The agent gateway is the front door for buyers' AI agents: five tools served over MCP and mirrored as REST, plus discovery documents, all backed by one `GatewayTools` class that returns plain dictionaries an LLM can read and act on.
+The agent gateway is the front door for buyers' AI agents: seven tools served over MCP and mirrored as REST, plus discovery documents, a public store page for people, all backed by one `GatewayTools` class that returns plain dictionaries an LLM can read and act on.
 
 ::: tip What you will learn
 - What `GatewayTools` does, and why it returns `{"error": ...}` and `next_step` instead of raising exceptions
-- How the MCP server is built with FastMCP (stateless streamable HTTP) and what each of the 5 tools takes
+- How the MCP server is built with FastMCP (stateless streamable HTTP) and what each of the 7 tools takes, including the two return tools
+- What an agent sees about a seller before it buys (`return_policy`, `track_record`) and after delivery (`return`, `next_step`)
 - The REST mirror at `/agent/v1`, the `/.well-known/ucp` profile and the schema.org product data
 - How the demo ADK buyer agent and other MCP clients connect
 - Rate limits, and why product text must be treated as untrusted data by agents
@@ -32,17 +33,19 @@ flowchart LR
   AG -->|HTTP| REST["/agent/v1"]
   AG -->|discover| UCP["/.well-known/ucp"]
   CR[Crawlers and feeds] --> LD["/stores/id/products.jsonld"]
+  BU[Buyer without an agent] --> SF["/stores/id store page"]
   MCP --> GT[GatewayTools]
   REST --> GT
   GT --> CAT[CatalogService]
   GT --> CO[CheckoutService]
   GT --> ST[(Store)]
   LD --> ST
+  SF --> CO
 ```
 
 ## GatewayTools
 
-**`prototype/etalase/gateway/tools.py`** holds the five operations. MCP and REST are thin wrappers around them, so behaviour is identical on both.
+**`prototype/etalase/gateway/tools.py`** holds the seven operations. MCP and REST are thin wrappers around them, so behaviour is identical on both.
 
 ```python
 # prototype/etalase/gateway/tools.py
@@ -74,7 +77,7 @@ NEXT_STEP = {
 }
 ```
 
-`order_view` returns `checkout_id`, `status`, `sell_mode`, items, `subtotal`, `shipping`, `total`, payment (method, `qr_string`, status), `tracking` and `expires_at`. It deliberately leaves out the buyer's name, phone and address, because anyone holding the checkout id can read it.
+`order_view` returns `checkout_id`, `status`, `sell_mode`, items, `subtotal`, `shipping`, `total`, payment (method, `qr_string`, status), `tracking`, `expires_at`, `delivered_at` and `return`. `return` says what the buyer can do now: `can_request_until` while the window is open, then `reason`, `outcome`, `seller_must_answer_by` or `item_must_reach_seller_by`, `refund_amount`. After delivery `next_step` names the deadline, and it explains that a manual refund is `refund_pending`. It deliberately leaves out the buyer's name, phone and address, because anyone holding the checkout id can read it.
 
 ## The MCP server
 
@@ -104,7 +107,7 @@ What each setting means:
 
 `api/main.py` also runs `mcp.session_manager.run()` inside the FastAPI lifespan; without it the mounted app cannot serve requests. The server's `INSTRUCTIONS` tell the agent the flow (`search_products -> get_shipping_options -> create_checkout -> show the QRIS code -> get_checkout_status`), that only domestic delivery inside Indonesia works, and how to explain `confirm_with_seller`.
 
-### The five tools
+### The seven tools
 
 | Tool | Parameters (defaults) | Returns |
 |---|---|---|
@@ -113,8 +116,12 @@ What each setting means:
 | `get_shipping_options` | `product_id`, `variant_id`, `quantity`, `postal_code` | `options` sorted by price, `currency` |
 | `create_checkout` | `product_id`, `variant_id`, `quantity`, `buyer_name`, `buyer_phone`, `address_line`, `city`, `postal_code`, `country` ("ID"), `courier` (none) | `order_view`, or `{"error": ...}` |
 | `get_checkout_status` | `checkout_id` | `order_view`, or `{"error": "checkout not found"}` |
+| `request_return` | `checkout_id`, `buyer_phone`, `reason` (`damaged`, `wrong_item`, `not_as_described`, `changed_mind`), `note` (500 characters), `evidence_urls` (up to 5 `https` links) | `order_view` with `return`, or `{"error": ...}`; a wrong phone answers "checkout not found" |
+| `submit_return_tracking` | `checkout_id`, `buyer_phone`, `waybill` | `order_view`, or `{"error": ...}` |
 
-The `create_checkout` description ends with "Only call this after the buyer explicitly agreed to buy." Tool descriptions are part of what the model reads, so this is a real safeguard, not just documentation. `test_mcp_exposes_the_agent_tools` checks the exact set of five names.
+`search_products` and `get_product` also add `return_policy` (window in hours, accepted reasons, refund amounts, who pays return shipping, the seller's own note) and `track_record` (`orders_completed`, `returns_refunded`) to each seller, so an agent can weigh a new seller before it recommends one. `INSTRUCTIONS` tell the agent to do that and when to call the return tools. A seller with `PAYOUT_HOLD_HOURS=0` shows `"returns": "not offered through Etalase"`.
+
+The `create_checkout` description ends with "Only call this after the buyer explicitly agreed to buy." Tool descriptions are part of what the model reads, so this is a real safeguard, not just documentation. `test_mcp_exposes_the_agent_tools` checks the exact set of seven names.
 
 ## The REST mirror
 
@@ -127,8 +134,10 @@ Not every agent framework speaks MCP, so `api/main.py` exposes the same operatio
 | `GET /agent/v1/products/{product_id}/shipping-options?variant_id=&quantity=&postal_code=` | `get_shipping_options` | 60 per minute per IP (each call can cost a courier-API request); variant id cut to 40 chars, quantity clamped to 1 to 100, postal code cut to 10 chars |
 | `POST /agent/v1/checkouts` | `create_checkout` | 20 per hour per IP; `CheckoutIn` field limits (name 80, address 5 to 200, phone 8 to 20 chars, quantity 1 to 100) |
 | `GET /agent/v1/checkouts/{checkout_id}` | `get_checkout_status` | |
+| `POST /agent/v1/checkouts/{checkout_id}/return` | `request_return` | 10 per hour per IP (shared bucket `return`); body limits (note 500 chars, 5 links) |
+| `POST /agent/v1/checkouts/{checkout_id}/return/tracking` | `submit_return_tracking` | 10 per hour per IP (same bucket) |
 
-With the shipping-options route, REST now mirrors all five MCP tools, so a REST client can show the buyer courier choices before checkout, exactly like an MCP agent:
+With the shipping-options route, REST now mirrors the shopping tools, so a REST client can show the buyer courier choices before checkout, exactly like an MCP agent:
 
 ```python
 @agent.get("/products/{product_id}/shipping-options")
@@ -171,7 +180,7 @@ The answer is `{"options": [...], "currency": "IDR"}`, sorted by price. If the b
 },
 ```
 
-Two details matter. A variant whose stock is not tracked (`available is None`) is published as `LimitedAvailability`, not `InStock`, because Etalase will ask the seller before selling it; claiming "in stock" to a crawler would be an overclaim. And the offer `url` points to the agent REST endpoint for the product, a route that actually exists (it returns the agent view as JSON; there is no HTML store page).
+Two details matter. A variant whose stock is not tracked (`available is None`) is published as `LimitedAvailability`, not `InStock`, because Etalase will ask the seller before selling it; claiming "in stock" to a crawler would be an overclaim. And the offer `url` points to the agent REST endpoint for the product, a route that actually exists (it returns the agent view as JSON; the HTML store page is a separate route).
 
 ## The demo buyer agent
 
@@ -239,6 +248,7 @@ Use the trailing slash: `/mcp` answers with a 307 redirect to `/mcp/`, which som
 | Units per checkout | `CheckoutService` | 10 |
 | REST search per IP | `api/main.py` | 120 per minute |
 | REST shipping options per IP | `api/main.py` | 60 per minute |
+| Return requests and return tracking per IP (REST and MCP share the bucket) | `api/main.py`, `gateway/mcp_server.py` | 10 per hour |
 | REST checkout per IP | `api/main.py` | 20 per hour |
 | Search results | `GatewayTools.search_products` | 1 to 10 |
 | Request body | middleware in `api/main.py` | 2 MB |
@@ -265,7 +275,7 @@ The UCP profile, schema.org URLs and image URLs are built from `PUBLIC_BASE_URL`
 :::
 
 - `get_checkout_status` needs no authentication; the random checkout id is the only key. Keep buyer data out of `order_view`.
-- schema.org `Offer.url` points to a JSON endpoint, not a page a person can open. Shopping feeds such as Merchant Center usually want a landing page a shopper can open, so check its current requirements; a public store page is still to build.
+- schema.org `Offer.url` still points to the JSON endpoint of the product. The public store page (`/stores/{seller_id}`, plain HTML for people who arrive from a link, covered in [Checkout and orders](/architecture/checkout-and-orders) and [Security](/architecture/security)) now exists, but the feed does not link to it yet. Shopping feeds such as Merchant Center usually want a landing page a shopper can open, so check its current requirements and switch the `Offer.url`.
 - `get_shipping_options` and the agent view say `"currency": "IDR"` and discovery says `IDR` / `ID`, hard-coded rather than read from the country pack.
 - `get_product` assumes the seller exists; a product whose seller was deleted would raise instead of returning an error dict.
 

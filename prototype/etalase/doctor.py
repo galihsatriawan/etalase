@@ -136,6 +136,48 @@ def check_whatsapp(s: Settings, live: bool) -> Check:
     return Check("whatsapp", FAIL, f"HTTP {r.status_code}: {_short(r.text)}")
 
 
+def check_telegram(s: Settings, live: bool) -> Check:
+    if not s.telegram_bot_token:
+        return Check("telegram", SKIP, "no Telegram bot (WhatsApp is the only seller channel)",
+                     "Optional second seller channel: create a bot with @BotFather, see SETUP.md section 3b.")
+    secret = s.telegram_webhook_secret or ""
+    if len(secret) < 16 or not all(c.isalnum() or c in "_-" for c in secret):
+        return Check("telegram", FAIL, "TELEGRAM_WEBHOOK_SECRET is missing or invalid",
+                     "Any 16+ characters from A-Z a-z 0-9 _ - ; it is sent back by Telegram on every webhook call.")
+    if not live:
+        return Check("telegram", INFO, "configured (not tested: --offline)")
+    from .adapters.telegram import TelegramError, TelegramMessenger
+    bot = TelegramMessenger(s.telegram_bot_token)
+    try:
+        name = bot.bot_username()
+        hook = bot.call("getWebhookInfo")
+    except TelegramError as e:
+        return Check("telegram", FAIL, _short(e), "Wrong bot token, or this network cannot reach api.telegram.org.")
+    if not hook.get("url"):
+        return Check("telegram", WARN, f"bot @{name} is valid but no webhook is set",
+                     "Run: python -m etalase.adapters.telegram set-webhook https://<your host>/webhooks/telegram")
+    if hook.get("last_error_message"):
+        return Check("telegram", WARN, f"bot @{name}: last delivery error: {_short(hook['last_error_message'])}",
+                     "Check that the webhook URL is reachable and the secret matches.")
+    return Check("telegram", OK, f"bot @{name}, webhook {hook['url']}")
+
+
+def check_domain(s: Settings, live: bool) -> Check:
+    if not s.store_base_domain:
+        return Check("domain", SKIP, "shop links are paths on one host (no STORE_BASE_DOMAIN)",
+                     "Optional: set STORE_BASE_DOMAIN for <shop>.yourdomain addresses, see SETUP.md section 7.")
+    if not live:
+        return Check("domain", INFO, f"shop addresses end in .{s.store_base_domain} (not tested: --offline)")
+    import socket
+    host = s.store_base_domain.split(":")[0]
+    try:
+        socket.getaddrinfo(f"etalase-doctor-probe.{host}", None)
+    except OSError:
+        return Check("domain", WARN, f"wildcard DNS does not resolve: etalase-doctor-probe.{host}",
+                     f"Add a DNS record *.{host} pointing at this service (and a wildcard certificate); shop addresses work only after that.")
+    return Check("domain", OK, f"*.{host} resolves; shops are served at <slug>.{s.store_base_domain}")
+
+
 def check_xendit(s: Settings, live: bool) -> Check:
     if not s.xendit_secret_key:
         return Check("xendit", SKIP, "mock QRIS (no Xendit key)", "Needed only for real QRIS: see SETUP.md section 4.")
@@ -222,13 +264,33 @@ def check_store(s: Settings, live: bool) -> Check:
     return Check("store", OK if ok else FAIL, "firestore read and write worked")
 
 
+def check_returns(s: Settings) -> Check:
+    """The payout hold is also the buyer's return window; a wrong value either pays sellers too early or holds them too long."""
+    if s.payout_hold_hours <= 0:
+        return Check("returns", WARN, "PAYOUT_HOLD_HOURS=0: sellers are paid at delivery and buyers cannot return anything",
+                     "Leave PAYOUT_HOLD_HOURS at its default (72) before real money moves.")
+    longest = max(s.payout_hold_hours, s.new_seller_hold_hours)
+    detail = (f"payout held {s.payout_hold_hours}h after delivery ({longest}h for sellers with fewer than {s.new_seller_orders} "
+              f"completed orders); a silent seller approves a return after {s.return_seller_response_hours}h; "
+              f"an approved return lapses after {s.return_lapse_days} days")
+    if s.xendit_secret_key:
+        return Check("returns", INFO, detail,
+                     "Ask Xendit how long a QRIS payment can be refunded and whether a partial refund works (their pages disagree). "
+                     "Until then Etalase records a refund as refund_pending and an operator sends it.")
+    return Check("returns", OK, detail)
+
+
 def webhook_urls(s: Settings) -> Check:
     base = s.public_base_url.rstrip("/")
     token = "<WEBHOOK_TOKEN>"
     lines = [f"WhatsApp  {base}/webhooks/whatsapp  (verify token = WHATSAPP_VERIFY_TOKEN)",
+             *([f"Telegram  {base}/webhooks/telegram  (python -m etalase.adapters.telegram set-webhook <this url>)"]
+               if s.telegram_bot_token else []),
              f"Payment   {base}/webhooks/payment   (Xendit sends its callback token)",
              f"Shipping  {base}/webhooks/shipping?token={token}",
              f"MCP       {base}/mcp/"]
+    if s.store_base_domain:
+        lines.append(f"Shops     https://<slug>.{s.store_base_domain}/  (wildcard DNS and certificate for *.{s.store_base_domain})")
     return Check("urls", INFO, "\n          ".join(lines), "Register these in the provider dashboards.")
 
 
@@ -238,10 +300,13 @@ def run_checks(s: Settings, live: bool = True, extractor_factory: Callable | Non
         check_startup(s),
         check_gemini(s, live, extractor_factory),
         check_whatsapp(s, live),
+        check_telegram(s, live),
+        check_domain(s, live),
         check_xendit(s, live),
         check_biteship(s, live),
         check_instagram(s),
         check_store(s, live),
+        check_returns(s),
         webhook_urls(s),
     ]
 

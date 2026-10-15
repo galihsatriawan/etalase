@@ -92,7 +92,7 @@ And the existing agentic-commerce tools (Shopify's Agentic Storefronts, Stripe's
 
 AI agents started completing real purchases in 2026:
 
-- Google launched the **Universal Commerce Protocol (UCP)** in January 2026. Agent checkout through UCP went live in the **US** in February 2026 and in **Australia** in June 2026, the first Asia-Pacific market. Google is running a limited test with Flipkart in India and has named Indonesia among the markets UCP will expand to ([Evidence](/business/evidence)).
+- Google launched the **Universal Commerce Protocol (UCP)** in January 2026. Agent checkout through UCP went live in the **US** in February 2026 and started with select retailers in **Australia** in June 2026, the first Asia-Pacific market (Google's own pages still call checkout US-only). Google is running a limited test with Flipkart in India and named Indonesia as a future market in January 2026; no date is known ([Evidence](/business/evidence)).
 - Alibaba said its Qwen AI app handled more than **120 million consumer orders in six days** (6–11 February 2026) during a subsidised Lunar New Year campaign ([Evidence](/business/evidence)). It was subsidised, so use it to show that consumers will order through an AI app when it is easy, not as a market-size figure.
 - Morgan Stanley projects that agentic shoppers could represent **US$190–385 billion of US e-commerce spending by 2030**, 10% to 20% of the market ([Evidence](/business/evidence)). This is a US-only scenario range. Use it for direction, not for Southeast Asian size.
 
@@ -140,7 +140,7 @@ Most chat sellers are not on a marketplace (18% use one). Marketplace AI integra
 4. Is agent commerce live in Indonesia? What do you say?
 
 ::: details Answer
-No. UCP checkout is live in the US and Australia, in limited test in India, and Google has named Indonesia as a future market. Meanwhile Etalase's MCP server works with any MCP-capable agent today, and the catalog with QRIS checkout is useful without agents.
+No. UCP checkout is live in the US, has started with select retailers in Australia, is in limited test in India, and Indonesia has been named as a future market with no date. Meanwhile Etalase's MCP server works with any MCP-capable agent today, and the catalog with QRIS checkout is useful without agents.
 :::
 
 ## Next

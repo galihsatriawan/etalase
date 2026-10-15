@@ -1,11 +1,11 @@
 # Final quiz
 
-Forty questions across concepts, code, flows, security, business and evidence, with answers, links back to the pages that explain them, and a scoring guide.
+Forty-three questions across concepts, code, flows, security, business, evidence and channels, with answers, links back to the pages that explain them, and a scoring guide.
 
 ::: tip What you will learn
 - Whether you can explain Etalase without notes, the way a judge or a first engineer hire would test you
 - Which pages to reread, based on the questions you miss
-- What "mastery" means for this project: 36 of 40
+- What "mastery" means for this project: 39 of 43
 :::
 
 ## How to take the quiz
@@ -16,7 +16,7 @@ The questions follow the levels of this site:
 
 ```mermaid
 flowchart LR
-  C["Concepts 1-7"] --> K["Code 8-17"] --> F["Flows 18-25"] --> S["Security 26-31"] --> B["Business 32-36"] --> E["Evidence 37-40"]
+  C["Concepts 1-7"] --> K["Code 8-17"] --> F["Flows 18-25"] --> S["Security 26-31"] --> B["Business 32-36"] --> E["Evidence and channels 37-43"]
 ```
 
 ## Concepts
@@ -119,7 +119,7 @@ From `tool_context.state["seller_id"]`, set when the session is created for the 
 Both implement the `CatalogExtractor` protocol and return the same `ExtractedCatalog` schema. `GeminiExtractor` (multimodal, `response_schema=ExtractedCatalog`, temperature 0.1) is used when an API key or Vertex AI is configured; `HeuristicExtractor` (text and CSV rules) is used otherwise, including in all tests. See [Catalog and stock](/architecture/catalog-and-stock).
 :::
 
-**17. Multiple choice. The command that runs the 226 automated tests is:**
+**17. Multiple choice. The command that runs the 389 automated tests is:**
 (a) `python scripts/demo.py` (b) `cd prototype && pytest -q` (c) `uvicorn etalase.api.main:app --port 8080` (d) `npm run build`
 
 ::: details Answer
@@ -258,7 +258,7 @@ Sellers' willingness to pay 3–5% per order; the share of sellers who track sto
 **38. Is UCP agent checkout live in Indonesia? Give the honest status by country.**
 
 ::: details Answer
-No. Live in the US (February 2026) and Australia (June 2026, the first Asia-Pacific market); a limited Flipkart test in India (September 2026); Indonesia named among the next markets. See [Evidence and sources](/business/evidence).
+No. Live in the US (February 2026); started with select retailers in Australia (June 2026), while Google's own pages still call checkout US-only and place the self-serve hub in Australia in 2027; a limited Flipkart test in India (September 2026); Indonesia was named as a future market in January 2026, with no date known. See [Evidence and sources](/business/evidence).
 :::
 
 **39. What is the QRIS fee situation for a typical Etalase order of IDR 170,000 since 1 October 2026?**
@@ -270,17 +270,35 @@ For a micro merchant, the QRIS MDR is 0% for transactions up to Rp500,000 (and 0
 **40. Which benchmark results can you claim today, and which are still TBD?**
 
 ::: details Answer
-Claimable: 0 units oversold when 100 concurrent reservations race for the last unit (on the in-memory store), and duplicate and late payments handled (no double stock change, late payment refunded), all in the 226 passing tests. TBD: catalog extraction accuracy, catalog build time, agent tool latency, seller alert speed and stock-update intent accuracy with Gemini. See [Testing](/ship/testing) and [Pitch and Q&A](/business/pitch-and-qa).
+Claimable: 0 units oversold when 100 concurrent reservations race for the last unit (on the in-memory store), and duplicate and late payments handled (no double stock change, late payment refunded), all in the 389 passing tests. TBD: catalog extraction accuracy, catalog build time, agent tool latency, seller alert speed and stock-update intent accuracy with Gemini. See [Testing](/ship/testing) and [Pitch and Q&A](/business/pitch-and-qa).
+:::
+
+**41. How does the same order alert reach a seller on WhatsApp or on Telegram without the core knowing which?**
+
+::: details Answer
+The core only calls the `Messenger` interface. `ChannelRouter` implements it and picks the adapter from the address string: `tg:<chat id>` goes to the Telegram adapter, anything else to WhatsApp. `Seller.address` returns the chosen channel's address, and `SellerInbox.to()` replies on the channel the seller wrote on. Telegram needs no template because it has no 24-hour window. See [WhatsApp seller agent](/architecture/seller-agent).
+:::
+
+**42. What stops a stranger from linking their own Telegram chat to someone else's shop, and what is the known gap?**
+
+::: details Answer
+Linking needs a code issued inside a signed-in dashboard session: `<seller id>-<expiry>-<HMAC>`, valid for 10 minutes, with the purpose "link" so a sign-in token cannot be replayed as one, and a chat already linked to a shop is not moved by another code. The gap: the code is a bearer value and not single-use, so anyone holding an unexpired code could use it. A one-time server-side code is the next step. See [Security model](/architecture/security) and [Known gaps](/master/known-gaps).
+:::
+
+**43. A friend says "use Click-to-WhatsApp ads and WhatsApp becomes free" and "Instagram DMs are free, so build an Instagram bot". What do you say?**
+
+::: details Answer
+CTWA frees a chat that starts from an ad; Etalase's alerts to sellers are not that, and the length of the window is reported differently by different resellers (claim 51). "Instagram DMs are free" came from a vendor table we could not confirm (claim 53). An Instagram buyer bot would have to run per seller on each seller's own account, needs Meta's Advanced Access, and is roadmap, not built (claim 52, Q49 in [Pitch and Q&A](/business/pitch-and-qa)).
 :::
 
 ## Scoring guide
 
 | Score | Level | What to do next |
 |---|---|---|
-| 36–40 | **Mastery** | You can defend Etalase in front of judges. Do two advanced [exercises](/master/exercises) to stay sharp. |
-| 30–35 | Solid | Reread the pages linked from the questions you missed, then retake those sections. |
-| 22–29 | Getting there | Redo the [Hands-on walkthrough](/run/hands-on) and the Level 3 pages before pitching. |
-| 0–21 | Start again | Go back to [Start here](/guide/start-here) and follow the sidebar in order. |
+| 39–43 | **Mastery** | You can defend Etalase in front of judges. Do two advanced [exercises](/master/exercises) to stay sharp. |
+| 33–38 | Solid | Reread the pages linked from the questions you missed, then retake those sections. |
+| 24–32 | Getting there | Redo the [Hands-on walkthrough](/run/hands-on) and the Level 3 pages before pitching. |
+| 0–23 | Start again | Go back to [Start here](/guide/start-here) and follow the sidebar in order. |
 
 Two rules on top of the score:
 

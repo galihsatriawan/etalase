@@ -13,7 +13,7 @@ from etalase.connector.service import ProductIn, VariantIn, check_webhook_url
 from etalase.models import Address, CheckoutError, OrderStatus, now
 from etalase.security import InsecureConfig, validate_settings
 
-from .conftest import BUYER, variant
+from .conftest import BUYER, after_window, variant
 
 LOCAL_MODES = {"payment": "mock", "shipping": "mock", "messaging": "console"}
 
@@ -160,8 +160,12 @@ def test_manual_payout_when_provider_is_not_automated(ctx, seller, product, monk
     def manual(*a, **k):
         raise ManualActionRequired("not automated")
     monkeypatch.setattr(ctx.payment, "release_to_seller", manual)
-    order = ctx.checkout.shipment_update("JNE987654", "delivered")
+    delivered = ctx.checkout.shipment_update("JNE987654", "delivered")
+    assert delivered.payout is None                       # not yet: the return window is open
+    after_window(ctx)
+    order = ctx.store.get_order(delivered.id)
     assert order.status == OrderStatus.DELIVERED and order.payout.status == "pending_manual"
+    after_window(ctx)
     assert ctx.checkout.release_payout(order.id).payout.status == "pending_manual"  # no double release
 
 

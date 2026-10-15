@@ -34,6 +34,8 @@ These parts have real code paths, but the demo runs a stand-in. Each switches on
 | Catalog extraction <Badge type="warning" text="Mocked in demo" /> | `HeuristicExtractor` (text and CSV rules) | `GeminiExtractor` with Vertex AI or an API key | Live accuracy not measured yet (run `make eval` with a key); retries and an offline fallback exist, but no explicit request timeout |
 | Seller chat <Badge type="warning" text="Mocked in demo" /> | Offline intent parser | ADK `LlmAgent` with five tools | Sessions in memory (`InMemorySessionService`); errors leave the seller with no reply |
 | Messaging <Badge type="warning" text="Mocked in demo" /> | `ConsoleMessenger` (outbox list) | `WhatsAppCloudMessenger` | Templates must be created and approved by you (the code sends them); authentication template for sign-in codes; per-message cost control; media types and the template payload are tested against the documented shape, not the live API |
+| Telegram channel <Badge type="warning" text="Mocked in demo" /> | `ConsoleMessenger` labels it "Telegram" in the outbox; tests stub the Bot API | `TelegramMessenger` (Bot API over httpx) | Never called against the live Bot API: create the bot in @BotFather, set `TELEGRAM_BOT_TOKEN` and `TELEGRAM_WEBHOOK_SECRET`, run `python -m etalase.adapters.telegram set-webhook <url>`. The numeric limits (4096 characters, 64 bytes of callback data, 20 MB downloads) are the documented ones but were not re-read on the day of the check |
+| Shop subdomains <Badge type="warning" text="Not deployed" /> | Path links (`/stores/<id>`) are the default; `STORE_BASE_DOMAIN` is optional | `ShopHostMiddleware` maps `slug.<domain>` to the shop | Wildcard DNS and a wildcard TLS certificate (or a load balancer that terminates them) are not set up from the sandbox; tested with a fake `Host` header and in a real browser against `*.localhost` only |
 | Payments <Badge type="warning" text="Mocked in demo" /> | `MockPayment` (fake QRIS, instant refunds and releases) | `XenditPayment` (dynamic QRIS, callback token) | Refunds and xenPlatform settlement raise `ManualActionRequired` (an operator finishes them); uses the `/qr_codes` endpoint that Xendit calls legacy, and its official reference could not be opened, so the payload is community-sourced and unverified |
 | Shipping <Badge type="warning" text="Mocked in demo" /> | `MockShipping` (three couriers, `confirm_delivered` always true) | `BiteshipShipping` | Checked against Biteship's public docs (rates, orders, tracking, `order.status` webhook) and pinned by tests; not run against the live API; test mode bills rate and tracking calls |
 | Database <Badge type="warning" text="Mocked in demo" /> | `MemoryStore` (one lock) | `FirestoreStore` (transactions) | Never run against the emulator in tests; see the Firestore section below |
@@ -102,6 +104,10 @@ There is no registration flow. An unknown number is told to sign up at the dashb
 - An approved WhatsApp *authentication* template for sign-in codes. Order alerts already fall back to *utility* templates (you create them once); codes are free-form today.
 - Event handlers swallow errors (`EventBus.publish` logs and continues), so a failed WhatsApp send silently loses an alert. Pub/Sub retries fix that ([Exercise 18](/master/exercises#_18-make-events-durable-with-pub-sub)).
 - Pricing for service messages is unclear (Meta says free; BSP rate cards list charges from October 2026). Confirm with the BSP ([Evidence](/business/evidence)).
+- **Telegram linking uses a bearer code.** The `/start <code>` code is signed and lasts 10 minutes, but it is not single-use: whoever holds an unexpired code can link their own chat to that shop. It is shown only to a signed-in seller. A one-time, server-stored code is the next step.
+- **Sign-in stays on the WhatsApp number.** A seller who moves alerts to Telegram still signs in with their WhatsApp number (the code is sent to the chosen channel). A seller with no WhatsApp number cannot register yet.
+- **The Instagram DM buyer bot is a roadmap item, not built.** Buyers would talk to each seller's own Instagram account, so the bot must be per seller (each seller connects their own account), not one shared aggregator; Meta's review (Advanced Access) is needed for accounts we do not own. Whether Instagram messages are free is not confirmed ([Evidence](/business/evidence)).
+- **Order alerts do not record the channel.** `Order.channel` (where a buyer's order came from) does not exist yet; the seller's channel is stored, the buyer's is not.
 
 ### Security hardening
 
@@ -169,8 +175,9 @@ Code cannot answer these; a pilot can. Most come from `docs/10-business-model.md
 4. **Will the payment provider support sub-accounts and delayed release for this use case?** If not, the payout design changes (`docs/11`, "What could change the order").
 5. **Who pays the gateway's fixed fee?** Passing IDR 4,000 to the buyer may hurt conversion; absorbing it removes the margin at list price.
 6. **What is the buyer experience after payment?** Buyers do not register, and Etalase never messages them; shipping updates and refunds reach them only if their agent polls `get_checkout_status`.
-7. **Returns and disputes.** Who pays return shipping, and when is the seller's payout final?
+7. **Returns and disputes.** Today the buyer pays return shipping for every reason and nothing reimburses it. Should a defect return be reimbursed, by whom, and when is the seller's payout final?
 8. **Which channel next: WooCommerce or a local website builder?** `docs/08` calls WooCommerce-first an assumption to test in seller interviews.
+    Related, for the seller side: **is Telegram a real option for Indonesian sellers, or only a cheap proof?** Most sellers live on WhatsApp; Telegram shows that the channel is replaceable, and a pilot should ask whether anyone actually switches.
 9. **Will marketplaces allow stock sync from a third party that also sells to agents?** Partner terms are unconfirmed.
 10. **How does a buyer's agent judge a small seller's trustworthiness?** There are no ratings or seller signals in the agent view yet.
 

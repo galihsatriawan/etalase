@@ -144,7 +144,7 @@ Create all three before re-running: `validate_settings` refuses to start with a 
 **Gotchas**
 
 - **Media types.** Voice notes arrive as `audio/ogg; codecs=opus`; `download_media` strips the parameters and maps JPEG, PNG, WebP, OGG, MP3, M4A, AAC, AMR and CSV to file extensions. This has not been run against the live API yet, so send one voice note and one CSV through the real number before the demo. Gemini does not accept AMR, so an AMR voice note is skipped and the seller is asked to describe the product in text.
-- **Templates.** <Badge type="tip" text="Built" /> Free-form text and reply buttons only work inside the 24-hour customer service window. Outside it Meta answers error 131047, and the adapter then re-sends the same alert as an approved template. You have to create the four templates once (`python -m etalase.adapters.whatsapp_templates` prints them; see [WhatsApp templates](/ship/whatsapp-templates)); until they are approved, an alert to a seller who has not messaged the business number in the last 24 hours is logged as failed. Sign-in codes are not templated: the seller must message the number first (the dashboard says so).
+- **Templates.** <Badge type="tip" text="Built" /> Free-form text and reply buttons only work inside the 24-hour customer service window. Outside it Meta answers error 131047, and the adapter then re-sends the same alert as an approved template. You have to create the six templates once (`python -m etalase.adapters.whatsapp_templates` prints them; see [WhatsApp templates](/ship/whatsapp-templates)); until they are approved, an alert to a seller who has not messaged the business number in the last 24 hours is logged as failed. Sign-in codes are not templated: the seller must message the number first (the dashboard says so).
 - **Pricing.** Meta charges per message; utility templates inside an open service window are free. See [Evidence: WhatsApp prices](/business/evidence#costs-and-prices).
 - **`/dev/whatsapp` and `/dev/outbox` return empty lists** once WhatsApp is on: only the console messenger keeps an outbox. Dashboard codes now arrive on the phone.
 - **API version.** `v26.0` is the default (the latest when this was checked, 2026-10-15). Meta retires old Graph API versions on a schedule; set `WHATSAPP_API_VERSION` to move.
@@ -287,7 +287,7 @@ Reservations filtered by `status == "held"` and `expires_ts <= now`. Without the
 
 5. Why does a real order alert fail for a seller who last messaged three days ago?
 ::: details Answer
-Outside the 24-hour customer service window WhatsApp only delivers approved templates. The adapter now re-sends such an alert as a template after Meta answers error 131047, but only if you created and got the four templates approved ([WhatsApp templates](/ship/whatsapp-templates)). Sign-in codes are not templated yet.
+Outside the 24-hour customer service window WhatsApp only delivers approved templates. The adapter now re-sends such an alert as a template after Meta answers error 131047, but only if you created and got the six templates approved ([WhatsApp templates](/ship/whatsapp-templates)). Sign-in codes are not templated yet.
 :::
 
 ## Next

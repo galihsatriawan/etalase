@@ -1,9 +1,9 @@
 # Exercises
 
-Eighteen graded exercises, from beginner to advanced, that make you read recent fixes, change the Etalase code, add tests and wire Google Cloud services.
+Nineteen graded exercises, from beginner to advanced, that make you read recent fixes, change the Etalase code, add tests and wire Google Cloud services.
 
 ::: tip What you will learn
-- How to extend the offline parsers, the shipping mock and the readiness score without breaking the 226 existing tests
+- How to extend the offline parsers, the shipping mock and the readiness score without breaking the 389 existing tests
 - How to add a country pack, an MCP tool and a chat intent end to end
 - How to read a bug fix and its regression test, and why transaction retries need retry-safe code
 - How to test the Firestore store against the emulator
@@ -20,14 +20,14 @@ Work on a branch, and keep the baseline green:
 ```bash
 cd prototype
 pip install -r requirements-dev.txt
-pytest -q                     # 226 passed before you start
+pytest -q                     # 389 passed before you start
 python scripts/demo.py        # the ten-step story must still run
 ```
 
 ```mermaid
 flowchart LR
   B["Beginner 1-6: parsers, mocks, tests"] --> I["Intermediate 7-12: country pack, MCP, resilience"]
-  I --> A["Advanced 13-18: Firestore, Cloud Tasks, Pub/Sub, embeddings, evals"]
+  I --> A["Advanced 13-19: Firestore, Cloud Tasks, Pub/Sub, embeddings, evals, a third channel"]
 ```
 
 | Level | You should already know | Pages to reread |
@@ -418,7 +418,7 @@ The current code in **`prototype/etalase/adapters/messaging.py`** (`WhatsAppClou
 - Decide what the inbox should do with a PDF (`application/pdf`): ignore it, or reply that only photos, voice notes and CSV files are read today.
 - Verify the exact MIME strings against Meta's media docs before relying on them.
 
-**Acceptance.** `extension_for("audio/ogg; codecs=opus") == ".ogg"`, `extension_for("TEXT/CSV") == ".csv"`, unknown types return `""`; `download_media` uses the function; all 226 existing tests still pass.
+**Acceptance.** `extension_for("audio/ogg; codecs=opus") == ".ogg"`, `extension_for("TEXT/CSV") == ".csv"`, unknown types return `""`; `download_media` uses the function; all 322 existing tests still pass.
 
 ::: details Solution sketch
 ```python
@@ -768,6 +768,56 @@ class PubSubEventBus(EventBus):
 # a handler error returns 500 so Pub/Sub retries.
 ```
 Start with `order.paid` (seller alert and connector webhook), because a lost one costs a sale.
+:::
+
+### 19. Add a third channel behind the router
+
+**Goal.** `ChannelRouter` knows two channels by hard-coded checks. Let it route any number of prefixes, so a third channel (say `line:<user id>`) is one adapter and one entry, with no change to services.
+
+**Files.** `prototype/etalase/adapters/messaging.py` (`ChannelRouter`), a new test in `prototype/tests/test_telegram.py` (it already tests the router), and, if you want sellers to choose it, `CHANNELS` in `prototype/etalase/seller/channels.py` and `Seller.address` in `prototype/etalase/models.py`.
+
+**Hints.**
+- Read `ChannelRouter._for` first: it picks Telegram when the address starts with `tg:` and the default messenger otherwise. Keep that behaviour exactly; the existing tests depend on it.
+- The `Messenger` interface is four methods (`send_text`, `send_buttons`, `send_notification`, `download_media`). A recording fake with those four methods is all the test needs; no HTTP.
+- Media ids carry the same prefix as addresses (`tg:<file id>`), which is why `download_media` routes on the media id.
+- Do not build the real LINE adapter. The point is that the core never has to change.
+
+**Acceptance.** A message to `line:U123` reaches the new fake and nothing else; WhatsApp numbers still reach the default messenger; `tg:555` still reaches Telegram; the 389 tests still pass.
+
+::: details Solution sketch
+```python
+class ChannelRouter:
+    def __init__(self, default, telegram, extra: dict[str, Messenger] | None = None):
+        self.default, self.telegram = default, telegram
+        self.extra = extra or {}                      # {"line:": LineMessenger(...)}
+
+    def _for(self, address: str) -> Messenger:
+        if address.startswith(TELEGRAM_PREFIX):
+            return self.telegram
+        for prefix, messenger in self.extra.items():
+            if address.startswith(prefix):
+                return messenger
+        return self.default
+```
+
+```python
+class Recorder:
+    def __init__(self): self.sent = []
+    def send_text(self, to, text): self.sent.append((to, text))
+    def send_buttons(self, to, text, buttons): self.sent.append((to, text, buttons))
+    def send_notification(self, to, text, buttons=None, template=None): self.sent.append((to, text, buttons))
+    def download_media(self, media_id, dest_dir): return ""
+
+
+def test_a_third_channel_is_picked_by_its_prefix():
+    default, tg, line = ConsoleMessenger(), Recorder(), Recorder()
+    router = ChannelRouter(default, tg, {"line:": line})
+    router.send_text("line:U123", "hi")
+    router.send_text("6281234567890", "hello")
+    assert line.sent == [("line:U123", "hi")] and tg.sent == []
+    assert [m.to for m in default.outbox] == ["6281234567890"]
+```
+Choosing the channel in the dashboard also needs `CHANNELS`, a `Seller` field for the chat id, the `address` property, and a way to link the chat; that is the rest of what `seller/channels.py` does for Telegram.
 :::
 
 ## Pitfalls

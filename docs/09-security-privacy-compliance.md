@@ -32,7 +32,14 @@
 
 Holding and forwarding other people's money is a regulated payment activity in Indonesia
 (**verify**). Etalase avoids it by design: funds stay in seller sub-accounts at a licensed provider and
-Etalase only instructs when they are released ([ADR 0003](adr/0003-never-hold-funds.md)).
+Etalase only instructs when they are released ([ADR 0003](adr/0003-never-hold-funds.md)), and it
+instructs the release only after the courier-confirmed delivery and the buyer's return window
+([ADR 0007](adr/0007-payout-hold-and-returns.md)).
+
+**Consumer-facing duties (verify with a lawyer).** Our reading of Permendag 31/2023, through a summary and not the
+legal text, is that an e-commerce operator must offer a complaint service (Pasal 9–10) and that social-commerce
+operators may not facilitate payments (Pasal 21(3)). Whether Etalase is a PMSE operator, needs a licence, or has
+statutory return duties is open. The return flow is a product decision, not a legal conclusion.
 
 ## Tax
 
@@ -57,14 +64,21 @@ Implemented in the prototype and covered by `tests/test_security.py` and `tests/
 | Startup checks | `etalase/security.py` refuses to start on a public URL without `DEV_TOKEN`, `WEBHOOK_TOKEN` and a real `SESSION_SECRET`; `prod` also refuses mock payment, shipping and messaging; real WhatsApp or Xendit keys require their webhook secrets |
 | Dev endpoints | `/dev/*` exist only when `ETALASE_ENV=dev`; on a public URL every call needs the `X-Dev-Token` header |
 | WhatsApp webhook | `X-Hub-Signature-256` (HMAC with the app secret) is mandatory whenever the real Cloud API is on; constant-time verify-token check; duplicate deliveries ignored by message id |
+| Telegram webhook | With a real bot the call must carry the secret set with `setWebhook` in the `X-Telegram-Bot-Api-Secret-Token` header (constant-time compare; 503 if the secret is not configured; startup refuses a bot token without a 16+ character secret); without a bot it needs `WEBHOOK_TOKEN` like the console WhatsApp webhook. Only private chats are read; groups and channels are ignored. A failing update is still acknowledged so Telegram does not redeliver it. The bot token is part of every API URL, so it is never logged or put in an error text |
+| Linking a Telegram chat | A signed code (HMAC, 10 minutes, carries only the seller id) obtained inside a signed-in dashboard session; the chat is linked when `/start <code>` arrives. A forged, altered or expired code links nothing; a chat that already belongs to a shop cannot be moved by another code; a stranger's chat gets at most three short pointers an hour. Known gap: the code is a bearer value, not single-use ([ADR 0008](adr/0008-seller-channels-and-shop-addresses.md)) |
+| Shop addresses (`<slug>.<domain>`) | A slug is 3 to 30 characters of `a-z 0-9` and single hyphens, with a reserved list (`www`, `api`, `admin`, `mcp`, …) and no `xn--` prefix; unique per shop. The Host header maps only `/` to the shop, an unclaimed address answers 404 (wildcard DNS never reaches the dashboard) and the platform's own host is never treated as a shop. Each shop is its own browser origin, and the form-post check compares the `Origin` with the `Host`, so a page on one shop cannot post to another. Photos we host are loaded from `/media/<file>` on the page's own origin, so the CSP (`'self'` and `https:`) covers them on a shop address even over plain http. Brand impersonation through a slug is not prevented beyond the reserved list |
 | Payment webhook | Xendit callback token required (constant-time compare); mock payments need `WEBHOOK_TOKEN`; the mock QR string does not reveal the payment reference; status changes are atomic and idempotent |
 | Shipping webhook | Needs `WEBHOOK_TOKEN`, and is only a hint: before any payout the courier is asked directly (`confirm_delivered`, Biteship tracking by waybill), so a forged webhook or a fake waybill cannot release money |
+| Returns: who may ask | `request_return` needs the checkout id **and** the phone used at checkout (normalised, `08…` = `+628…`). A wrong phone gets the same "checkout not found" as an unknown id, so ids cannot be probed. Only 10 return calls per hour per IP, shared between REST and MCP |
+| Returns: untrusted text | The buyer's note (500 characters, whitespace collapsed) and evidence links (at most 5, `https` only, no spaces, 500 characters each) are stored and shown to the seller and operator, **never fetched** by Etalase, so there is no server-side request to forge. The seller's policy note (300 characters) is shown to agents labelled as seller content. The public policy page escapes all HTML and sends a Content-Security-Policy |
+| Returns: who may decide | Sellers answer only returns on their own orders (`_seller_order`). Disputes are resolved only through `/tasks/resolve-dispute` behind `WEBHOOK_TOKEN`. Refund and payout are two atomic claims on the same order, so both can never happen |
 | Money movement | One atomic claim per payout (no double release); refunds and payouts that the provider account cannot automate yet become `refund_pending` / `pending_manual` with an operations event instead of crashing |
 | Order state | Every transition is a conditional, atomic update (`Store.update_order`), so the expiry job and a payment webhook cannot both win; a payment that arrives after expiry is refunded automatically |
 | Stock | Stock only changes through reserve / commit / release / restock / set_stock; `put_product` never overwrites stock, so a stale catalog edit cannot undo a sale |
 | Checkout abuse | Max 10 units per checkout, max 5 checkouts per buyer phone per hour, 20 REST checkouts per IP per hour, strict length and format checks on buyer data; payment-creation failures release the hold |
-| Dashboard sign-in | WhatsApp one-time codes: 5-minute TTL, 5 tries per code, 60 s resend cooldown, 5 codes per number per hour, lockout after 10 wrong tries per hour across codes, per-IP limits, no number enumeration; HMAC-signed session tokens |
-| Dashboard front end | All seller-provided text is HTML-escaped; Content-Security-Policy with `frame-ancestors 'none'`, `nosniff`, `no-referrer` |
+| Dashboard sign-in | One-time codes sent to the seller's chosen channel (WhatsApp by default): 5-minute TTL, 5 tries per code, 60 s resend cooldown, 5 codes per number per hour, lockout after 10 wrong tries per hour across codes, per-IP limits, no number enumeration; HMAC-signed session tokens |
+| Dashboard front end | All seller-provided text is HTML-escaped (including the buyer's return note and photo links, shown only as `https` links with `rel=noopener noreferrer nofollow`); Content-Security-Policy with `frame-ancestors 'none'`, `nosniff`, `no-referrer` |
+| Public store link (`/stores/…`, `/pay/…`) | Server-rendered HTML with every seller and buyer string escaped; JSON-LD escapes `<`. Each response sends `Content-Security-Policy: default-src 'none'; style-src 'unsafe-inline'; font-src 'self'; img-src 'self' https: data:; script-src 'sha256-<hash of our one script>'; connect-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'`. The only script is the small constant in `gateway/pages.py` (pending button, live order status, payment countdown); the policy pins it by hash, so nothing a seller or a buyer typed can ever run, and a test checks that every page carries exactly that script and no inline event handlers. `Cache-Control: no-store`, and `noindex` on everything except the catalog page. **Referrer policy is `same-origin`**: the API-wide `no-referrer` made browsers send `Origin: null` on the form post, which our cross-site check refused, so no real purchase worked (found in a real browser, covered by a test and an end-to-end step); `same-origin` keeps store and order URLs away from every other site. Form posts must come from our own host (`Origin` must match `Host`; `null` and foreign origins get 403); bodies are limited to 8 KB and every field is clipped. The order id is the only secret on the pay page (capability URL), so the page shows no phone number or address; returns still need the buyer's phone. Same rate limits as the REST checkout; the seller's WhatsApp number is never published |
 | Instagram Login | Short-lived signed `state` (10 minutes), not a session token |
 | Connector API | Per-connection keys hashed at rest; validated, size-limited payloads; order webhooks only to public `https` hosts (no private, loopback or metadata addresses, checked again at send time, no redirects); HMAC-signed bodies |
 | Media | Agents get public `/media/<file>` URLs, never server paths; the media route serves file names only from the media and samples folders; the console messenger only reads files under those folders |
@@ -78,6 +92,9 @@ Implemented in the prototype and covered by `tests/test_security.py` and `tests/
   before running more than one instance.
 - Persistent ADK sessions and Firestore as the default store (run the Firestore store against the
   emulator in CI; composite index on reservations `(status, expires_ts)`).
+- Seller identity: `kyc_status = verified` is a flag set by a dev endpoint. Real verification at the payment provider is not built, so today
+  the return policy, the payout hold and the track record are the only trust signals agents get.
+- Returns have no per-buyer limit, no fraud scoring and no human-support tooling beyond the two operator endpoints.
 - Xendit refunds and xenPlatform settlement are wired as manual steps until the account setup is
   confirmed; Biteship tracking endpoint and payloads to be verified against the live API.
 - Instagram access tokens should be encrypted with Cloud KMS before storage.

@@ -12,8 +12,9 @@ UCP is the open standard Google launched in January 2026 with Shopify, Etsy, Way
 | `dev.ucp.shopping.checkout` over REST | `/ucp/v1/checkout-sessions` (create, get, update, complete, cancel) | Every response is validated against the official `Checkout` model in the tests |
 | `dev.ucp.shopping.fulfillment` extension | same | Domestic home delivery; courier quotes become fulfillment options |
 | Hosted payment page (`continue_url`) | `GET /checkout/{id}` | QRIS code, refreshes itself; strict CSP, all text escaped |
+| `refund_policy` link on every checkout | `links` array of the checkout, pointing to `/stores/{seller_id}/returns` | The seller's return policy as a page for people and `.json` for machines. Spec 2026-04-08 defines `refund_policy` as a well-known link type (`type` and `url` required, `title` optional). The same policy is also published as schema.org `MerchantReturnPolicy` in `/stores/{id}/products.jsonld`. See [doc 05](05-checkout-payment-payout.md#payout-hold-and-returns) |
 
-Not implemented, and therefore not advertised: payment handlers and AP2 mandates, cart, catalog, order, discount and buyer-consent capabilities, the MCP and A2A bindings of UCP (our own MCP server exists and is separate), message signing, multiple line items per session, pickup.
+Not implemented, and therefore not advertised: returns as a UCP capability (the return flow is our own MCP tool and REST endpoint; UCP gives agents only the policy link), payment handlers and AP2 mandates, cart, catalog, order, discount and buyer-consent capabilities, the MCP and A2A bindings of UCP (our own MCP server exists and is separate), message signing, multiple line items per session, pickup.
 
 ## How a UCP checkout maps onto Etalase
 
@@ -35,7 +36,7 @@ Design choices a reviewer may ask about:
 
 Three layers, each answering a different question:
 
-1. **Our tests** (`tests/test_ucp.py`, 16 tests): profile and every checkout response validate against the official SDK models; end-to-end flow from empty session to paid order; idempotency, closed sessions, cancel, confirm-first sellers, escaping, rate limits.
+1. **Our tests** (`tests/test_ucp.py`, 18 tests): profile and every checkout response validate against the official SDK models; end-to-end flow from empty session to paid order; idempotency, closed sessions, cancel, confirm-first sellers, escaping, rate limits.
 2. **The official conformance suite against Etalase** (`python -m ucp_conformance.run`): **29 passed, 22 failed, 26 skipped** (77 tests in 17 files). Passing: discovery and version negotiation, idempotency (create, update, complete, cancel), totals, the fulfillment flow, validation (out of stock, unknown product, structured errors, update beyond stock), create/get/update/cancel in the lifecycle tests.
 3. **The same suite against the official sample server** (`--target reference`): **76 passed, 0 failed, 1 skipped**. This shows the suite and our way of running it are sound, so the Etalase result is meaningful.
 

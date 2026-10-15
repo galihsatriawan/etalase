@@ -19,10 +19,12 @@ mock QRIS, mock courier rates, console instead of WhatsApp). What each key buys 
 |---|---|---|---|
 | [1. Gemini](#1-gemini-the-one-that-matters-most) | `GOOGLE_API_KEY` (or `GEMINI_API_KEY`) **or** a Google Cloud project | rule-based extraction (49% on our labelled set) | the Gen AI score: real extraction, the seller and buyer agents |
 | [2. Deploy](#2-deploy-to-cloud-run) | a Google Cloud project with billing | runs on your laptop only | the public prototype link the submission asks for |
-| [3. WhatsApp](#3-whatsapp-business-cloud-api) | 4 values + 4 message templates | orders print in the terminal | the "order lands in the seller's WhatsApp" demo |
+| [3. WhatsApp](#3-whatsapp-business-cloud-api) | 4 values + 6 message templates | orders print in the terminal | the "order lands in the seller's WhatsApp" demo |
 | [4. Xendit](#4-xendit-qris) | 2 values | mock QRIS | real QR codes |
 | [5. Biteship](#5-biteship-couriers) | 1 value + a small balance | mock rates | real courier rates |
+| [3b. Telegram](#3b-telegram-optional-second-seller-channel) | 3 values (a bot from @BotFather) | WhatsApp is the only seller channel | the "same order, another channel" demo; alerts with no 24-hour window |
 | [6. Instagram](#6-instagram-optional) | 2 values | bundled sample posts | importing a seller's real posts |
+| [7. Shop addresses](#7-shop-addresses-optional) | 1 value + wildcard DNS and certificate | every shop link is `/stores/<id>` on one host | `rina.yourdomain` links |
 
 **Minimum for a convincing submission: sections 1 and 2.** Sections 3 to 6 make the demo more real; add them in order of the
 time you have. Keep Xendit and Biteship in test mode for the competition: no real parcel moves and no customer pays. (Biteship still bills
@@ -87,7 +89,7 @@ The default is `STORE_BACKEND=memory` and one instance, which is right for a dem
 ## 3. WhatsApp Business Cloud API
 
 You need four values: `WHATSAPP_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_APP_SECRET`, `WHATSAPP_VERIFY_TOKEN`
-(required together; the doctor says so if one is missing), plus four message templates (step 7).
+(required together; the doctor says so if one is missing), plus six message templates (step 7).
 
 1. <https://developers.facebook.com/apps> → **Create app** → choose the use case **Connect with customers through WhatsApp**
    (older flow: type **Business**, then add the **WhatsApp** product). Link or create a Business portfolio when asked.
@@ -104,7 +106,7 @@ You need four values: `WHATSAPP_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_AP
 6. **WhatsApp → Configuration → Webhook**: callback URL `https://<your service>/webhooks/whatsapp`, verify token = the string from
    step 5, then subscribe to the **messages** field. (After `make deploy` the URL is printed. Locally, use a tunnel such as
    `cloudflared tunnel --url http://localhost:8080` and set `PUBLIC_BASE_URL` to it.)
-7. **Create the four templates**, category **Utility**, in the language of `SELLER_LOCALE` (`en` default). They are listed, with
+7. **Create the six templates** (stock check, new paid order, ship now, payout, return requested, return approved), category **Utility**, in the language of `SELLER_LOCALE` (`en` default). They are listed, with
    exact names, bodies, buttons and sample values, in [learn/ship/whatsapp-templates.md](learn/ship/whatsapp-templates.md);
    `cd prototype && python -m etalase.adapters.whatsapp_templates` prints the same list. Approval takes minutes to a day,
    so do this first.
@@ -119,6 +121,22 @@ opens the window for the sign-in code of the dashboard), and have the templates 
 **Not verified live:** the template message payload (it follows Meta's documented shape and is pinned by tests), inbound CSV
 documents (Meta's list of supported document types is not explicit about `text/csv`; send a spreadsheet as text if it fails),
 and AMR voice notes (Gemini does not accept AMR, so the seller is asked to describe the item in text).
+
+## 3b. Telegram (optional second seller channel)
+
+A seller can link a Telegram chat and receive orders, stock checks and payouts there instead of WhatsApp (no 24-hour window, no message fee). WhatsApp stays the sign-in identity.
+
+1. In Telegram, open **@BotFather**, send `/newbot`, choose a name and a username ending in `bot`. BotFather returns a token like `123456:ABC...` → `TELEGRAM_BOT_TOKEN`.
+2. Make up a webhook secret: 16+ characters from `A-Z a-z 0-9 _ -` (for example `openssl rand -hex 16`) → `TELEGRAM_WEBHOOK_SECRET`. Telegram sends it back in the `X-Telegram-Bot-Api-Secret-Token` header on every call; the server refuses calls without it and refuses to start with a token but no valid secret.
+3. Optional: `TELEGRAM_BOT_USERNAME` (without `@`). Left empty, the server asks Telegram once.
+4. After the service is deployed (section 2), tell Telegram where to send updates:
+   ```bash
+   cd prototype && python -m etalase.adapters.telegram set-webhook https://<your service>/webhooks/telegram
+   ```
+5. `make doctor` checks the token, shows the bot name and warns if no webhook is set.
+6. Try it: sign in to the dashboard → **Settings → Where Etalase messages you → Connect Telegram** → tap **Open Telegram** and **Start**. The page switches to "connected" within a few seconds; choose **Telegram** and the next order alert arrives there.
+
+Locally, with no token, the same flow runs against the console outbox: `POST /api/me/telegram/link` gives `/start <code>`, and `POST /webhooks/telegram` with a Telegram-shaped update links the chat (`scripts/e2e_http.py` does exactly this). Not verified live: nothing here has talked to the real Bot API; the request shapes follow Telegram's documentation and tests pin them (`tests/test_telegram.py`).
 
 ## 4. Xendit (QRIS)
 
@@ -170,6 +188,21 @@ Needed only to import a seller's real posts. The bundled sample posts already sh
 3. Add `https://<your service>/connect/instagram/callback` as a valid OAuth redirect URI, and add your Instagram
    professional account as an Instagram tester. Public use needs Meta App Review; development mode works for testers.
 
+## 7. Shop addresses (optional)
+
+Instead of `https://<service>/stores/sel_1a2b3c4d5e`, each shop can have `https://rina.yourdomain.com`. It is optional and off by default.
+
+1. Own a domain, for example `etalase.id`, and set `STORE_BASE_DOMAIN=etalase.id` (a bare host: lowercase, no `https://`, no path; `localhost:8080` for a local try).
+2. **DNS:** a wildcard record `*.etalase.id` pointing at the service, plus the record for the platform host itself (the dashboard stays on `PUBLIC_BASE_URL`, for example `app.etalase.id`).
+3. **Certificate:** a wildcard certificate for `*.etalase.id`. Cloud Run's own domain mapping does not do wildcards, so put an HTTPS load balancer with a serverless NEG in front of the service
+   and a Google-managed or uploaded wildcard certificate (a managed wildcard needs DNS authorization), or use Cloudflare in front (proxied wildcard record, "Full (strict)" TLS). We did not
+   set this up from the sandbox: it is the same pattern as any wildcard SaaS domain, not verified against your account.
+4. `make doctor` resolves a random label under the domain and warns if the wildcard record is missing.
+5. Shops get an address from their name when created; a seller changes it in the dashboard (**Settings → Your shop address**). The old address stops working, so the dashboard says so.
+
+Local try: `STORE_BASE_DOMAIN=localhost:8080 PUBLIC_BASE_URL=http://localhost:8080 make run`, then open `http://<slug>.localhost:8080` (browsers resolve `*.localhost` to your machine).
+A host nobody claimed answers 404, and the platform host keeps the dashboard at `/`.
+
 ## Everything else, `make help`
 
 | Command | What it does |
@@ -179,7 +212,8 @@ Needed only to import a seller's real posts. The bundled sample posts already sh
 | `make eval` / `make eval-baseline` | catalog extraction accuracy (offline rules; plus Gemini when a key is set) |
 | `make test` | the unit-test suite, no network, no keys |
 | `make demo` | the whole flow in the terminal on mock services |
-| `make e2e` | the same story over real HTTP: starts the app, then seller on WhatsApp, an agent over UCP and MCP, payment, shipping, payout |
+| `make browser` | real-browser check of the buyer pages (smooth navigation, back button restoring typed values, option chips, sort and search, the QR code, no-JavaScript fallback); needs `pip install playwright` and Chromium, optional |
+| `make e2e` | the same story over real HTTP: starts the app, then seller on WhatsApp, an agent over UCP and MCP, the public shop, the same seller on Telegram, payment, shipping, payout |
 | `make run` | API on `http://localhost:8080` (reads `.env`) |
 | `make deploy` / `make deploy-dry` | Cloud Run deploy using `.env` / print the plan only |
 | `make ucp-conformance` | Google's official UCP conformance suite against Etalase (needs `git`, `uv`, network) |

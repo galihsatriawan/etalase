@@ -33,7 +33,12 @@ Status: every control on this page is <Badge type="tip" text="Built" /> and cove
 | Malicious AI agent or buyer | Checkout | Hoard stock, spam orders, oversized input | Quantity cap, per-phone and per-IP limits, field validation |
 | Malicious seller or prompt injection | Another seller's data | Act on someone else's orders or stock | `seller_id` from session state; ownership checks in services |
 | Partner with a Connector key | Etalase's network | SSRF through the order webhook URL | Public `https` hosts only, re-checked at send time, no redirects |
-| Anyone | Server files | Path traversal through `/media` or the console messenger | File names only; resolved path must stay inside allowed folders |
+| Anyone | Server files | Path traversal through `/media`, `/static` or the console messenger | File names only; `/static` serves two fixed font files by exact name; resolved path must stay inside allowed folders |
+| Another website | The store link form | A hidden form that makes a visitor's browser place an order | `Origin` must equal `Host` on every form post; `null` and foreign origins get 403 |
+| Seller or buyer text | Store, order and policy pages | Script injection through a title, note or address | Everything is escaped; the CSP allows one script pinned by hash and no inline handlers |
+| Anyone who guesses an order id | Order page, return form | Read an order, or open a return for someone else | The id is a long random capability; the page shows no phone or address; a return also needs the buyer's phone, and a wrong phone answers exactly like an unknown id |
+| A buyer, or an agent for one | Returns | Claim a refund after the window, twice, or against another seller's order | One guarded update per transition; the window is fixed at checkout; refund and payout are two claims on the same order, so only one can win; seller actions are scoped by `_seller_order` |
+| A buyer | Etalase's network and the seller | Return evidence links that point at internal or malicious URLs | Stored, never fetched by Etalase; the seller sees only `https` links with `rel=noopener noreferrer nofollow`, labelled "open with care" |
 
 ## Fail-closed startup: `validate_settings`
 
@@ -100,6 +105,7 @@ def _eq(a: str | None, b: str | None) -> bool:
 |---|---|---|
 | `POST /webhooks/whatsapp` | `X-Hub-Signature-256: sha256=<HMAC of raw body with app secret>`; mandatory whenever the real Cloud API is on or an app secret is set. Console mode uses `WEBHOOK_TOKEN` | `api/main.py` |
 | `GET /webhooks/whatsapp` (Meta's subscribe check) | Constant-time match of `hub.verify_token` | `api/main.py` |
+| `POST /webhooks/telegram` | `X-Telegram-Bot-Api-Secret-Token` equals `TELEGRAM_WEBHOOK_SECRET` (set with `setWebhook`), constant-time compare; 503 if the secret is not configured. Without a bot (console mode) it needs `WEBHOOK_TOKEN` like the console WhatsApp webhook. Only private chats are read | `api/main.py` |
 | `POST /webhooks/payment`, Xendit | `x-callback-token` header equals `XENDIT_CALLBACK_TOKEN` | `adapters/payment.py` |
 | `POST /webhooks/payment`, mock | `WEBHOOK_TOKEN` | `api/main.py` |
 | `POST /webhooks/shipping`, `POST /tasks/expire` | `WEBHOOK_TOKEN` as `?token=` or `X-Etalase-Webhook-Token` | `security.py` |
@@ -138,7 +144,7 @@ A shared token proves a request came from someone who knows the token, not that 
 
 ## Dashboard sign-in: OTP and sessions
 
-The seller dashboard has no passwords. The seller enters their number, Etalase's WhatsApp number sends a 6-digit code, and a correct code returns a session token.
+The seller dashboard has no passwords. The seller enters their number, Etalase sends a 6-digit code to the seller's chosen channel (WhatsApp by default, Telegram once linked), and a correct code returns a session token.
 
 **`prototype/etalase/auth.py`**
 
@@ -210,7 +216,19 @@ Product titles come from sellers, Gemini and Instagram captions, so they are unt
 const esc = (v) => String(v ?? "").replace(/[&<>"'`]/g, (c) => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;", "`": "&#96;"}[c]));
 ```
 
-Numbers go through `Number(...)`. The `/` response also gets a Content-Security-Policy (`default-src 'self'`, `connect-src 'self'`, `frame-ancestors 'none'`, `base-uri 'none'`), and every response gets `nosniff`, `no-referrer` and `X-Frame-Options: DENY`. The CSP allows `'unsafe-inline'` scripts because the dashboard is one inline file, so escaping is the real XSS defence and the CSP mainly blocks framing and data exfiltration to other hosts.
+Numbers go through `Number(...)`. The `/` response also gets a Content-Security-Policy (`default-src 'self'`, `connect-src 'self'`, `frame-ancestors 'none'`, `base-uri 'none'`), and every response gets `nosniff`, `no-referrer` and `X-Frame-Options: DENY` (the store pages override the referrer policy with `same-origin`, see below). The CSP allows `'unsafe-inline'` scripts because the dashboard is one inline file, so escaping is the real XSS defence and the CSP mainly blocks framing and data exfiltration to other hosts.
+
+## The public store link and returns
+
+The store, buy form, order page, return form and policy page (`gateway/storefront.py`, `gateway/ucp.py`, one look in `gateway/pages.py`) are the only pages a stranger can reach. Their controls:
+
+- **Content-Security-Policy**: `default-src 'none'`; styles inline; fonts and `fetch` only from our own origin; images from our origin and `https`; `form-action 'self'`; `frame-ancestors 'none'`. Scripts: `script-src 'sha256-…'`, the hash of the one constant script in `pages.py`. Because the policy names a hash, any other script, including one a seller managed to inject, is refused by the browser. `test_the_only_script_on_a_buyer_page_is_ours_and_the_csp_pins_exactly_that_script` checks that every page carries exactly that script, no inline event handlers, nothing loaded from another site, and that the header's hash equals the hash of the page's script byte for byte.
+- **Same-origin form posts**: `Origin` has to equal `Host`; `null` and foreign origins are refused with 403 (`test_a_form_post_from_another_site_is_refused`, `test_return_posts_from_another_site_are_refused`).
+- **Referrer policy `same-origin`** on these pages. The API-wide `no-referrer` made Chromium send `Origin: null` on the form post, so our own check refused every real purchase. TestClient and httpx send no `Origin` at all, so no unit test could see it; it was found with a real browser and is now covered by `test_buyer_pages_use_a_same_origin_referrer_policy_so_real_browsers_send_their_origin` and an end-to-end step.
+- **`Cache-Control: no-store`**, `noindex` on everything except the catalog page, 8 KB form bodies with every field clipped, and the same rate limits as the REST checkout.
+- **The order id is a capability.** Knowing it lets you see the order page (no phone, no address on it); it never lets you act on the money. A return needs the buyer's phone as well, and a wrong phone gets the same "checkout not found" as an unknown id (`test_the_checkout_id_alone_is_not_enough`).
+
+Returns add three more controls: the **window is a promise made at checkout** and stored on the order (`test_the_window_and_the_change_of_mind_promise_are_fixed_at_checkout`); **each transition is one guarded `update_order`**, so a second tap, a timer and a seller racing each other cannot refund twice or pay a refunded order (`test_a_second_tap_does_not_refund_twice`, `test_a_return_blocks_the_payout_and_asks_the_seller`); and **another seller cannot answer or confirm** someone else's return (`test_another_seller_cannot_answer_or_confirm`). Details are in [Checkout and orders](/architecture/checkout-and-orders).
 
 ## Media path restrictions
 
@@ -277,6 +295,18 @@ Etalase's role for buyer data (acting for the seller and the transaction) and it
 | Checkout input limits and per-buyer cap | `test_checkout_input_limits`, `test_checkouts_per_buyer_are_capped`, `test_api.py::test_rest_checkout_rejects_oversized_input` |
 | CSP, `nosniff`, media traversal | `test_api.py::test_dashboard_headers_and_media_route` |
 | Console media roots | `test_security.py::test_console_media_cannot_read_arbitrary_files` |
+| Store link CSP pins exactly one script | `test_storefront.py::test_the_only_script_on_a_buyer_page_is_ours_and_the_csp_pins_exactly_that_script` |
+| Font route serves a fixed list only | `test_storefront.py::test_the_display_font_is_served_from_a_fixed_list_and_cached` |
+| Seller text cannot run as script or break out of JSON-LD | `test_storefront.py::test_seller_text_cannot_run_as_script_or_break_out_of_the_json_ld` |
+| Cross-site form posts refused; real browsers send `Origin` | `test_a_form_post_from_another_site_is_refused`, `test_buyer_pages_use_a_same_origin_referrer_policy_so_real_browsers_send_their_origin` |
+| Return needs the buyer's phone | `test_returns.py::test_the_checkout_id_alone_is_not_enough` |
+| Refund and payout cannot both happen | `test_returns.py::test_a_second_tap_does_not_refund_twice`, `test_a_return_blocks_the_payout_and_asks_the_seller` |
+| Another seller cannot answer a return | `test_returns.py::test_another_seller_cannot_answer_or_confirm` |
+| Seller policy note is escaped and labelled as the seller's | `test_returns.py::test_return_policy_pages_are_public_and_escape_the_seller_note` |
+| Telegram webhook secret; a bot token needs a valid secret | `test_telegram.py::test_the_webhook_needs_the_secret_when_a_real_bot_is_configured`, `test_a_bot_token_needs_a_valid_webhook_secret` |
+| Telegram link codes: forged, altered, expired and moved chats | `test_telegram.py::test_bad_expired_or_forged_codes_link_nothing`, `test_a_linked_chat_cannot_be_moved_to_another_shop_by_a_code`, `test_a_stranger_gets_one_short_pointer_not_a_conversation` |
+| The Telegram bot token never reaches a log or an error | `test_telegram.py::test_errors_carry_telegrams_reason_and_never_the_token` |
+| Shop addresses: validation, reserved names, Host mapping, unclaimed host is 404, other shops are other origins | `test_subdomains.py` (31 tests) |
 | Agents get URLs, not paths | `test_security.py::test_agents_get_urls_not_file_paths` |
 | Connector key required | `test_api.py::test_connector_requires_key_and_otp_rejects_wrong_code` |
 | Webhook SSRF check | `test_security.py::test_connector_webhooks_only_to_public_https` |
@@ -293,6 +323,8 @@ From `docs/09` plus a code review:
 - Uploaded media needs signed URLs, malware scanning and Cloud Storage.
 - Xendit refunds and settlement are manual steps (`refund_pending`, `pending_manual`, an `ops.manual_action` ERROR log); nothing pages an operator yet. Biteship tracking payloads must be verified against the live API.
 - Session tokens cannot be revoked before their 7-day expiry; sign-out only clears the browser.
+- A Telegram link code is a signed bearer value (10 minutes, not single-use): anyone holding an unexpired code could link their own chat to that shop. It is shown only inside a signed-in session; a one-time server-side code is the next step.
+- A shop slug can imitate a brand: only a short reserved list is enforced and there is no abuse process. Changing a slug breaks links already shared.
 - DNS-rebinding protection is turned off in `build_mcp` (see [Known gaps](/master/known-gaps)). `/mcp/` has no authentication; it is limited per IP and per buyer phone.
 - No formal retention policy or DPIA (data protection impact assessment) yet.
 

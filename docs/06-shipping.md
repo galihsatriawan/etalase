@@ -18,15 +18,25 @@ Field names in the adapter follow Biteship's documentation and must be re-checke
 
 ## Status mapping
 
-Each provider's statuses map onto our own, because **`delivered` releases the payout**:
+Each provider's statuses map onto our own, because **`delivered` starts the payout clock** (the money is released after the return window, see [doc 05](05-checkout-payment-payout.md#payout-hold-and-returns)) and `returned` triggers a refund:
 
 | Internal | Meaning |
 |---|---|
 | `booked` | Shipment created |
 | `picked_up` | Courier has the parcel (or the seller sent a tracking number) |
 | `in_transit` | On the way |
-| `delivered` | Delivered → payout released |
-| `returned` | Returned to sender |
+| `delivered` | Delivered → `delivered_at` set, payout due after the hold (72 h, or 168 h for a new seller) |
+| `returned` | Courier brought the parcel back to the seller → buyer refunded in full, stock restored, seller told |
+| `failed` (Biteship `cancelled`, `courier_not_found` and similar) | One `ops.manual_action` alert (`undelivered_parcel`); the money stays frozen until an operator looks |
+
+## Returns and return shipping
+
+A buyer who returns an item sends it back with any courier and the agent may report the tracking number
+(`submit_return_tracking`). Etalase does **not** book return shipments yet; prepaid return labels are on the roadmap.
+In this version the **buyer pays the return shipping for every reason** and Etalase does not reimburse it; the policy shown to agents and on the
+store's return page says so. Whether a defect return should be reimbursed (from the held payout, or with a prepaid label) is an open decision
+(rules and options in [doc 05](05-checkout-payment-payout.md#payout-hold-and-returns)). The cost of a parcel that comes back by itself (`returned`)
+is not assigned yet; today the buyer is refunded in full.
 
 ## Weight
 

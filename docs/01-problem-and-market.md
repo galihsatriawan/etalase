@@ -5,7 +5,7 @@
 In 2026 the major AI assistants started completing purchases for people:
 
 - **Google** launched the **Universal Commerce Protocol (UCP)** at NRF in January 2026, letting shoppers buy inside AI Mode in Search and the Gemini app. UCP supports REST, Agent2Agent (A2A) and the Model Context Protocol (MCP), and works with the **Agent Payments Protocol (AP2)** as its payment layer. Merchants publish a JSON profile at `/.well-known/ucp`.
-- Agent checkout through UCP is live in the **US** (February 2026) and **Australia** (June 2026, the first Asia-Pacific market). Google is testing Flipkart checkout in Gemini in **India** and has named Indonesia among the next markets; a Google VP has said it plans to work with APAC partners such as Shopee.
+- Agent checkout through UCP is live in the **US** (February 2026). In **Australia** it started in June 2026 with select retailers such as Kogan and The Iconic (the first Asia-Pacific market), but Google's own pages still say the checkout is US-only: on 20 May it said Canada and Australia would follow "in the coming months" ([Google blog](https://blog.google/products-and-platforms/products/shopping/shopping-updates-google-marketing-live)), and on 7 October the self-serve Merchant Center UCP hub was US-only, with Australia and Canada expected in 2027 ([PPC Land](https://ppc.land/canada-and-australia-face-2027-wait-for-googles-merchant-center-ucp-hub/)). Google is testing Flipkart checkout in Gemini in **India**. Indonesia was named as a future market in January 2026 ([InfoQ](https://infoq.com/news/2026/01/google-agentic-commerce-ucp)) but is not named in Google's May or October 2026 statements, so **no date for Indonesia is known**. A Google VP has said it plans to work with APAC partners such as Shopee.
 - **Alibaba** said its Qwen AI app handled more than 120 million consumer orders in six days (6–11 February 2026) during a subsidised Lunar New Year campaign.
 - Agent-driven volume is still small, but Morgan Stanley expects agents to handle about 10% (up to 20%) of US online retail by 2030, so the window to prepare is now.
 
@@ -43,7 +43,9 @@ Agents do not browse storefronts like people. They request **structured catalog 
 | AgentReady (Shopify app), Shopify Catalog & Agentic Storefronts | Audit and syndicate catalogs to AI surfaces (Shopify's Agentic plan is open to non-Shopify brands since March 2026) | Built for brands with structured catalogs and card or wallet checkout; not for chat sellers without a store, no QRIS or WhatsApp flow |
 | Stripe Agentic Commerce Suite | Agent checkout for WooCommerce, Wix, Squarespace, BigCommerce | Stripe merchants; Stripe Indonesia is invite-only and lacks QRIS |
 | Shopee (Shopee app in ChatGPT in 8 markets incl. Indonesia, Jun 2026; agentic shopping prototype with Google) | Brings Shopee listings to AI agents | Keeps sellers inside the marketplace and its fees |
-| Cekat.ai, Orderfaz and other WhatsApp tools | Chatbots and order tools for WhatsApp sellers | Serve human buyers, not AI agents |
+| [cshub](https://cshub.id/pricing) (page checked 15 Oct 2026) | AI customer service that creates orders inside WhatsApp; plans from Rp300,000 a month | Serves the seller's own human customers in chat; its page mentions no agent-facing storefront (MCP, UCP) and no payout hold or returns, which does not prove it has none |
+| [Jubelio](https://jubelio.com/harga) (page checked 15 Oct 2026) | Order, stock and warehouse system across marketplaces, social commerce and web stores; Rp150 per order | A back-office for sellers who already run many channels. A partner for the Connector API, not a replacement for it |
+| Cekat.ai, Orderfaz and other WhatsApp tools | Chatbots and order tools for WhatsApp sellers | Serve human buyers, not AI agents (not re-checked on their own pages) |
 
 **Our position:** the agent-commerce layer for sellers who have no store system at all, across Southeast Asia's chat-commerce markets, starting with WhatsApp and Instagram sellers in Indonesia, with local payments (QRIS) and couriers.
 
@@ -68,8 +70,9 @@ Agents do not browse storefronts like people. They request **structured catalog 
 
 ## Risks we are tracking
 
-- **Timing.** UCP checkout is not live in Indonesia yet. Mitigation: the product is useful today (a catalog and checkout link built from photos), and we expose MCP so any agent can buy now.
+- **Timing.** UCP checkout is not live in Indonesia and no date is known. Mitigation: Etalase does not need UCP to work. The seller side (catalog from photos, stock, orders in WhatsApp, QRIS, couriers, payouts, returns) runs today, and MCP lets any agent buy now. What is still missing is a buyer entry point for people who do not use an agent (a public store link, see [doc 17](17-market-fit-and-direction.md)).
 - **Volume.** Agent-driven transactions are still small. Mitigation: pay-per-order pricing, so sellers carry no risk while volume grows.
+- **Trust.** A buyer's agent cannot inspect goods, and we do not verify sellers ourselves. Mitigation: the payout is held through a return window, returns are a built flow, and agents see each seller's return policy and track record ([ADR 0007](adr/0007-payout-hold-and-returns.md)). Real seller KYC is not built.
 - **Fast followers.** Local WhatsApp-tool vendors could add similar features. Mitigation: seller network, local catalog data, partnerships through the Connector API.
 
 ## Sources

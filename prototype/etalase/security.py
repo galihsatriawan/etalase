@@ -11,6 +11,7 @@ Principles:
 from __future__ import annotations
 
 import hmac
+import re
 import time
 from collections import defaultdict, deque
 
@@ -49,6 +50,11 @@ def validate_settings(s: Settings, modes: dict) -> None:
         problems.append("WHATSAPP_APP_SECRET is required to verify WhatsApp webhooks")
     if s.whatsapp_token and s.whatsapp_verify_token == "etalase-dev-verify":
         problems.append("WHATSAPP_VERIFY_TOKEN must be changed from the default")
+    if s.store_base_domain and not re.fullmatch(r"[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?(?::\d{1,5})?", s.store_base_domain):
+        problems.append("STORE_BASE_DOMAIN must be a bare host such as etalase.id (lowercase, no https://, no path)")
+    if s.telegram_bot_token and (not s.telegram_webhook_secret or len(s.telegram_webhook_secret) < MIN_SECRET_LEN
+                                 or not re.fullmatch(r"[A-Za-z0-9_-]+", s.telegram_webhook_secret)):
+        problems.append("TELEGRAM_WEBHOOK_SECRET (16+ characters from A-Z a-z 0-9 _ -) is required to verify Telegram webhooks")
     if s.xendit_secret_key and not s.xendit_callback_token:
         problems.append("XENDIT_CALLBACK_TOKEN is required to verify Xendit webhooks")
     if problems:

@@ -94,7 +94,7 @@ Any agent can call it, which is the point. Protection comes from validation and 
 
 ## Universal Commerce Protocol (UCP)
 
-**UCP** is Google's open standard for agentic commerce, launched in January 2026 and co-developed with Shopify, Etsy, Wayfair, Target and Walmart ([Evidence](/business/evidence)). It powers checkout inside AI Mode in Search and the Gemini app, live in the US and Australia.
+**UCP** is Google's open standard for agentic commerce, launched in January 2026 and co-developed with Shopify, Etsy, Wayfair, Target and Walmart ([Evidence](/business/evidence)). It powers checkout inside AI Mode in Search and the Gemini app, live in the US and started with select retailers in Australia.
 
 The ideas you need, from the official spec (version 2026-04-08 at `ucp.dev`):
 

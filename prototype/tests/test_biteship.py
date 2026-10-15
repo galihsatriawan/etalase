@@ -103,7 +103,8 @@ def test_errors_keep_biteships_message_and_code(monkeypatch):
     ({"event": "order.status", "order_id": "oid1", "status": "picked"}, ("oid1", "picked_up")),
     ({"event": "order.status", "order_id": "oid1", "status": "dropping_off"}, ("oid1", "in_transit")),
     ({"event": "order.status", "order_id": "oid1", "status": "allocated"}, ("oid1", "booked")),
-    ({"event": "order.status", "order_id": "oid1", "status": "return_in_transit"}, ("oid1", "returned")),
+    ({"event": "order.status", "order_id": "oid1", "status": "return_in_transit"}, ("oid1", "in_transit")),   # still on its way back: no refund yet
+    ({"event": "order.status", "order_id": "oid1", "status": "returned"}, ("oid1", "returned")),
     ({"event": "order.status", "order_id": "oid1", "status": "courier_not_found"}, ("oid1", "failed")),
     ({"event": "order.status", "order_id": "oid1", "status": "cancelled"}, ("oid1", "failed")),
     ({"event": "order.status", "courier_waybill_id": "W1", "status": "delivered"}, ("W1", "delivered")),
@@ -130,6 +131,18 @@ def test_delivery_is_checked_by_tracking_id_for_booked_orders_and_by_waybill_for
     assert not shipping.confirm_delivered(booked)
     no_ids = order_for_booking(); no_ids.shipment = Shipment(courier="jne", service="reg")
     assert not shipping.confirm_delivered(no_ids)
+
+
+def test_a_refund_waits_for_the_courier_to_confirm_the_return(monkeypatch):
+    shipping = BiteshipShipping("k")
+    parcel = order_for_booking()
+    parcel.shipment = Shipment(courier="jne", service="reg", waybill="W1", tracking_id="trk1", provider_order_id="oid1")
+    monkeypatch.setattr(httpx, "get", lambda *a, **k: Resp(200, {"status": "return_in_transit"}))
+    assert not shipping.confirm_returned(parcel) and not shipping.confirm_delivered(parcel)
+    monkeypatch.setattr(httpx, "get", lambda *a, **k: Resp(200, {"status": "returned"}))
+    assert shipping.confirm_returned(parcel) and not shipping.confirm_delivered(parcel)
+    monkeypatch.setattr(httpx, "get", lambda *a, **k: Resp(500))
+    assert not shipping.confirm_returned(parcel)
 
 
 def test_a_provider_webhook_finds_the_order_by_biteships_ids_and_releases_the_payout(ctx):

@@ -56,7 +56,7 @@ This version follows the deck slide order (slides 2 to 12 in `submission/Etalase
 | 0:40–1:05 | 4 · Features, 6 · Wireframe 1 | Seller sends photos and a voice note; summary with readiness score; **Publish** | "Rina just sends what she already has. Gemini turns photos and a voice note into products, variants, prices and weights, and tells her what is missing." |
 | 1:05–1:45 | 5 · Process flow, 6 · Wireframe 2 | Buyer agent: search, shipping quote, checkout, QRIS | "Any agent can now find her products over MCP and check out. Stock is held for 15 minutes while the buyer pays with QRIS." |
 | 1:45–2:05 | 6 · Wireframe 3 | "New paid order" with **Accept**; seller replies "tracking JNE123456" | "Rina never leaves WhatsApp. Buttons never go through the model." |
-| 2:05–2:25 | 4 · Safe agent checkout, 11 · Benchmark | Confirm-first message; the 50-agent race (demo step 8) | "Low or stale stock? She confirms before the buyer pays. 50 agents race for the last unit; exactly one wins. 439 automated tests cover races, payments and webhook abuse." |
+| 2:05–2:25 | 4 · Safe agent checkout, 11 · Benchmark | Confirm-first message; the 50-agent race (demo step 8) | "Low or stale stock? She confirms before the buyer pays. 50 agents race for the last unit; exactly one wins. 503 automated tests cover races, payments and webhook abuse." |
 | 2:25–2:45 | 7 · Architecture, 9 · Cost | Architecture slide; unit economics | "She's paid after the courier confirms delivery, minus 4%. The money sits in the seller's sub-account at the payment provider, not in ours. Platform cost per order is about IDR 5,000–7,600 at ten orders per seller, against IDR 6,800 commission, so we are testing a minimum fee. Any OMS or website builder can plug in with one API." |
 | 2:45–3:00 | 12 · Roadmap | Four phases | "Next: a pilot with 50–100 sellers on Firestore and real payment sub-accounts. Etalase: every seller, shoppable by AI." |
 
@@ -70,7 +70,7 @@ For each criterion, have one claim, one thing to show and one place to point to.
 
 | Criterion | Your claim | Show this | Where it lives |
 |---|---|---|---|
-| **Technical Merit & Gen AI (40%)** | Gemini multimodal extraction with structured output; ADK seller agent with tenant-scoped tools; ADK buyer agent over MCP; transactional stock tested under concurrency | `GeminiExtractor` with `response_schema=ExtractedCatalog`; `build_seller_agent` tools; `pytest -q` (439 passed); demo step 8 | [Catalog and stock](/architecture/catalog-and-stock), [Seller agent](/architecture/seller-agent), [Agent gateway](/architecture/agent-gateway), [Testing](/ship/testing); `prototype/etalase/catalog/extractor.py`, `prototype/etalase/agents/seller_agent.py`, `prototype/tests/test_stock.py` |
+| **Technical Merit & Gen AI (40%)** | Gemini multimodal extraction with structured output; ADK seller agent with tenant-scoped tools; ADK buyer agent over MCP; transactional stock tested under concurrency | `GeminiExtractor` with `response_schema=ExtractedCatalog`; `build_seller_agent` tools; `pytest -q` (503 passed); demo step 8 | [Catalog and stock](/architecture/catalog-and-stock), [Seller agent](/architecture/seller-agent), [Agent gateway](/architecture/agent-gateway), [Testing](/ship/testing); `prototype/etalase/catalog/extractor.py`, `prototype/etalase/agents/seller_agent.py`, `prototype/tests/test_stock.py` |
 | **Problem Alignment & Impact (25%)** | Brings chat-first sellers into online shopping with a catalog from photos, a QRIS store link and an agent door; pay-per-order below marketplace fees for fee-heavy categories; payout after delivery and the return window | BPS 95% / 18% with its nuance; Shopee 10% fashion fee; cost table with the 20-orders break-even | [The problem](/foundations/problem), [Evidence](/business/evidence), [Business model](/business/business-model); `docs/15-evidence.md` |
 | **Innovation & Creativity (25%)** | Catalog from photos and voice notes plus an agent-readable store for sellers with no store system (we found no competitor page claiming the first part); WhatsApp as the seller interface; confirm-first for uncertain stock; Connector API so one partner enables many stores | Confirm-first flow; Connector API in `/docs` | [The product](/foundations/product), [Integrations](/architecture/integrations); `prototype/etalase/catalog/service.py` (`sell_mode`), `prototype/etalase/connector/service.py` |
 | **UX & Solution Design (10%)** | No new app; buttons for decisions, chat for data; bilingual; honest availability for agents | WhatsApp summary with Publish / Edit; `SELLER_LOCALE=id`; dashboard sign-in | [Seller agent](/architecture/seller-agent), [Hands-on](/run/hands-on); `prototype/etalase/seller/i18n.py`, `prototype/etalase/api/dashboard.html` |
@@ -243,7 +243,7 @@ Built: catalog building and readiness score, the MCP server and REST mirror, sto
 **Q24. How do you know it works?**
 
 ::: details Answer
-`cd prototype && pytest -q` runs 439 tests: 100 threads racing for the last unit (exactly one wins), duplicate and late payments, the payment-versus-expiry race, forged webhooks, OTP brute force and input limits. `python scripts/demo.py` runs the whole story offline in ten steps. Not yet tested: `FirestoreStore` against the emulator, Gemini extraction quality and live provider payloads ([Testing](/ship/testing)).
+`cd prototype && pytest -q` runs 503 tests: 100 threads racing for the last unit (exactly one wins), duplicate and late payments, the payment-versus-expiry race, forged webhooks, OTP brute force and input limits. `python scripts/demo.py` runs the whole story offline in ten steps. Not yet tested: `FirestoreStore` against the emulator, Gemini extraction quality and live provider payloads ([Testing](/ship/testing)).
 :::
 
 **Q25. How does this scale on Cloud Run today?**
@@ -263,7 +263,7 @@ Never (ADR 0003, `docs/adr/0003-never-hold-funds.md`). The design puts the payme
 **Q27. How do refunds work?**
 
 ::: details Answer
-Refunds happen before release, so we never claw money back from a seller. Two cases are built: the seller taps **Out of stock** after payment (order becomes `refunded` and stock goes back), and a payment that arrives after the hold expired is refunded automatically. With the mock provider the refund is instant; with Xendit (or if the provider call fails for any reason) it becomes `refund_pending` and an `ops.manual_action` event is published and logged as `MANUAL ACTION REQUIRED`, for a human to finish; for the pilot that log line must page someone. Returns and disputes after delivery are not designed yet.
+Refunds happen before release, so we never claw money back from a seller. Two cases are built: the seller taps **Out of stock** after payment (order becomes `refunded` and stock goes back), and a payment that arrives after the hold expired is refunded automatically. With the mock provider the refund is instant; with Xendit (or if the provider call fails for any reason) it becomes `refund_pending` and an `ops.manual_action` event is published and logged as `MANUAL ACTION REQUIRED`, for a human to finish; for the pilot that log line must page someone. After delivery the buyer has a return window (3 days, 7 for a new seller) and the payout waits for it; a return the seller disputes is decided by an Etalase operator, and a parcel the courier returns or loses refunds the buyer automatically once the courier's own tracking record agrees. The whole rule is published at `/policy/payouts`.
 :::
 
 **Q28. What about fraud?**
@@ -275,13 +275,31 @@ On the buyer side, QRIS is a push payment, so we never see card data; checkouts 
 **Q29. What if the seller ships an empty box, or the buyer says it never arrived?**
 
 ::: details Answer
-The payout waits for courier-confirmed delivery, which covers "never shipped". Disputes after delivery and returned parcels are not handled yet: the `returned` shipping status exists, but no money flow is attached to it. Writing that policy is a pilot task, and we list it as an open problem.
+The payout waits for courier-confirmed delivery, which covers "never shipped", and then for the return window, which covers "not as described". A parcel the courier brings back (`returned`) or loses (`disposed`, our `lost`) refunds the buyer in full once the courier's own tracking record agrees, and never pays the seller; a parcel on its way back (`returning`) moves nothing. A dispute freezes the money until an operator decides. What we have not tested live: real Biteship statuses and real Xendit refunds, and nobody is yet staffed to answer an appeal. Who bears a lost parcel is a policy choice we still have to confirm with sellers.
 :::
 
 **Q30. Who pays the payment fees?**
 
 ::: details Answer
 Since 1 October 2026, Bank Indonesia sets the QRIS MDR at 0% for micro merchants on transactions up to Rp500,000 and for all merchants up to Rp100,000, so most of our sellers pay 0% MDR. Xendit's list price adds a fixed processing fee of IDR 4,000 per transaction; in the pilot it is shown to the buyer as a payment fee while we negotiate volume pricing or compare Midtrans ([Evidence](/business/evidence)).
+:::
+
+**Q52. What about cash on delivery?**
+
+::: details Answer
+Not offered in the pilot, on purpose ([ADR 0009](https://github.com/galihsatriawan/etalase/blob/main/docs/adr/0009-qris-only-no-cod.md)): the seller would pack on a promise, the payout hold and the refund flow assume the money arrived before the parcel left, and the courier collects cash on its own schedule. It may cost us buyers, and we do not know how many. So we measure instead of guess: every order records its door, and the operator report gives the share of checkouts that expired unpaid. If that share is high, COD becomes a decision to reopen with data. An agent that asks for COD gets a clear refusal it can repeat to the buyer.
+:::
+
+**Q53. Where is the hold policy written, and who decides a dispute?**
+
+::: details Answer
+At `/policy/payouts` (and `.json` for agents), linked from the order page, the return policy and the seller dashboard. The numbers on it are read from the live settings, so the page cannot disagree with the code: 3 days after delivery, 7 for a new seller, the seller answers a return within 48 hours (silence counts as approval), and the longest possible wait without a dispute is computed from those settings. An Etalase operator decides a dispute. The page offers an appeal only when a support contact is configured, and we say plainly that nobody is staffed for it yet. It never uses the word "rekber".
+:::
+
+**Q54. Can you show where your orders come from?**
+
+::: details Answer
+Yes, as a coarse label and not as a profile: every order records its channel (store link, MCP, REST or UCP) and a label such as `chatgpt`, `gemini`, `instagram` or `direct` for the store link, or the agent's name for MCP and UCP. A seller can tag their own link (`?src=ig-bio`). It is indicative, not audited, because a visitor can choose their own tag. It is the only agent-demand data we can own; we have none from a real pilot yet.
 :::
 
 ### Stock

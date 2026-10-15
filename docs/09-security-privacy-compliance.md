@@ -28,6 +28,8 @@
 - Data subject requests (access, correction, deletion) are handled per seller; an audit trail of stock
   and order changes is kept.
 
+**Order attribution (channel and referrer).** Each order stores which door it came through and a coarse label (`attribution.py`), for measuring demand only. The label is a fixed word, a seller's own link tag or an agent's product name, clipped to 40 characters; never a URL, query string, IP address or identifier. On the store link, one first-party cookie (`etl_src`, 30 minutes, HttpOnly, SameSite=Lax, Secure on https) carries the label to the buy form. A visitor can choose their own label with `?src=`, so the numbers are indicative, not audited. A cookie value is accepted only if it already looks like one of our labels. Mention the cookie in the privacy notice before real buyers use the store link.
+
 ## Payments regulation
 
 Holding and forwarding other people's money is a regulated payment activity in Indonesia
@@ -40,7 +42,7 @@ instructs the release only after the courier-confirmed delivery and the buyer's 
 among the payment-service activities (the lowest licence category has a minimum capital of Rp15 billion), and the explanation of PP 80/2019 mentions a business licence and registration for e-commerce operators (the operative text has not been read).
 The sub-account balance is the provider's liability to the sub-account holder. Public attention is also on platforms that withhold seller money: in 2026 TikTok Shop Tokopedia said it was withholding about Rp24 billion from 217 sellers, sellers' representatives spoke of about 500 sellers and Rp3 trillion in parliament,
 and a legislator questioned the OJK licence ([Katadata](https://katadata.co.id/digital/e-commerce/6aa7c6d3c4062/dana-seller-rp-24-m-tokopedia-tiktok-tertahan-pemerintah-dan-dpr-turun-tangan)).
-So the hold must be published (duration, who decides disputes, how to appeal, when the money is paid), time-limited, and **not branded "rekber"**. Questions for counsel and for the provider are in the market-validation review; none has been answered. Do not describe the design as legally cleared or say that "Xendit holds the funds for us".
+So the hold must be published (duration, who decides disputes, how to appeal, when the money is paid), time-limited, and **not branded "rekber"**. It is now published at `/policy/payouts` (2026-10-16), with numbers read from the live settings, a computed longest wait, no "rekber" or "escrow", and an appeal paragraph that appears only when `SUPPORT_CONTACT` is set. The appeal itself (a second team member, seven days) is a proposal that nobody is staffed for yet. Questions for counsel and for the provider are in the market-validation review; none has been answered. Do not describe the design as legally cleared or say that "Xendit holds the funds for us".
 
 **Payment-provider feasibility (gating).** No Xendit page we read documents a platform-controlled hold. If it cannot be done there, the options are a scheduled disbursement at the provider, DOKU's custom hold periods, or a smaller deposit model (already on the roadmap).
 

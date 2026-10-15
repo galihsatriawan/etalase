@@ -570,9 +570,9 @@ def test_a_courier_return_is_checked_with_the_courier_before_the_buyer_is_refund
 
 def test_a_parcel_on_its_way_back_does_not_block_a_later_delivery_or_refund(ctx, seller, product):
     from etalase.adapters.shipping import BiteshipShipping
-    assert BiteshipShipping.STATUS_MAP["return_in_transit"] == "in_transit"
+    assert BiteshipShipping.STATUS_MAP["return_in_transit"] == "returning"
     order = shipped(ctx, seller, product, "JNE555552")
-    assert ctx.checkout.shipment_update("JNE555552", "in_transit").status == OrderStatus.SHIPPED
+    assert ctx.checkout.shipment_update("JNE555552", "returning").status == OrderStatus.SHIPPED
     assert ctx.checkout.shipment_update("JNE555552", "delivered").status == OrderStatus.DELIVERED
 
 

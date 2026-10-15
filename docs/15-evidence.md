@@ -344,6 +344,14 @@ We do not know yet, and we do not claim it. No Xendit page we read documents a p
 **12. Who else does catalog-from-photos?**
 We did not find a competitor page that claims it (Meta reads an existing catalog; Mayar has a landing-page generator). That rests on marketing pages and a limited search, not on testing their products, and the quality of our extraction has not been measured with Gemini yet.
 
+**13. What about cash on delivery?**
+Not offered in the pilot, on purpose ([ADR 0009](adr/0009-qris-only-no-cod.md)): the seller would pack on a promise, and the payout hold and refund flow assume the money arrived first.
+COD is common in Indonesia (NielsenIQ 2023 put it at 56% in five cities; one vendor claims over 90%; neither figure is ours), so this may cost buyers. We measure it: every order records its door and the operator report gives the
+share of checkouts that expired unpaid. *Nuance:* an expired checkout does not prove the buyer wanted COD; the seller interviews ask directly.
+
+**14. Where is the hold written down, and who decides a dispute?**
+`/policy/payouts` (and `.json`): numbers read from the live settings, an Etalase operator decides, the longest wait is computed, no "rekber". The appeal paragraph shows only when a support contact is configured, and nobody is staffed for it yet.
+
 ---
 
 ### Sources we could not open (2026-10-11)

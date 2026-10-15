@@ -74,7 +74,8 @@ Buyer ──QRIS──► Payment provider (seller's sub-account)
 `payout_due_at = delivered_at + hold`. The hold is `PAYOUT_HOLD_HOURS` (default 72) for a seller with at least
 `NEW_SELLER_ORDERS` (5) completed orders and `NEW_SELLER_HOLD_HOURS` (168) for a newer seller. `0` pays at delivery and
 switches returns off (the doctor warns about it). The background job (`AppContext.process_due`, called every minute and by
-`POST /tasks/expire`) runs three steps in this order: expire unpaid checkouts, run the return timers, release due payouts.
+`POST /tasks/expire`) runs four steps in this order: expire unpaid checkouts, ask the courier again about parcels still marked shipped
+(every `SHIPMENT_RECHECK_HOURS`, default 6), run the return timers, release due payouts.
 
 **What the buyer's agent can do.** Inside the window, `request_return` (MCP tool, or `POST /agent/v1/checkouts/{id}/return`) with the
 checkout id, the phone used at checkout (the id alone is not enough), a reason, an optional note and up to five https photo links:
@@ -99,14 +100,30 @@ and buyer interviews before it is decided ([doc 17](17-market-fit-and-direction.
 3. Nothing arrives within `RETURN_LAPSE_DAYS` (7): the return lapses and the seller is paid. If the buyer had reported a tracking number,
    an operator looks at it instead.
 4. Dispute: the order is frozen and an `ops.manual_action` alert is raised. The operator lists them with `GET /tasks/disputes` and decides with
-   `POST /tasks/resolve-dispute` (`refund` or `release`), both behind `WEBHOOK_TOKEN`.
-5. If the courier brings the parcel back to the seller (Biteship `returned`), the buyer is refunded automatically and the stock restored;
-   a parcel the courier marks `failed` raises an operator alert once.
+   `POST /tasks/resolve-dispute` (`refund` or `release`), both behind the `X-Etalase-Operator-Token` header.
+5. A parcel that does not simply arrive has its own outcomes. Money moves only after the courier's own tracking record agrees with the
+   webhook; a webhook alone is a hint.
+
+   | Biteship status | Our status | What happens |
+   |---|---|---|
+   | `delivered` | `delivered` | The return window starts; the payout follows when it ends |
+   | `return_in_transit` | `returning` | Nothing moves. The order page and the agent's `next_step` say the parcel is coming back, not "on its way". A later `delivered`, `returned` or `lost` still counts; a stale "in transit" does not undo it |
+   | `returned` | `returned` | The buyer is refunded in full, the stock is restored, the seller is told |
+   | `disposed` | `lost` | The buyer is refunded in full, **nothing is restocked**, the seller is told to claim insurance if the parcel was insured. The payout never happens |
+   | `cancelled`, `rejected`, `courier_not_found` | `failed` | An operator alert once; no money moves |
+
+   A refund and a payout can still never both happen to one order, and a repeated or late event changes nothing. If the provider cannot
+   refund yet, the order shows `payment.status = refund_pending` and `ops.manual_action` is raised, as for every refund.
+   **Who bears a lost parcel is a policy choice to confirm:** today the buyer is refunded and the seller carries the loss (and the insurance claim).
 
 While any return is open (`return_requested`, `return_approved`, `return_disputed`) the payout cannot be claimed. A refund and a payout can never
 both happen to the same order: each transition is one atomic claim (`Store.update_order`).
 
 **What the agent sees.** `get_checkout_status` says until when a return can be requested (`return.can_request_until`) and what to do next.
+The hold itself is published at [`/policy/payouts`](../prototype/etalase/gateway/payout_policy.py) (and `.json`): when a seller is paid, what
+can pause a payout, the longest possible wait computed from the live settings, who decides a dispute (an Etalase operator), and, only when
+`SUPPORT_CONTACT` is set, how to ask for a second look. It never uses the word "rekber". It is linked from the order page, the return policy
+and the seller dashboard.
 Every product result carries `seller.return_policy` (window, accepted reasons, refund rules, the seller's note) and
 `seller.track_record` (`orders_completed`, `returns_refunded`). The same policy is published as a UCP `refund_policy` link, as schema.org
 `MerchantReturnPolicy` in `/stores/{id}/products.jsonld`, and as a page at `/stores/{id}/returns` (`.json` for machines).
@@ -120,6 +137,8 @@ mind" / "terima retur berubah pikiran"), through the seller agent, or `PUT /api/
 | `NEW_SELLER_HOLD_HOURS` / `NEW_SELLER_ORDERS` | 168 / 5 | Longer hold until a seller has this many completed orders |
 | `RETURN_SELLER_RESPONSE_HOURS` | 48 | Seller silence after this counts as approval |
 | `RETURN_LAPSE_DAYS` | 7 | An approved return that has not arrived by then lapses |
+| `SHIPMENT_RECHECK_HOURS` | 6 | A parcel still marked shipped is asked about again this often, so a lost courier webhook never leaves money stuck |
+| `SUPPORT_CONTACT` / `DISPUTE_APPEAL_DAYS` | empty / 7 | Where to write for a second look at a dispute decision; the policy page offers an appeal only when this is set |
 
 **Not solved yet, said plainly.**
 
@@ -127,8 +146,22 @@ mind" / "terima retur berubah pikiran"), through the seller agent, or `PUT /api/
   and an operator sends it. Xendit's own pages disagree on how long a QRIS payment can be refunded (7 or 30 days) and on partial refunds, and the
   payment fee and VAT come back only on a full refund within 24 hours, so a return refund usually comes after that. Confirm with Xendit.
 - Whether xenPlatform can keep a seller's balance unreleased for the hold is not verified with Xendit.
-- Who bears the courier cost of a parcel that comes back is a policy choice not yet made; today the buyer is refunded in full.
+- Who bears the courier cost of a parcel that comes back, or of one that is lost, is a policy choice not yet made; today the buyer is refunded in full.
+- The appeal on the policy page is a proposal: a second team member, a seven-day window. Nobody is staffed for it yet.
+- The six-hour recheck calls Biteship's tracking once per shipped parcel per interval. Biteship bills public tracking in test mode; check the real-mode cost. As far as we can tell it is also the only thing that notices delivery of a waybill the seller typed by hand, because Biteship sends no webhook for a parcel it did not book. Not tested against the live service.
 - Buyers get no push notification: the buyer's agent polls `get_checkout_status`.
+
+## Ways to pay, and where orders come from
+
+**QRIS only in the pilot.** Cash on delivery is not offered, on purpose ([ADR 0009](adr/0009-qris-only-no-cod.md)). The buy page, every product
+result (`payment`) and the MCP instructions say so; `payment_method` on MCP and REST accepts only `qris`, and a request for COD is refused with a
+reason the agent can repeat. Nothing is created and no stock is held.
+
+**Where an order came from.** Every order records `channel` (`web`, `mcp`, `rest`, `ucp`) and a `referrer` label ([`attribution.py`](../prototype/etalase/attribution.py)):
+for the store link a known site (`chatgpt`, `gemini`, `claude`, `instagram`, `google`, ...), `other` or `direct`; for an agent its name (the User-Agent product for
+MCP and REST, the host of the `UCP-Agent` profile for UCP). A seller can tag a link of their own (`?src=ig-bio`), which beats the Referer because many apps send none.
+Never a URL, an address or an identifier; the web label travels in one first-party cookie (30 minutes, HttpOnly, SameSite=Lax) that holds only the label.
+`GET /tasks/attribution` (operator token) returns started, paid and expired-unpaid counts per channel and per referrer, with the overall `unpaid_rate`.
 
 ## Payment providers
 

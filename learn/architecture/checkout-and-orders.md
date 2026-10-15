@@ -337,9 +337,19 @@ Commission is 4% of the **subtotal** by default (per-seller override possible), 
 | `add_return_tracking` | The buyer's agent | Phone again; waybill format | Tracking stored; changes what a lapse does |
 | `seller_received` | The seller | Only on `return_approved` (or on `return_disputed` when the buyer gave a tracking number) | Refund first, then restock only a change-of-mind item (a damaged one is inspected first); `refunded` |
 | `sweep(when)` | The clock | 48 h without an answer counts as approval; 7 days without the parcel lapses to `delivered` (payout continues), or to `return_disputed` plus an operator alert if the buyer gave a tracking number | Timers, never a person |
-| `resolve_dispute` | An operator (`POST /tasks/resolve-dispute`, behind `WEBHOOK_TOKEN`) | `refund` or `release` | `refunded` or `paid_out` |
+| `resolve_dispute` | An operator (`POST /tasks/resolve-dispute`, behind the `X-Etalase-Operator-Token` header) | `refund` or `release` | `refunded` or `paid_out` |
 
-Refund amount: the full total (shipping included) for `damaged`, `wrong_item` and `not_as_described`; the subtotal only for `changed_mind`, which exists only if the seller opted in. The buyer pays the return shipping and Etalase does not reimburse it in this version (an open decision, [ADR 0007](https://github.com/galihsatriawan/etalase/blob/main/docs/adr/0007-payout-hold-and-returns.md)). `XenditPayment.refund` still raises `ManualActionRequired`, so a refund becomes `payment.status = "refund_pending"` and an operator sends it. This is separate from the courier's own `returned` status: a parcel that never reached the buyer and is brought back to the seller (confirmed with the courier by `confirm_returned`, only from `shipped`) refunds the buyer and restocks automatically, and `return_in_transit` only maps to `in_transit` and never refunds.
+Refund amount: the full total (shipping included) for `damaged`, `wrong_item` and `not_as_described`; the subtotal only for `changed_mind`, which exists only if the seller opted in. The buyer pays the return shipping and Etalase does not reimburse it in this version (an open decision, [ADR 0007](https://github.com/galihsatriawan/etalase/blob/main/docs/adr/0007-payout-hold-and-returns.md)). `XenditPayment.refund` still raises `ManualActionRequired`, so a refund becomes `payment.status = "refund_pending"` and an operator sends it. This is separate from what the courier reports about the parcel itself. `shipment_update` maps Biteship's statuses onto ours and money moves only after the courier's own tracking record agrees with the webhook:
+
+| Biteship | Ours | Money |
+|---|---|---|
+| `delivered` | `delivered` | The return window starts; the payout follows when it ends (`confirm_delivered`) |
+| `return_in_transit` | `returning` | None. The order page and `next_step` say the parcel is coming back |
+| `returned` | `returned` | Refund in full, restock, tell the seller (`confirm_returned`, only from `shipped`) |
+| `disposed` | `lost` | Refund in full, no restock, tell the seller to claim insurance (`confirm_lost`); the payout never happens |
+| `cancelled`, `rejected`, `courier_not_found` | `failed` | None; one operator alert |
+
+Late or repeated events change nothing: `delivered`, `returned` and `lost` are final, and a stale "in transit" cannot undo `returning`. A webhook can also be lost, or arrive before the courier's own tracking agrees and be ignored, so `reconcile_shipments` (a step of the background job) asks the courier again about every parcel still `shipped`, once per `SHIPMENT_RECHECK_HOURS`, and feeds what it learns through the same checks. Who bears a lost parcel is still a policy choice: today the buyer is refunded and the seller carries the loss.
 
 Two properties to keep when you change this code: **refund and payout can never both happen** (each is an atomic claim on the same order), and a refund is recorded **before** the stock is restored, so a crash cannot restock an item whose refund was never recorded.
 

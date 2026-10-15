@@ -112,6 +112,12 @@ MESSAGES: dict[str, dict[str, str]] = {
         "en": "The courier brought the parcel for {items} back to you. The buyer is being refunded and the stock is back.",
         "id": "Kurir mengembalikan paket {items} ke kamu. Dana pembeli sedang dikembalikan dan stok dikembalikan.",
     },
+    "parcel_lost": {
+        "en": "The courier reports the parcel for {items} as lost or destroyed. The buyer is being refunded in full, so no payout "
+              "follows for this order. If you insured the parcel, file the claim with the courier.",
+        "id": "Kurir melaporkan paket {items} hilang atau rusak total. Dana pembeli dikembalikan penuh, jadi tidak ada pencairan "
+              "untuk pesanan ini. Kalau paketnya kamu asuransikan, ajukan klaim ke kurir.",
+    },
     "return_requested": {
         "en": "Return request ↩️\n{items}\nReason: {reason}\nBuyer's note: {note}\nApprove or dispute within {hours} hours; "
               "no answer counts as approval.",

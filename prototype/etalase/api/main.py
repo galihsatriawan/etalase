@@ -21,11 +21,12 @@ from ..adapters.telegram import SECRET_HEADER as TELEGRAM_SECRET_HEADER
 from ..adapters.telegram import parse_telegram_update
 from ..connector.service import OrderStatusIn, ProductIn, StockIn
 from ..container import AppContext, build_context
-from ..gateway import discovery, pages, storefront, ucp as ucp_protocol
+from ..gateway import discovery, pages, payout_policy, storefront, ucp as ucp_protocol
 from ..gateway.hosts import ShopHostMiddleware
 from ..gateway.mcp_server import build_mcp
 from ..gateway.tools import order_view
 from ..models import Address, CheckoutError, Connection, Seller, now
+from .. import attribution
 from ..seller import channels, slugs
 from ..security import (DASHBOARD_CSP, BodyLimitMiddleware, SECURITY_HEADERS, RateLimiter, client_ip, require_dev,
                         require_operator_token, require_webhook_token)
@@ -120,16 +121,29 @@ def same_origin(request: Request) -> None:
         raise HTTPException(403, "cross-site form posts are not accepted")
 
 
+def remember_source(request: Request, response):
+    """Note where a visitor to the store link came from (an assistant, Instagram, a link the seller tagged), in one cookie that
+    holds only the label. A visit with no signal never overwrites an earlier one, so the order form still knows."""
+    if response.status_code == 200:
+        own = tuple(h for h in (request.headers.get("host", "").split(":")[0], urlparse(ctx.settings.public_base_url).hostname or "",
+                                ctx.settings.store_base_domain or "") if h)
+        label = attribution.landing_source(dict(request.query_params), request.headers.get("referer"), own)
+        if label:
+            response.set_cookie(attribution.COOKIE, label, max_age=attribution.COOKIE_SECONDS, httponly=True, samesite="lax",
+                                secure=ctx.settings.public_base_url.startswith("https"), path="/")
+    return response
+
+
 @app.get("/stores/{seller_id}", response_class=HTMLResponse, include_in_schema=False)
 def store_front(request: Request, seller_id: str):
     rate_limit(request, "storefront", 600, 60)
-    return storefront.store_page(ctx, seller_id)
+    return remember_source(request, storefront.store_page(ctx, seller_id))
 
 
 @app.get("/stores/{seller_id}/p/{product_id}", response_class=HTMLResponse, include_in_schema=False)
 def store_product(request: Request, seller_id: str, product_id: str, v: str = ""):
     rate_limit(request, "storefront", 600, 60)
-    return storefront.product_page(ctx, seller_id, product_id, v)
+    return remember_source(request, storefront.product_page(ctx, seller_id, product_id, v))
 
 
 @app.get("/stores/{seller_id}/buy/{variant_id}", response_class=HTMLResponse, include_in_schema=False)
@@ -142,7 +156,8 @@ def store_buy_form(request: Request, seller_id: str, variant_id: str):
 async def store_buy(request: Request, seller_id: str, variant_id: str):
     same_origin(request)
     rate_limit(request, "checkout", 20, 3600)     # the same bucket as the REST and MCP checkouts
-    return await asyncio.to_thread(storefront.buy_submit, ctx, seller_id, variant_id, await request.body())
+    referrer = attribution.clean_cookie(request.cookies.get(attribution.COOKIE))
+    return await asyncio.to_thread(storefront.buy_submit, ctx, seller_id, variant_id, await request.body(), referrer)
 
 
 @app.get("/pay/{order_id}", response_class=HTMLResponse, include_in_schema=False)
@@ -167,6 +182,18 @@ async def order_return_submit(request: Request, order_id: str):
 @app.get("/stores/{seller_id}/products.jsonld")
 def products_jsonld(seller_id: str):
     return discovery.schema_org_products(ctx, seller_id)
+
+
+@app.get("/policy/payouts", response_class=HTMLResponse, include_in_schema=False)
+def payout_policy_page(request: Request):
+    rate_limit(request, "policy", 600, 60)
+    return payout_policy.page(ctx)
+
+
+@app.get("/policy/payouts.json")
+def payout_policy_json(request: Request):
+    rate_limit(request, "policy", 600, 60)
+    return payout_policy.terms(ctx)
 
 
 @app.get("/stores/{seller_id}/returns", response_class=HTMLResponse, include_in_schema=False)
@@ -199,6 +226,7 @@ class CheckoutIn(BaseModel):
     postal_code: str = Field(max_length=10)
     country: str = Field(default="ID", min_length=2, max_length=2)
     courier: str | None = Field(default=None, max_length=20)
+    payment_method: str = Field(default="qris", max_length=20)     # QRIS only; anything else is refused with an explanation
 
 
 @agent.get("/search")
@@ -221,7 +249,8 @@ def agent_shipping(request: Request, product_id: str, variant_id: str, quantity:
 @agent.post("/checkouts")
 def agent_checkout(request: Request, body: CheckoutIn):
     rate_limit(request, "checkout", 20, 3600)
-    return ctx.gateway.create_checkout(**body.model_dump())
+    return ctx.gateway.create_checkout(**body.model_dump(), channel="rest",
+                                       referrer=attribution.agent_from_user_agent(request.headers.get("user-agent")))
 
 
 @agent.get("/checkouts/{checkout_id}")
@@ -361,6 +390,12 @@ class DisputeResolution(BaseModel):
 def open_disputes():
     """Returns the seller disputed. Production: the operator console reads the same data. Header X-Etalase-Operator-Token."""
     return ctx.returns.disputes()
+
+
+@app.get("/tasks/attribution", dependencies=[Depends(operator_token)])
+def attribution_report():
+    """Which doors buyers use: checkouts started, paid and expired unpaid per channel and per referrer. Header X-Etalase-Operator-Token."""
+    return ctx.checkout.attribution_report()
 
 
 @app.post("/tasks/resolve-dispute", dependencies=[Depends(operator_token)])

@@ -43,12 +43,13 @@ class AppContext:
     modes: dict = field(default_factory=dict)
 
     def process_due(self, when=None) -> dict:
-        """The background job: expire unpaid checkouts, run the return timers, then pay out what is due.
-        Order matters: a return that lapses this minute is paid out this minute."""
+        """The background job: expire unpaid checkouts, catch up on missed courier events, run the return timers, then pay
+        out what is due. Order matters: a return that lapses this minute is paid out this minute."""
         # Each step already skips an order that raises; the guards here keep a failure in one step from stopping the others.
         empty = {"returns_auto_approved": [], "returns_lapsed": [], "returns_escalated": []}
-        result: dict = {"expired": [], **empty, "payouts_released": []}
+        result: dict = {"expired": [], "shipments_reconciled": [], **empty, "payouts_released": []}
         for key, step in (("expired", lambda: self.checkout.expire_due(when)),
+                          ("shipments_reconciled", lambda: self.checkout.reconcile_shipments(when)),
                           ("timers", lambda: self.returns.sweep(when)),
                           ("payouts_released", lambda: self.checkout.release_due_payouts(when))):
             try:

@@ -34,7 +34,10 @@ Etalase: "what if the seller is not legitimate?" and "what about returns?". Fact
    returnable in the window (full refund, shipping included). A change of mind only if the seller opts in (product price only). **In both cases the
    buyer pays the return shipping and Etalase does not reimburse it in this version**; this is an open decision (see Consequences).
 4. **A parcel the courier returns to the seller is refunded automatically** and the stock restored. Before this change such an order stayed
-   `shipped` forever with the buyer's money neither refunded nor paid out.
+   `shipped` forever with the buyer's money neither refunded nor paid out. *(Updated 2026-10-16.)* The same holds for a parcel the courier
+   reports as lost or disposed of (Biteship `disposed`): the buyer is refunded in full, nothing is restocked, the payout never happens. A parcel
+   on its way back (`return_in_transit`) moves nothing until it arrives. Each of these is confirmed with the courier's own tracking record before
+   money moves, and a recheck every `SHIPMENT_RECHECK_HOURS` catches a webhook that was lost or came too early.
 5. **The policy and a small track record are shown to agents** before they buy: in MCP product results, a UCP `refund_policy` link,
    schema.org `MerchantReturnPolicy`, and a public page. An agent can then weigh the seller; this is the honest substitute for KYC we do not have.
 
@@ -62,6 +65,6 @@ Etalase: "what if the seller is not legitimate?" and "what about returns?". Fact
 
 1. Can xenPlatform keep a sub-account balance unreleased for the hold, and what does the split on release look like?
 2. Xendit: refund validity, partial refunds, and who bears the payment fee on a refunded order.
-3. Who bears the courier cost: reimbursing a defect return's shipping (from the held payout, a prepaid label or an allowance), and a parcel that comes back by itself (today: buyer refunded in full, cost unassigned).
+3. Who bears the courier cost: reimbursing a defect return's shipping (from the held payout, a prepaid label or an allowance), a parcel that comes back by itself, and a parcel the courier loses (today: buyer refunded in full, the seller carries the loss and the insurance claim, the cost is otherwise unassigned).
 4. Legal review: PMSE licence, complaint-service duties, consumer-protection duties on returns, and whether the hold changes how Etalase is classified.
 5. Real seller KYC and a per-buyer return limit before real money moves.

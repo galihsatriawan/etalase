@@ -18,6 +18,7 @@ import logging
 import re
 from datetime import datetime, timedelta
 
+from .. import attribution, payment_methods as methods
 from ..adapters.payment import ManualActionRequired, PaymentProvider
 from ..adapters.shipping import ShippingProvider
 from ..catalog.service import CatalogService
@@ -84,7 +85,9 @@ class CheckoutService:
 
     # ------------------------------------------------------------------ checkout
     def create_checkout(self, product_id: str, variant_id: str, qty: int, buyer: Address,
-                        courier: str | None = None, service: str | None = None) -> Order:
+                        courier: str | None = None, service: str | None = None, channel: str = "", referrer: str = "",
+                        payment_method: str = "qris") -> Order:
+        methods.require(payment_method)      # QRIS only in the pilot; a request for COD gets an answer the agent can repeat
         if qty <= 0:
             raise CheckoutError("quantity must be at least 1")
         if qty > self.settings.max_qty_per_order:
@@ -128,6 +131,9 @@ class CheckoutService:
             currency=COUNTRY_PACKS[buyer.country].currency,
             subtotal=subtotal, shipping_rate=rate, shipping_fee=rate.price, total=subtotal + rate.price,
         )
+        # Where it came from (attribution.py): a fixed channel name and a short label, nothing that points at a person.
+        order.channel = channel if channel in attribution.CHANNELS else ""
+        order.referrer = attribution.slug(referrer)
         order.return_terms = ReturnTerms(window_hours=self.hold_hours(seller),
                                          accepts_change_of_mind=seller.return_policy.accepts_change_of_mind)
         ttl = self.settings.seller_confirm_timeout_minutes if mode == SellMode.CONFIRM_FIRST else self.settings.reservation_ttl_minutes
@@ -139,7 +145,7 @@ class CheckoutService:
             self.store.reserve(order.id, product.id, v.id, qty, order.expires_at)
         except OutOfStock as e:
             raise CheckoutError(f"not enough stock: {e}") from e
-        order.log(f"created in {mode.value} mode, stock reserved")
+        order.log(f"created in {mode.value} mode, stock reserved" + (f" ({order.channel}, {order.referrer or 'no referrer'})" if order.channel else ""))
 
         if mode == SellMode.INSTANT:
             try:
@@ -367,6 +373,11 @@ class CheckoutService:
             if found.status != OrderStatus.SHIPPED or not self.shipping.confirm_returned(found):
                 log.warning("return of %s not confirmed by the courier; ignoring", found.id)
                 return found
+        if status == "lost":
+            # Same for a parcel reported lost or destroyed: the courier's own tracking record has to say so.
+            if found.status != OrderStatus.SHIPPED or not self.shipping.confirm_lost(found):
+                log.warning("loss of %s not confirmed by the courier; ignoring", found.id)
+                return found
         hold = timedelta(0)
         if status == "delivered":
             # The window the buyer was promised at checkout; orders from before returns existed use today's rule.
@@ -378,12 +389,16 @@ class CheckoutService:
         def update(o: Order) -> bool:
 
             what.clear()  # Firestore may retry callbacks
-            if o.shipment.status in ("delivered", "returned"):
+            if o.shipment.status in ("delivered", "returned", "lost"):
                 return False  # late or out-of-order courier events never move status backwards
+            if o.shipment.status == "returning" and status in ("booked", "picked_up", "in_transit"):
+                return False  # a stale "in transit" after "on its way back"; only delivered, returned or lost can follow
             previous, o.shipment.status = o.shipment.status, status
             if status == "failed":
-                o.log("the courier could not deliver this parcel (cancelled, rejected or lost); the seller must follow up")
+                o.log("the courier could not take or deliver this parcel (cancelled, rejected or no courier found); the seller must follow up")
                 what["failed"] = previous != "failed"
+            if status == "returning" and previous != "returning":
+                o.log("the courier could not deliver and is bringing the parcel back to the seller; the buyer is refunded when it arrives")
             if status == "delivered" and o.status == OrderStatus.SHIPPED:
                 o.status, o.delivered_at = OrderStatus.DELIVERED, now()
                 o.payout_due_at = o.delivered_at + hold
@@ -393,6 +408,10 @@ class CheckoutService:
                 o.status = OrderStatus.REFUNDED
                 o.log("the courier brought the parcel back to the seller; refunding the buyer")
                 what["returned"] = True
+            if status == "lost" and o.status == OrderStatus.SHIPPED:
+                o.status = OrderStatus.REFUNDED
+                o.log("the courier reports the parcel lost or destroyed; refunding the buyer")
+                what["lost"] = True
             return True
         order = self.store.update_order(found.id, update)
         if what.get("failed"):
@@ -402,10 +421,38 @@ class CheckoutService:
             self._restock(order.id)                                             # the goods are back on the seller's shelf
             self.events.publish("order.returned_to_sender", {"order_id": order.id})
             return order
+        if what.get("lost"):
+            order = self._refund(order, "parcel lost by the courier")            # money first; nothing comes back to restock
+            self.events.publish("order.parcel_lost", {"order_id": order.id})
+            return order
         if what.get("delivered"):
             self.events.publish("order.delivered", {"order_id": order.id})
             return self.release_payout(order.id)   # releases at once only when there is no hold
         return order
+
+    def reconcile_shipments(self, when: datetime | None = None) -> list[str]:
+        """Catch up on courier events that were missed. A webhook can be lost, or can arrive before the courier's own tracking
+        agrees with it and be ignored (money never moves on a webhook alone), and nothing would ever ask again. Every parcel
+        still marked shipped is therefore asked about every `shipment_recheck_hours`; a delivery, a return or a loss found
+        this way goes through the same checks as a webhook. Returns the orders that left the shipped state."""
+        when = when or now()
+        every = timedelta(hours=max(1, self.settings.shipment_recheck_hours))
+        moved = []
+        for o in self.store.orders_in_status([OrderStatus.SHIPPED]):
+            s = o.shipment
+            if s is None or (s.checked_at or s.shipped_at) > when - every:
+                continue
+            try:
+                # Record the check first: a slow or failing courier API is retried at the next interval, not every minute.
+                self.store.update_order(o.id, lambda x: setattr(x.shipment, "checked_at", when) or True)
+                status = self.shipping.tracking_status(o)
+                if status in ("delivered", "returned", "lost"):
+                    after = self.shipment_update(o.id, status)
+                    if after is not None and after.status != OrderStatus.SHIPPED:
+                        moved.append(o.id)
+            except Exception:    # one broken order must not stop the others
+                log.exception("shipment recheck failed for %s", o.id)
+        return moved
 
     # ------------------------------------------------------------------ payout
     def hold_hours(self, seller) -> int:
@@ -429,6 +476,28 @@ class CheckoutService:
         except Exception:
             log.exception("restock failed for %s; the stock needs a manual correction", order_id)
             self.events.publish("ops.manual_action", {"order_id": order_id, "action": "restock"})
+
+    def attribution_report(self) -> dict:
+        """Which doors buyers use, counted from the orders: for each channel and each referrer how many checkouts were started,
+        how many were paid and how many expired unpaid (the buyer left before paying). Counted on every read; at pilot size
+        that is a few hundred orders, and production keeps these as counters."""
+        paid_states = {OrderStatus.PAID, OrderStatus.ACCEPTED, OrderStatus.SHIPPED, OrderStatus.DELIVERED, OrderStatus.PAID_OUT,
+                       OrderStatus.RETURN_REQUESTED, OrderStatus.RETURN_APPROVED, OrderStatus.RETURN_DISPUTED}
+        by_channel: dict[str, dict[str, int]] = {}
+        by_referrer: dict[str, dict[str, int]] = {}
+        for o in self.store.orders_in_status(list(OrderStatus)):
+            paid = o.payment is not None and (o.status in paid_states or o.payment.status in ("paid", "refunded", "refund_pending"))
+            unpaid_end = o.status == OrderStatus.EXPIRED
+            for table, key in ((by_channel, o.channel or "unknown"), (by_referrer, o.referrer or "none")):
+                row = table.setdefault(key, {"started": 0, "paid": 0, "expired_unpaid": 0})
+                row["started"] += 1
+                row["paid"] += int(paid)
+                row["expired_unpaid"] += int(unpaid_end)
+        totals = {k: sum(r[k] for r in by_channel.values()) for k in ("started", "paid", "expired_unpaid")}
+        # The share of checkouts that ended because nobody paid. This is the pilot's measure of what QRIS-only costs us
+        # (payment_methods.py): a high rate is the signal to look at cash on delivery, per door and per referrer.
+        totals["unpaid_rate"] = round(totals["expired_unpaid"] / totals["started"], 3) if totals["started"] else 0.0
+        return {"totals": totals, "by_channel": by_channel, "by_referrer": by_referrer}
 
     def track_record(self, seller_id: str) -> dict:
         """What a buyer's agent may weigh: how many orders this seller completed and how many ended in a refunded return.

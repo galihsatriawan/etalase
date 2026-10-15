@@ -95,6 +95,14 @@ class Settings(BaseSettings):
     # reached the seller after RETURN_LAPSE_DAYS lapses (or goes to an operator if the buyer gave a tracking number).
     return_seller_response_hours: int = 48
     return_lapse_days: int = 7
+    # A courier webhook can be lost, or can arrive before the courier's own tracking agrees and be ignored. A parcel still
+    # marked shipped is asked about again after this many hours, so a delivery, a return or a loss is never missed for good.
+    shipment_recheck_hours: int = 6
+    # Where a buyer or seller writes to ask for a second look at an operator's decision (an email address or a WhatsApp link).
+    # The public payout-policy page (/policy/payouts) offers an appeal only when this is set, so it never promises a way
+    # to appeal that has nowhere to go. DISPUTE_APPEAL_DAYS is how long after a decision the request is accepted.
+    support_contact: str = ""
+    dispute_appeal_days: int = 7
     # Gemini calls one seller may trigger per hour (free-text turns plus catalog builds). Only counted when Gemini is on.
     seller_ai_calls_per_hour: int = 60
 

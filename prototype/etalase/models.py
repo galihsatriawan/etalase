@@ -190,9 +190,11 @@ class Shipment(BaseModel):
     courier: str
     service: str
     waybill: str = ""             # may be empty until the courier issues it (provider bookings)
-    status: str = "booked"        # booked -> picked_up -> in_transit -> delivered; or returned / failed
+    status: str = "booked"        # booked -> picked_up -> in_transit -> delivered; or returning -> returned, lost, failed
     provider_order_id: str = ""   # the aggregator's own order id (Biteship `id`); webhooks identify the order by it
     tracking_id: str = ""         # the aggregator's tracking id (Biteship `courier.tracking_id`)
+    shipped_at: datetime = Field(default_factory=now)
+    checked_at: datetime | None = None   # when the courier was last asked directly (see CheckoutService.reconcile_shipments)
 
 
 class Payout(BaseModel):
@@ -246,6 +248,11 @@ class Order(BaseModel):
     payout_due_at: datetime | None = None     # the end of the return window: the payout is released from here on
     return_terms: ReturnTerms | None = None   # the policy shown at checkout; None on orders created before returns existed
     return_request: ReturnRequest | None = None
+    # Where the order came from, for measuring which doors buyers use. `channel` is how it was placed (web, mcp, ucp, rest;
+    # empty on older orders) and `referrer` a coarse label of who sent the buyer ("chatgpt", "gemini", "instagram", "direct",
+    # or an agent's name). Never a URL, never anything about the person: see etalase/attribution.py.
+    channel: str = ""
+    referrer: str = ""
     created_at: datetime = Field(default_factory=now)
     expires_at: datetime | None = None
     history: list[str] = Field(default_factory=list)

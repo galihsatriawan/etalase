@@ -103,8 +103,9 @@ def test_errors_keep_biteships_message_and_code(monkeypatch):
     ({"event": "order.status", "order_id": "oid1", "status": "picked"}, ("oid1", "picked_up")),
     ({"event": "order.status", "order_id": "oid1", "status": "dropping_off"}, ("oid1", "in_transit")),
     ({"event": "order.status", "order_id": "oid1", "status": "allocated"}, ("oid1", "booked")),
-    ({"event": "order.status", "order_id": "oid1", "status": "return_in_transit"}, ("oid1", "in_transit")),   # still on its way back: no refund yet
+    ({"event": "order.status", "order_id": "oid1", "status": "return_in_transit"}, ("oid1", "returning")),   # on its way back: no refund yet
     ({"event": "order.status", "order_id": "oid1", "status": "returned"}, ("oid1", "returned")),
+    ({"event": "order.status", "order_id": "oid1", "status": "disposed"}, ("oid1", "lost")),
     ({"event": "order.status", "order_id": "oid1", "status": "courier_not_found"}, ("oid1", "failed")),
     ({"event": "order.status", "order_id": "oid1", "status": "cancelled"}, ("oid1", "failed")),
     ({"event": "order.status", "courier_waybill_id": "W1", "status": "delivered"}, ("W1", "delivered")),

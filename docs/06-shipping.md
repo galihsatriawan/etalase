@@ -5,7 +5,7 @@ Code: `prototype/etalase/adapters/shipping.py`.
 ## Provider
 
 Indonesia uses **Biteship**, an aggregator with one API for 30+ couriers (JNE, J&T, SiCepat,
-AnterAja and others), including COD and inter-island shipping. One integration instead of one per
+AnterAja and others), including COD (which we do not use, see ADR 0009) and inter-island shipping. One integration instead of one per
 courier. RajaOngkir is an alternative for rate checks.
 
 | Call | When | Biteship endpoint |

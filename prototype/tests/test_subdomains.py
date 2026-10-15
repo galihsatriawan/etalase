@@ -204,3 +204,10 @@ def test_photos_load_from_the_shop_s_own_origin(c):
     assert srcs and all(src.startswith("/media/") for src in srcs)
     assert c.get(srcs[0], headers=at(host)).status_code == 200                       # the same host serves the file
     assert re.search(r'<meta property=og:image content="https?://[^"]+/media/', page)  # outside readers get an absolute URL
+
+
+def test_the_payout_policy_answers_on_a_shops_own_address(c):
+    shop(c, "6287710000099", "Sub Policy Shop")
+    r = c.get("/policy/payouts", headers=at("sub-policy-shop.etalase.test"))
+    assert r.status_code == 200 and "How payouts are held" in r.text
+    assert c.get("/policy/payouts.json", headers=at("sub-policy-shop.etalase.test")).json()["hold_enabled"] is True

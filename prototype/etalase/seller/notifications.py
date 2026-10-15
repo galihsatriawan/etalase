@@ -90,6 +90,10 @@ def register(ctx: "AppContext") -> None:
         order, seller = order_and_seller(p)
         best_effort(order, seller, "parcel_returned")
 
+    def on_parcel_lost(p):
+        order, seller = order_and_seller(p)
+        best_effort(order, seller, "parcel_lost")
+
     def on_return_requested(p):
         order, seller = order_and_seller(p)
         r = order.return_request
@@ -130,6 +134,7 @@ def register(ctx: "AppContext") -> None:
     bus.subscribe("payout.released", on_payout)
     bus.subscribe("order.delivered", on_delivered)
     bus.subscribe("order.returned_to_sender", on_returned_to_sender)
+    bus.subscribe("order.parcel_lost", on_parcel_lost)
     bus.subscribe("return.requested", on_return_requested)
     bus.subscribe("return.approved", on_return_approved)
     bus.subscribe("return.disputed", on_return_disputed)

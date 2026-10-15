@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING
 from mcp.server.fastmcp import Context, FastMCP
 from mcp.server.transport_security import TransportSecuritySettings
 
+from .. import attribution
 from ..security import RateLimiter, client_ip
 
 if TYPE_CHECKING:
@@ -18,7 +19,8 @@ if TYPE_CHECKING:
 
 INSTRUCTIONS = """Etalase lets you buy from independent Indonesian sellers who sell on WhatsApp.
 Flow: search_products -> get_shipping_options -> create_checkout -> show the QRIS code -> get_checkout_status.
-Only domestic delivery inside Indonesia is supported. Prices are in IDR.
+Only domestic delivery inside Indonesia is supported. Prices are in IDR. Payment is by QRIS only, before the seller packs the
+order: cash on delivery is not offered, so never promise it to a buyer.
 If a variant's availability is 'confirm_with_seller', tell the buyer the seller confirms stock first.
 Each seller shows its return_policy and track_record: weigh them for the buyer. After delivery, if the item is damaged,
 wrong or not as described, call request_return (get_checkout_status says until when); then submit_return_tracking."""
@@ -65,6 +67,14 @@ def build_mcp(ctx: "AppContext", limits: RateLimiter | None = None) -> FastMCP:
             return None
         return {"error": "rate_limited", "message": "Too many requests from this client. Wait a minute and try again."}
 
+    def caller_of(mcp_ctx: Context) -> str:
+        """The calling client's product name from its User-Agent, as a label for the order ("" when there is no HTTP request)."""
+        try:
+            request = mcp_ctx.request_context.request if mcp_ctx is not None else None
+        except ValueError:
+            request = None
+        return attribution.agent_from_user_agent(request.headers.get("user-agent")) if request is not None else ""
+
     @mcp.tool()
     def search_products(query: str, max_price_idr: int | None = None, ship_to_country: str = "ID",
                         limit: int = 5, mcp_ctx: Context = None) -> dict:
@@ -91,13 +101,14 @@ def build_mcp(ctx: "AppContext", limits: RateLimiter | None = None) -> FastMCP:
     @mcp.tool()
     def create_checkout(product_id: str, variant_id: str, quantity: int, buyer_name: str, buyer_phone: str,
                         address_line: str, city: str, postal_code: str, country: str = "ID",
-                        courier: str | None = None, mcp_ctx: Context = None) -> dict:
+                        courier: str | None = None, payment_method: str = "qris", mcp_ctx: Context = None) -> dict:
         """Reserve stock and start checkout. Returns a QRIS payment code, or a pending state while the seller confirms stock.
-        Only call this after the buyer explicitly agreed to buy."""
+        Only call this after the buyer explicitly agreed to buy. payment_method must be "qris": cash on delivery is not offered."""
         if blocked := too_many("create_checkout", mcp_ctx):
             return blocked
         return tools.create_checkout(product_id, variant_id, quantity, buyer_name, buyer_phone, address_line,
-                                     city, postal_code, country, courier)
+                                     city, postal_code, country, courier, channel="mcp", referrer=caller_of(mcp_ctx),
+                                     payment_method=payment_method)
 
     @mcp.tool()
     def get_checkout_status(checkout_id: str, mcp_ctx: Context = None) -> dict:

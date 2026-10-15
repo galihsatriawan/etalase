@@ -39,6 +39,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
+from .. import attribution
 from ..models import Address, CheckoutError, OrderStatus, now
 from ..security import RateLimiter, client_ip
 from . import pages
@@ -394,7 +395,7 @@ class UcpCheckout:
         return {"methods": [method]}
 
     # ---- operations (each returns (http_status, payload))
-    def create(self, raw: bytes) -> tuple[int, dict]:
+    def create(self, raw: bytes, agent: str = "") -> tuple[int, dict]:
         body = parse_body(raw, require_items=True)
         if len(body.line_items) != 1:
             return 200, error_payload("unsupported", "This business sells one item per checkout session.",
@@ -408,7 +409,7 @@ class UcpCheckout:
             return 200, error_payload("out_of_stock", "That item is out of stock.", continue_url=self.base + "/")
         s = {"id": "chk_" + secrets.token_hex(12), "product_id": product.id, "variant_id": variant.id,
              "quantity": li.quantity, "buyer": self._buyer_in(None), "destination": None, "option_id": None,
-             "options": [], "order_id": None, "canceled": False, "completing": False,
+             "options": [], "order_id": None, "canceled": False, "completing": False, "agent": agent,
              "created_at": now().isoformat(), "expires_at": (now() + SESSION_TTL).isoformat()}
         self._apply(s, body, replace=False)
         self.ctx.store.put_doc(SESSION_KIND, s["id"], s)
@@ -477,7 +478,8 @@ class UcpCheckout:
                           postal_code=dest["postal_code"], country=dest["address_country"])
         try:
             order = self.ctx.checkout.create_checkout(s["product_id"], s["variant_id"], s["quantity"], address,
-                                                      option["courier"], option["service"])
+                                                      option["courier"], option["service"], channel="ucp",
+                                                      referrer=s.get("agent", ""))
         except (CheckoutError, KeyError) as e:
             self.ctx.store.update_doc(SESSION_KIND, session_id, lambda d: d.update(completing=False) or True)
             text = str(e)
@@ -582,7 +584,8 @@ def build_router(ctx: "AppContext", limits: RateLimiter) -> APIRouter:
 
     @router.post("/checkout-sessions")
     async def create(request: Request):
-        return await run(request, ("create", 120, 60), svc.create)
+        agent = attribution.agent_from_ucp_header(request.headers.get("ucp-agent"))   # the platform's host, kept on the order
+        return await run(request, ("create", 120, 60), lambda raw: svc.create(raw, agent))
 
     @router.get("/checkout-sessions/{session_id}")
     async def read(request: Request, session_id: str):
@@ -629,7 +632,8 @@ def policy_page_response(ctx: "AppContext", seller_id: str) -> HTMLResponse:
                 + '<section class=band><h2 class=cap>How it works</h2><ol class=num>'
                   "<li>Ask for the return from your order page, or through your shopping assistant.</li>"
                   f"<li>The seller answers within {policy['seller_answers_within_hours']} hours. No answer counts as approval.</li>"
-                  "<li>You send the item back and pay that shipping. When the seller confirms it arrived, you are refunded.</li></ol></section>")
+                  "<li>You send the item back and pay that shipping. When the seller confirms it arrived, you are refunded.</li></ol>"
+                  '<p class=fine style="margin-top:.75rem"><a href="/policy/payouts">How payouts are held, and who decides a dispute</a></p></section>')
     if policy["note"]:
         body += f"<div class=sellernote><b>A note from the seller (written by the seller, not by Etalase)</b>{escape(policy['note'])}</div>"
     return HTMLResponse(pages.layout("Return policy", f"<div class=stack>{body}</div>", h1=f"Return policy: {seller.name}", back=back),

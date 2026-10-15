@@ -8,9 +8,13 @@ import httpx
 
 from ..models import Order, Shipment, ShippingRate, new_id
 
-# Internal statuses. Every provider maps its own status names onto these, because
-# DELIVERED is what releases the seller's payout.
-STATUSES = ("booked", "picked_up", "in_transit", "delivered", "returned", "failed")
+# Internal statuses. Every provider maps its own status names onto these, because DELIVERED is what releases the seller's
+# payout and RETURNED or LOST are what refund the buyer.
+#   returning  the courier could not deliver and is bringing the parcel back (no money moves yet)
+#   returned   the parcel is back with the seller (the buyer is refunded, the stock is restored)
+#   lost       the courier reports the parcel destroyed or disposed of (the buyer is refunded, nothing to restock)
+#   failed     a booking problem before or around pickup: cancelled, rejected, no courier found (an operator follows up)
+STATUSES = ("booked", "picked_up", "in_transit", "returning", "delivered", "returned", "lost", "failed")
 
 
 class ShippingProvider(Protocol):
@@ -25,6 +29,10 @@ class ShippingProvider(Protocol):
         """Ask the courier directly before money moves. Webhooks alone are never trusted for payouts."""
     def confirm_returned(self, order: Order) -> bool:
         """Same for a refund: the parcel is really back with the seller, not just on its way."""
+    def confirm_lost(self, order: Order) -> bool:
+        """Same for a refund: the courier itself reports the parcel as destroyed or disposed of."""
+    def tracking_status(self, order: Order) -> str:
+        """The courier's current status as one of STATUSES, or "" when it cannot be read. Used to catch up on a lost webhook."""
 
 
 def _postal(code: str) -> int:
@@ -60,6 +68,12 @@ class MockShipping:
     def confirm_returned(self, order):
         return True
 
+    def confirm_lost(self, order):
+        return True
+
+    def tracking_status(self, order):
+        return order.shipment.status if order.shipment else ""
+
 
 class BiteshipShipping:
     """Biteship aggregator (https://biteship.com/docs/api). Checked against the official docs on 2026-10-15; the
@@ -74,8 +88,8 @@ class BiteshipShipping:
     # Webhook / tracking statuses -> our internal statuses (docs: help.biteship.com "Courier Status Availability").
     STATUS_MAP = {"confirmed": "booked", "scheduled": "booked", "allocated": "booked", "picking_up": "booked",
                   "picked": "picked_up", "dropping_off": "in_transit", "in_transit": "in_transit", "on_hold": "in_transit",
-                  "delivered": "delivered", "return_in_transit": "in_transit", "returned": "returned",
-                  "cancelled": "failed", "rejected": "failed", "courier_not_found": "failed", "disposed": "failed"}
+                  "delivered": "delivered", "return_in_transit": "returning", "returned": "returned", "disposed": "lost",
+                  "cancelled": "failed", "rejected": "failed", "courier_not_found": "failed"}
 
     def __init__(self, api_key: str, couriers: str = "jne,sicepat,jnt,anteraja") -> None:
         self.headers = {"authorization": api_key, "content-type": "application/json"}
@@ -143,6 +157,13 @@ class BiteshipShipping:
     def confirm_returned(self, order):
         """A refund is money too: only the final `returned` status counts, not `return_in_transit`."""
         return self._tracking_status(order) == "returned"
+
+    def confirm_lost(self, order):
+        """Same for a parcel the courier reports as `disposed`: the tracking record must say so, a webhook alone is not enough."""
+        return self._tracking_status(order) == "disposed"
+
+    def tracking_status(self, order):
+        return self.STATUS_MAP.get(self._tracking_status(order), "")
 
     def _tracking_status(self, order) -> str:
         s = order.shipment

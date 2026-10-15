@@ -51,11 +51,14 @@ flowchart LR
 # prototype/etalase/gateway/tools.py
 def create_checkout(self, product_id: str, variant_id: str, quantity: int, buyer_name: str, buyer_phone: str,
                     address_line: str, city: str, postal_code: str, country: str = "ID",
-                    courier: str | None = None) -> dict:
+                    courier: str | None = None, channel: str = "", referrer: str = "",
+                    payment_method: str = "qris") -> dict:
+    """`channel` and `referrer` are set by the door the call came through (REST, MCP), never taken from the agent's input."""
     buyer = Address(name=buyer_name, phone=buyer_phone, line1=address_line, city=city,
                     postal_code=postal_code, country=country.upper())
     try:
-        order = self.ctx.checkout.create_checkout(product_id, variant_id, quantity, buyer, courier)
+        order = self.ctx.checkout.create_checkout(product_id, variant_id, quantity, buyer, courier,
+                                                  channel=channel, referrer=referrer, payment_method=payment_method)
     except (CheckoutError, KeyError) as e:
         return {"error": str(e)}
     return order_view(order)
@@ -114,12 +117,16 @@ What each setting means:
 | `search_products` | `query`, `max_price_idr` (none), `ship_to_country` ("ID"), `limit` (5, clamped to 1 to 10) | `results` (agent views), `count`, `note` |
 | `get_product` | `product_id` | One agent view, or `{"error": "product not found"}` for unknown or unpublished products |
 | `get_shipping_options` | `product_id`, `variant_id`, `quantity`, `postal_code` | `options` sorted by price, `currency` |
-| `create_checkout` | `product_id`, `variant_id`, `quantity`, `buyer_name`, `buyer_phone`, `address_line`, `city`, `postal_code`, `country` ("ID"), `courier` (none) | `order_view`, or `{"error": ...}` |
+| `create_checkout` | `product_id`, `variant_id`, `quantity`, `buyer_name`, `buyer_phone`, `address_line`, `city`, `postal_code`, `country` ("ID"), `courier` (none), `payment_method` ("qris") | `order_view`, or `{"error": ...}` |
 | `get_checkout_status` | `checkout_id` | `order_view`, or `{"error": "checkout not found"}` |
 | `request_return` | `checkout_id`, `buyer_phone`, `reason` (`damaged`, `wrong_item`, `not_as_described`, `changed_mind`), `note` (500 characters), `evidence_urls` (up to 5 `https` links) | `order_view` with `return`, or `{"error": ...}`; a wrong phone answers "checkout not found" |
 | `submit_return_tracking` | `checkout_id`, `buyer_phone`, `waybill` | `order_view`, or `{"error": ...}` |
 
 `search_products` and `get_product` also add `return_policy` (window in hours, accepted reasons, refund amounts, who pays return shipping, the seller's own note) and `track_record` (`orders_completed`, `returns_refunded`) to each seller, so an agent can weigh a new seller before it recommends one. `INSTRUCTIONS` tell the agent to do that and when to call the return tools. A seller with `PAYOUT_HOLD_HOURS=0` shows `"returns": "not offered through Etalase"`.
+
+`payment_method` exists to say the decision out loud: the only accepted value is `qris`, and an agent that asks for cash on delivery gets `{"error": "cash on delivery is not offered: payment is by QRIS, before the seller packs the order"}` with nothing created and no stock held ([ADR 0009](https://github.com/galihsatriawan/etalase/blob/main/docs/adr/0009-qris-only-no-cod.md)). Every product result also carries `payment` (`methods`, `cash_on_delivery: false`), so an agent knows before it tries.
+
+Two things about the door are recorded on the order and never taken from the agent's input: `channel` (`mcp` or `rest`) and a `referrer` label (the client's User-Agent product, clipped and sanitised). A `channel` or `referrer` field in a REST body is ignored. See `etalase/attribution.py` and `GET /tasks/attribution`.
 
 The `create_checkout` description ends with "Only call this after the buyer explicitly agreed to buy." Tool descriptions are part of what the model reads, so this is a real safeguard, not just documentation. `test_mcp_exposes_the_agent_tools` checks the exact set of seven names.
 

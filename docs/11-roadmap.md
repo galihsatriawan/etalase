@@ -19,7 +19,11 @@ Phase 2 does not start until these have answers. None is a code task.
 4. **Ten seller conversations** ([doc 17](17-market-fit-and-direction.md#validation-plan-ten-seller-conversations)): orders per month, COD share, who pays for returns, commission versus minimum fee versus subscription, 72/168-hour hold, and whether a catalog built from their own photos is accepted with few corrections. Also try Meta's business AI, cshub and Mayar as a seller would.
 5. **Extraction quality with Gemini** on real catalogs ([doc 12](12-benchmark-plan.md)); the only measurement so far is the offline baseline.
 
-Recommended product changes that are **not built and await a decision**: one combined reply per photo burst with a per-seller message meter (every charged message comes out of the commission), `Order.channel` and store-link referrer logging, Biteship `disposed` / `returnInTransit` handling in payout and refund logic, a published hold-policy page, and an explicit pilot decision on COD.
+Product changes from the market review, status on 2026-10-16:
+
+- **Built:** `Order.channel` and a coarse referrer label with an operator report; Biteship `return_in_transit` and `disposed` as their own statuses (a returned or lost parcel refunds the buyer, a returning parcel moves nothing) with a six-hour recheck for lost webhooks; the published payout policy at `/policy/payouts`; the QRIS-only decision ([ADR 0009](adr/0009-qris-only-no-cod.md)).
+- **Not built, awaiting a decision:** one combined reply per photo burst with a per-seller message meter. Every charged message comes out of the commission, so until it is built the WhatsApp cost per order stays an assumption (7–9 messages) and not a measurement.
+- **Not done, external:** the question to Meta or a BSP above. The appeal path on the policy page needs `SUPPORT_CONTACT` set and a person to answer it.
 
 ## What could change the order
 

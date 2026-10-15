@@ -211,6 +211,7 @@ See [`adr/`](adr/) for the reasoning behind the main choices:
 6. [A Connector API with an OpenAPI spec](adr/0006-connector-api.md)
 7. [Hold the payout through a return window, and make returns a first-class flow](adr/0007-payout-hold-and-returns.md)
 8. [Seller channels (WhatsApp, Telegram) behind one interface, and an address for each shop](adr/0008-seller-channels-and-shop-addresses.md)
+9. [QRIS only in the pilot: cash on delivery is a decision, not an omission](adr/0009-qris-only-no-cod.md)
 
 ## Deployment
 

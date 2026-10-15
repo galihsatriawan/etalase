@@ -381,7 +381,7 @@ def buy_form(ctx: "AppContext", seller_id: str, variant_id: str, values: dict | 
                 + field("postal", "Postal code", auto="postal-code", extra='inputmode=numeric pattern="[0-9]{5}" placeholder="40135" title="5 digits"')
                 + '</div></section>')
     payment = (f'<section class=band><h2 class=cap>Payment</h2><div class=pm>{pages.ico("qr", "lg")}<div><b>QRIS</b>'
-               '<small>Scan from any banking or e-wallet app on the next page.</small></div>'
+               '<small>Scan from any banking or e-wallet app on the next page. Cash on delivery is not offered.</small></div>'
                f'<span class=tick>{pages.ico("check")}</span></div></section>')
     confirm = (f'<div class=callout style="margin-top:1rem">{pages.ico("clock")}<span>The seller confirms stock first. '
                'The payment code appears on the next page as soon as they do.</span></div>' if view["availability"] == "confirm_with_seller" else "")
@@ -403,7 +403,7 @@ def _clean_phone(raw: str) -> str:
     return "62" + digits[1:] if digits.startswith("0") else digits
 
 
-def buy_submit(ctx: "AppContext", seller_id: str, variant_id: str, raw: bytes) -> HTMLResponse | RedirectResponse:
+def buy_submit(ctx: "AppContext", seller_id: str, variant_id: str, raw: bytes, referrer: str = "") -> HTMLResponse | RedirectResponse:
     try:
         form = parse_form(raw)
     except CheckoutError as e:
@@ -423,7 +423,7 @@ def buy_submit(ctx: "AppContext", seller_id: str, variant_id: str, raw: bytes) -
                     line1=" ".join(form.get("address", "").split()), city=form.get("city", "").strip(),
                     postal_code=postal, country="ID")
     try:
-        order = ctx.checkout.create_checkout(product.id, variant.id, qty, buyer)
+        order = ctx.checkout.create_checkout(product.id, variant.id, qty, buyer, channel="web", referrer=referrer or "direct")
     except (CheckoutError, KeyError) as e:
         return buy_form(ctx, seller_id, variant_id, form, str(e), 422)
     return RedirectResponse(f"/pay/{order.id}", status_code=303, headers={"Cache-Control": "no-store"})
@@ -455,6 +455,16 @@ def order_page(ctx: "AppContext", order_id: str) -> HTMLResponse:
     elif s in (OrderStatus.PAID, OrderStatus.ACCEPTED):
         progress = pages.track(STEPS, 2)
         msg = pages.status("ok", "Paid", "<p>The seller will pack and ship your order. The tracking number will appear here.</p>")
+    elif s == OrderStatus.SHIPPED and order.shipment and order.shipment.status == "returning":
+        progress = pages.track(STEPS, 2)
+        msg = pages.status("wait", "Coming back to the seller",
+                           "<p>The courier could not deliver your parcel and is taking it back to the seller. "
+                           "You are refunded in full when it arrives.</p>", icon="undo")
+    elif s == OrderStatus.SHIPPED and order.shipment and order.shipment.status == "failed":
+        progress = pages.track(STEPS, 2)
+        msg = pages.status("wait", "A problem with the delivery",
+                           "<p>The courier reported a problem with this shipment. Our team has been alerted and will follow up "
+                           "with you and the seller.</p>", icon="alert")
     elif s == OrderStatus.SHIPPED and order.shipment:
         progress = pages.track(STEPS, 2)
         waybill = order.shipment.waybill or ""
@@ -482,8 +492,10 @@ def order_page(ctx: "AppContext", order_id: str) -> HTMLResponse:
                                                     "There is nothing more to do now.</p>", icon="shield")
     elif s == OrderStatus.REFUNDED:
         done = order.payment is not None and order.payment.status == "refunded"
-        msg = (pages.status("ok", "Refunded", "<p>The money is on its way back to you.</p>", icon="wallet") if done else
-               pages.status("wait", "Refund in progress", "<p>Your refund is being sent by our team and can take a few days.</p>", icon="wallet"))
+        lost = ("<p>The courier lost the parcel, so you are refunded in full.</p>"
+                if order.shipment and order.shipment.status == "lost" and not order.return_request else "")
+        msg = (pages.status("ok", "Refunded", lost + "<p>The money is on its way back to you.</p>", icon="wallet") if done else
+               pages.status("wait", "Refund in progress", lost + "<p>Your refund is being sent by our team and can take a few days.</p>", icon="wallet"))
     elif s == OrderStatus.PAID_OUT:
         progress = pages.track(STEPS, len(STEPS))
         msg = pages.status("ok", "Completed", "<p>Delivered and completed. The return window has closed.</p>")
@@ -494,6 +506,7 @@ def order_page(ctx: "AppContext", order_id: str) -> HTMLResponse:
     links = ""
     if seller is not None:
         links = (f'<p class=links><a href="/stores/{escape(seller.id)}/returns">{pages.ico("shield", "sm")}Return policy</a>'
+                 f'<a href="/policy/payouts">{pages.ico("wallet", "sm")}How payouts are held</a>'
                  f'<a href="/stores/{escape(seller.id)}">{pages.ico("bag", "sm")}{escape(seller.name)}</a></p>')
     body = f'<div class=stack><h1 class=sr>Your order{escape(" from " + seller.name) if seller else ""}</h1>{progress}{msg}{extra}{_summary(order)}</div>{links}'
     return _respond(layout("Your order", body, live=live, heading=False,

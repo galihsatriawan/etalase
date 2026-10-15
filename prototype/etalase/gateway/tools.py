@@ -30,6 +30,19 @@ NEXT_STEP = {
 
 
 def next_step(order: Order) -> str:
+    ship = order.shipment.status if order.shipment else ""
+    if order.status == OrderStatus.SHIPPED and ship == "returning":
+        return ("The courier could not deliver the parcel and is bringing it back to the seller. The buyer is refunded in full "
+                "when it arrives. Do not tell the buyer it is on its way.")
+    if order.status == OrderStatus.SHIPPED and ship == "failed":
+        return ("The courier reported a problem with this shipment and an Etalase operator has been alerted. Tell the buyer it "
+                "is delayed, not that it is on its way. Poll get_checkout_status.")
+    if order.status == OrderStatus.REFUNDED and not order.return_request and ship in ("lost", "returned"):
+        why = "The courier lost the parcel" if ship == "lost" else "The courier brought the parcel back to the seller"
+        done = order.payment is not None and order.payment.status == "refunded"
+        return (f"{why}, so the buyer is refunded in full. " +
+                ("The refund is complete." if done else "Our team sends the refund by hand, which can take a few days "
+                                                       "(payment.status is refund_pending)."))
     if order.status == OrderStatus.DELIVERED and order.payout is None and order.payout_due_at and order.payout_due_at > now():
         return ("Delivered. If the item is damaged, wrong or not as described, call request_return before "
                 f"{order.payout_due_at.isoformat(timespec='minutes')}.")
@@ -120,11 +133,13 @@ class GatewayTools:
 
     def create_checkout(self, product_id: str, variant_id: str, quantity: int, buyer_name: str, buyer_phone: str,
                         address_line: str, city: str, postal_code: str, country: str = "ID",
-                        courier: str | None = None) -> dict:
+                        courier: str | None = None, channel: str = "", referrer: str = "", payment_method: str = "qris") -> dict:
+        """`channel` and `referrer` are set by the door the call came through (REST, MCP), never taken from the agent's input."""
         buyer = Address(name=buyer_name, phone=buyer_phone, line1=address_line, city=city,
                         postal_code=postal_code, country=country.upper())
         try:
-            order = self.ctx.checkout.create_checkout(product_id, variant_id, quantity, buyer, courier)
+            order = self.ctx.checkout.create_checkout(product_id, variant_id, quantity, buyer, courier,
+                                                      channel=channel, referrer=referrer, payment_method=payment_method)
         except (CheckoutError, KeyError) as e:
             return {"error": str(e)}
         return order_view(order)

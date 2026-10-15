@@ -6,6 +6,7 @@ implementation gets from transactions: two buyers can never both take the last u
 
 from __future__ import annotations
 
+import copy
 import threading
 from datetime import datetime
 from typing import Callable
@@ -22,6 +23,7 @@ class MemoryStore:
         self._reservations: dict[str, list[Reservation]] = {}
         self._stock_log: list[StockChange] = []
         self._connections: dict[str, Connection] = {}
+        self._docs: dict[tuple[str, str], dict] = {}
 
     # ---- sellers
     def put_seller(self, seller: Seller) -> None:
@@ -94,6 +96,26 @@ class MemoryStore:
             working = current.model_copy(deep=True)
             if change(working):
                 self._orders[order_id] = working.model_copy(deep=True)
+            return working
+
+    # ---- protocol documents
+    def put_doc(self, kind: str, doc_id: str, data: dict) -> None:
+        with self._lock:
+            self._docs[(kind, doc_id)] = copy.deepcopy(data)
+
+    def get_doc(self, kind: str, doc_id: str) -> dict | None:
+        with self._lock:
+            d = self._docs.get((kind, doc_id))
+            return copy.deepcopy(d) if d is not None else None
+
+    def update_doc(self, kind: str, doc_id: str, change: Callable[[dict], bool]) -> dict | None:
+        with self._lock:
+            current = self._docs.get((kind, doc_id))
+            if current is None:
+                return None
+            working = copy.deepcopy(current)
+            if change(working):
+                self._docs[(kind, doc_id)] = copy.deepcopy(working)
             return working
 
     # ---- stock

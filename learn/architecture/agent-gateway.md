@@ -14,7 +14,7 @@ The agent gateway is the front door for buyers' AI agents: five tools served ove
 
 **MCP (Model Context Protocol)** is an open protocol that lets an AI application discover and call tools on a server. The server publishes tool names, descriptions and JSON schemas for their arguments; the agent's model decides when to call them. If Etalase speaks MCP, any MCP-capable agent can shop from WhatsApp sellers without custom integration.
 
-**Discovery** answers "how would an agent even know Etalase exists?". Etalase publishes a UCP-style profile at `/.well-known/ucp` (a well-known URL pointing to its MCP and REST endpoints) and schema.org `Product` data per store, which search engines and shopping feeds understand. UCP, the Universal Commerce Protocol, is an emerging open protocol for agentic commerce; Etalase's profile is a simplified, UCP-style draft. See [Agentic commerce 101](/foundations/agentic-commerce).
+**Discovery** answers "how would an agent even know Etalase exists?". Etalase publishes a UCP profile at `/.well-known/ucp` (see [UCP checkout](/architecture/ucp)) and schema.org `Product` data per store, which search engines and shopping feeds understand. UCP, the Universal Commerce Protocol, is an open protocol for agentic commerce. The MCP server and `/agent/v1` described on this page are Etalase's own interface; UCP is a separate, standard one. See [Agentic commerce 101](/foundations/agentic-commerce).
 
 **Tools designed for LLMs.** A model cannot catch a Python exception. It *can* read `{"error": "not enough stock: only 1 left"}` and tell the buyer, or read `"next_step": "Show the QRIS code to the buyer."` and do exactly that. So every tool result is a dict, and every order view tells the agent what to do next.
 
@@ -141,24 +141,21 @@ The answer is `{"options": [...], "currency": "IDR"}`, sorted by price. If the b
 
 ## Discovery documents
 
-**`prototype/etalase/gateway/discovery.py`**. The profile below is what a local server returns:
+**`GET /.well-known/ucp`** is a UCP business profile (spec 2026-04-08): the `dev.ucp.shopping` REST service at `/ucp/v1` and the checkout and fulfillment capabilities. It is generated in `prototype/etalase/gateway/ucp.py` and is covered by [UCP checkout](/architecture/ucp), which also explains how UCP relates to the MCP and REST interfaces above. Abridged, as a local server returns it:
 
 ```json
-{
-  "name": "Etalase",
-  "profile_version": "draft",
-  "services": {
-    "mcp": {"transport": "streamable-http", "endpoint": "http://localhost:8080/mcp/"},
-    "rest": {"endpoint": "http://localhost:8080/agent/v1"}
+{"ucp": {
+  "version": "2026-04-08",
+  "services": {"dev.ucp.shopping": [{"version": "2026-04-08", "transport": "rest", "endpoint": "http://localhost:8080/ucp/v1", "...": "..."}]},
+  "capabilities": {
+    "dev.ucp.shopping.checkout": [{"version": "2026-04-08", "...": "..."}],
+    "dev.ucp.shopping.fulfillment": [{"version": "2026-04-08", "extends": "dev.ucp.shopping.checkout", "...": "..."}]
   },
-  "capabilities": ["catalog.search", "catalog.get", "shipping.quote", "checkout.create", "checkout.status"],
-  "markets": [{"country": "ID", "currency": "IDR", "delivery": "domestic"}],
-  "payment_methods": ["qris"],
-  "policies": {"stock": "held for 15 minutes during checkout; some sellers confirm stock first"}
-}
+  "payment_handlers": {}
+}}
 ```
 
-The code comment is explicit: the field names are illustrative and must be aligned with the published UCP specification before production.
+**`prototype/etalase/gateway/discovery.py`** now holds only the schema.org data. Our own MCP endpoint (`/mcp/`) and the `/agent/v1` mirror are not listed in the UCP profile, because the profile's schema describes UCP's own bindings; they are documented here and in the README.
 
 `GET /stores/{seller_id}/products.jsonld` returns a JSON list of schema.org `Product` objects, one per variant of each published product, with `sku`, `name`, `brand` (the shop name), `weight` in grams and an `Offer` (price, `IDR`, availability, a URL and shipping destination `ID`). It is also the basis for a Google Merchant Center feed.
 

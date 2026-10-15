@@ -3,7 +3,7 @@
 Eighteen graded exercises, from beginner to advanced, that make you read recent fixes, change the Etalase code, add tests and wire Google Cloud services.
 
 ::: tip What you will learn
-- How to extend the offline parsers, the shipping mock and the readiness score without breaking the 82 existing tests
+- How to extend the offline parsers, the shipping mock and the readiness score without breaking the 139 existing tests
 - How to add a country pack, an MCP tool and a chat intent end to end
 - How to read a bug fix and its regression test, and why transaction retries need retry-safe code
 - How to test the Firestore store against the emulator
@@ -20,7 +20,7 @@ Work on a branch, and keep the baseline green:
 ```bash
 cd prototype
 pip install -r requirements-dev.txt
-pytest -q                     # 82 passed before you start
+pytest -q                     # 139 passed before you start
 python scripts/demo.py        # the ten-step story must still run
 ```
 
@@ -418,7 +418,7 @@ The current code in **`prototype/etalase/adapters/messaging.py`** (`WhatsAppClou
 - Decide what the inbox should do with a PDF (`application/pdf`): ignore it, or reply that only photos, voice notes and CSV files are read today.
 - Verify the exact MIME strings against Meta's media docs before relying on them.
 
-**Acceptance.** `extension_for("audio/ogg; codecs=opus") == ".ogg"`, `extension_for("TEXT/CSV") == ".csv"`, unknown types return `""`; `download_media` uses the function; all 82 existing tests still pass.
+**Acceptance.** `extension_for("audio/ogg; codecs=opus") == ".ogg"`, `extension_for("TEXT/CSV") == ".csv"`, unknown types return `""`; `download_media` uses the function; all 139 existing tests still pass.
 
 ::: details Solution sketch
 ```python

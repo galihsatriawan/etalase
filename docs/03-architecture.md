@@ -67,7 +67,7 @@ Dashed boxes are on the roadmap; everything else runs in the prototype.
 | Seller agent | `etalase/agents/seller_agent.py` | ADK agent with tools scoped to the verified seller (stock, price, catalog, tracking, sales) |
 | Catalog & stock | `etalase/catalog/` | Extraction (Gemini or offline rules), normalisation, readiness score, sell mode, search |
 | Checkout & orders | `etalase/checkout/service.py` | Reservation, confirm-first, payment, acceptance, shipping, payout, expiry |
-| Agent gateway | `etalase/gateway/` | MCP server, REST mirror, UCP-style profile, schema.org data |
+| Agent gateway | `etalase/gateway/` | MCP server, REST mirror, UCP profile and Checkout (`ucp.py`), schema.org data |
 | Instagram import | `etalase/adapters/instagram.py`, `CatalogService.import_instagram` | Optional catalog source: product posts (photo + caption) become drafts via the same extraction |
 | Connector API | `etalase/connector/service.py` | Push catalog and stock from OMSs, plugins and builders; signed order webhooks |
 | Events | `etalase/events.py` | Decouples checkout from notifications and connectors (Pub/Sub in production) |

@@ -152,6 +152,31 @@ class FirestoreStore:
         txn(self.db.transaction())
         return holder.get("o")
 
+    # ---- protocol documents (one collection per kind)
+    def put_doc(self, kind: str, doc_id: str, data: dict) -> None:
+        self._col(f"doc_{kind}").document(doc_id).set(data)
+
+    def get_doc(self, kind: str, doc_id: str) -> dict | None:
+        snap = self._col(f"doc_{kind}").document(doc_id).get()
+        return snap.to_dict() if snap.exists else None
+
+    def update_doc(self, kind: str, doc_id: str, change) -> dict | None:
+        ref = self._col(f"doc_{kind}").document(doc_id)
+        holder: dict[str, dict] = {}
+
+        @firestore.transactional
+        def txn(transaction):
+            snap = ref.get(transaction=transaction)
+            if not snap.exists:
+                return
+            data = snap.to_dict()
+            if change(data):
+                transaction.set(ref, data)
+            holder["d"] = data
+
+        txn(self.db.transaction())
+        return holder.get("d")
+
     def extend(self, order_id: str, expires_at: datetime) -> None:
         q = self._col("reservations").where("order_id", "==", order_id).where("status", "==", "held")
         for snap in q.stream():

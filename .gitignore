@@ -12,3 +12,8 @@ media/
 learn/node_modules/
 learn/.vitepress/cache/
 learn/.vitepress/dist/
+
+# UCP conformance work dir (cloned official repos) and run output
+prototype/.ucp-work/
+prototype/ucp_conformance/results/*.json
+prototype/evals/results/run-*.json

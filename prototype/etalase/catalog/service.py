@@ -13,7 +13,7 @@ from ..models import Product, ProductStatus, Seller, SellMode, StockChange, Stoc
 from ..store import Store
 from . import readiness
 from .extractor import CatalogExtractor, ExtractedCatalog
-from .normalize import COLOR_MAP, make_sku, slug
+from .normalize import COLOR_MAP, canonical_color, make_sku, slug
 
 
 class CatalogService:
@@ -30,10 +30,10 @@ class CatalogService:
             options_list = []
             for v in ep.variants or [None]:
                 opts = {}
-                if v and v.color:
-                    opts["color"] = v.color
+                if v and v.color:  # "Hitam" from Gemini must equal "Black" from the parser, or stock chat cannot find it
+                    opts["color"] = canonical_color(v.color) or v.color.strip().title()
                 if v and v.size:
-                    opts["size"] = v.size
+                    opts["size"] = v.size.strip().upper()
                 options_list.append((opts, v))
             variants = []
             for opts, v in options_list:

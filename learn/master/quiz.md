@@ -36,7 +36,7 @@ Agents request structured catalog data (title, price, availability, variants) th
 **3. What are UCP, MCP and AP2, in one line each, and which does Etalase actually implement?**
 
 ::: details Answer
-UCP is Google's Universal Commerce Protocol for agent shopping (merchants publish a profile at `/.well-known/ucp`); MCP is the Model Context Protocol, a standard way for agents to call tools; AP2 is the Agent Payments Protocol, UCP's payment layer. Etalase implements an MCP server, serves a UCP-*style* profile with illustrative field names, and has AP2 on the roadmap. See [Agentic commerce 101](/foundations/agentic-commerce).
+UCP is Google's Universal Commerce Protocol for agent shopping (merchants publish a profile at `/.well-known/ucp`); MCP is the Model Context Protocol, a standard way for agents to call tools; AP2 is the Agent Payments Protocol, UCP's payment layer. Etalase implements an MCP server and a UCP business server (valid profile, Checkout and Fulfillment over REST, tested with the official conformance suite), and has AP2 on the roadmap. See [Agentic commerce 101](/foundations/agentic-commerce) and [UCP checkout](/architecture/ucp).
 :::
 
 **4. What does "one stock owner per seller" mean, and what are the three possible owners?**
@@ -119,7 +119,7 @@ From `tool_context.state["seller_id"]`, set when the session is created for the 
 Both implement the `CatalogExtractor` protocol and return the same `ExtractedCatalog` schema. `GeminiExtractor` (multimodal, `response_schema=ExtractedCatalog`, temperature 0.1) is used when an API key or Vertex AI is configured; `HeuristicExtractor` (text and CSV rules) is used otherwise, including in all tests. See [Catalog and stock](/architecture/catalog-and-stock).
 :::
 
-**17. Multiple choice. The command that runs the 82 automated tests is:**
+**17. Multiple choice. The command that runs the 139 automated tests is:**
 (a) `python scripts/demo.py` (b) `cd prototype && pytest -q` (c) `uvicorn etalase.api.main:app --port 8080` (d) `npm run build`
 
 ::: details Answer
@@ -270,7 +270,7 @@ For a micro merchant, the QRIS MDR is 0% for transactions up to Rp500,000 (and 0
 **40. Which benchmark results can you claim today, and which are still TBD?**
 
 ::: details Answer
-Claimable: 0 units oversold when 100 concurrent reservations race for the last unit (on the in-memory store), and duplicate and late payments handled (no double stock change, late payment refunded), all in the 82 passing tests. TBD: catalog extraction accuracy, catalog build time, agent tool latency, seller alert speed and stock-update intent accuracy with Gemini. See [Testing](/ship/testing) and [Pitch and Q&A](/business/pitch-and-qa).
+Claimable: 0 units oversold when 100 concurrent reservations race for the last unit (on the in-memory store), and duplicate and late payments handled (no double stock change, late payment refunded), all in the 139 passing tests. TBD: catalog extraction accuracy, catalog build time, agent tool latency, seller alert speed and stock-update intent accuracy with Gemini. See [Testing](/ship/testing) and [Pitch and Q&A](/business/pitch-and-qa).
 :::
 
 ## Scoring guide

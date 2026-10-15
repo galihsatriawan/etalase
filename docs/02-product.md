@@ -10,7 +10,7 @@ Etalase turns a WhatsApp seller's product photos and chats into a storefront tha
 |---|---|---|
 | **Rina, WhatsApp seller** (hijab shop, sells from her phone, catalog in photos) | More buyers without marketplace fees or new apps | Catalog from photos in minutes, orders and payouts in WhatsApp |
 | **Dewi, buyer** | Ask an assistant for "a black voal hijab under Rp100k" and just buy | Small sellers show up in her agent's results, with QRIS payment |
-| **Buyer's AI agent** (Gemini or any MCP client; UCP-style profile) | Clean product data and a reliable checkout | MCP tools and a UCP profile with stock-aware checkout |
+| **Buyer's AI agent** (Gemini or any MCP client; UCP checkout) | Clean product data and a reliable checkout | MCP tools and a UCP profile and checkout with stock-aware reservation |
 | **Builder or OMS partner** | "AI-agent ready" for all their merchants without building it | Connector API with an OpenAPI spec and signed order webhooks |
 
 ## Features
@@ -20,7 +20,7 @@ Etalase turns a WhatsApp seller's product photos and chats into a storefront tha
 | **AI catalog builder:** photos, voice notes, text and Excel/CSV become products, variants, prices and weights (Gemini multimodal, structured output) | ✅ | Product photo clean-up, attribute enrichment |
 | **Instagram import (optional):** product posts (photo + caption) become drafts; promo posts are skipped | ✅ (sample posts offline, Graph API wired) | Auto-detect new posts |
 | **Agent-readiness score** 0–100 with what is missing | ✅ | Benchmarks per category |
-| **Agent gateway:** MCP server, REST mirror, UCP-style profile, schema.org data | ✅ | Merchant Center feed, AP2 payment mandates |
+| **Agent gateway:** MCP server, REST mirror, UCP profile and Checkout (REST), schema.org data | ✅ | Merchant Center feed, AP2 payment mandates |
 | **WhatsApp seller agent** (ADK): stock and price by chat, tracking numbers, sales questions | ✅ | Proactive restock reminders |
 | **Safe checkout:** stock reservation, instant vs confirm-first, QRIS | ✅ (payment in test mode) | E-wallets, virtual accounts |
 | **Shipping:** courier rates, booking, delivery status (payout only after the courier confirms delivery) | ✅ (mock in demo; Biteship adapter wired) | Pickup scheduling, returns |

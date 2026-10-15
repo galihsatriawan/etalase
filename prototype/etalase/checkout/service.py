@@ -64,7 +64,7 @@ class CheckoutService:
 
     # ------------------------------------------------------------------ checkout
     def create_checkout(self, product_id: str, variant_id: str, qty: int, buyer: Address,
-                        courier: str | None = None) -> Order:
+                        courier: str | None = None, service: str | None = None) -> Order:
         if qty <= 0:
             raise CheckoutError("quantity must be at least 1")
         if qty > self.settings.max_qty_per_order:
@@ -89,6 +89,11 @@ class CheckoutService:
             if not chosen:
                 raise CheckoutError(f"courier {courier} is not available; options: {', '.join(sorted({r.courier for r in rates}))}")
             rates = chosen
+        if service:
+            by_service = [r for r in rates if r.service.lower() == service.lower()]
+            if not by_service:
+                raise CheckoutError(f"service {service} is not available for this route")
+            rates = by_service
         if not rates:
             raise CheckoutError("no courier serves this route")
         rate = min(rates, key=lambda r: r.price)
@@ -390,6 +395,25 @@ class CheckoutService:
                 self.events.publish("order.expired", {"order_id": order.id})
                 expired.append(order.id)
         return expired
+
+    def cancel_unpaid(self, order_id: str, reason: str = "cancelled by the buyer's agent") -> Order | None:
+        """Give the stock back for a checkout nobody has paid. A paid order is never touched here."""
+        won = {}
+
+        def cancel(o: Order) -> bool:
+            won.clear()  # Firestore may run a transaction callback more than once
+            if o.status not in (OrderStatus.AWAITING_PAYMENT, OrderStatus.AWAITING_SELLER_CONFIRMATION):
+                return False
+            o.status = OrderStatus.EXPIRED
+            o.log(f"{reason}, stock released")
+            won["yes"] = True
+            return True
+        order = self.store.update_order(order_id, cancel)
+        if order is not None and order.status == OrderStatus.EXPIRED:
+            self.store.release(order_id)
+            if won:
+                self.events.publish("order.expired", {"order_id": order.id})
+        return order
 
     # ------------------------------------------------------------------ helpers
     def _published(self, product_id: str):

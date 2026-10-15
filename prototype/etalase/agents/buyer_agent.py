@@ -37,8 +37,12 @@ def build_buyer_agent(mcp_url: str, model: str) -> LlmAgent:
 
 
 async def chat(prompts: list[str]) -> None:
+    from ..config import export_google_env, get_settings
+
+    settings = get_settings()  # reads .env, so the demo works with the same file as the server
+    export_google_env(settings)
     mcp_url = os.getenv("ETALASE_MCP_URL", "http://localhost:8080/mcp/")
-    model = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+    model = os.getenv("GEMINI_MODEL", settings.gemini_model)
     agent = build_buyer_agent(mcp_url, model)
     sessions = InMemorySessionService()
     runner = Runner(agent=agent, app_name="etalase-buyer", session_service=sessions)

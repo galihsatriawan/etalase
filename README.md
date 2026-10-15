@@ -3,7 +3,7 @@
 **Make every WhatsApp seller shoppable by AI agents.**
 
 Etalase turns a small seller's product photos and chats into a storefront that AI shopping agents
-(Gemini or any MCP client, with a UCP-style discovery profile) can find, check stock on and buy from, with every order landing
+(Gemini or any MCP client; Etalase also answers Google's Universal Commerce Protocol checkout) can find, check stock on and buy from, with every order landing
 back in the seller's WhatsApp.
 
 Built for the **AI Builder Cup 2026** (Google Cloud, JAPAC), theme **Retail & Commerce: Intelligent
@@ -47,13 +47,18 @@ More in [Problem and market](docs/01-problem-and-market.md).
 cd prototype
 pip install -r requirements-dev.txt
 python scripts/demo.py          # full end-to-end story in the terminal
-pytest -q                       # 82 tests: oversell race, payments, webhook security, OTP abuse
+pytest -q                       # 139 tests: oversell race, payments, webhook security, OTP abuse
 uvicorn etalase.api.main:app --port 8080   # API, MCP at /mcp/, dashboard at /, docs at /docs
 ```
 
 Without keys, Etalase uses offline parsers, a console WhatsApp outbox and mock payment and
 shipping. Add a Gemini key (or Vertex AI), WhatsApp Cloud API, Xendit and Biteship credentials to
 switch each part to the real service. See [prototype/README.md](prototype/README.md).
+
+**Only the keys are left to you:** [SETUP.md](SETUP.md) lists every value and where to get it. `make setup` prepares
+everything, `make doctor` tests each key against the real service, `make eval` measures extraction accuracy,
+`make deploy` ships to Cloud Run from your `.env`, and `make ucp-conformance` runs Google's official UCP conformance
+suite against Etalase (run them from `prototype/`).
 
 ## Google Cloud AI usage
 
@@ -65,7 +70,7 @@ switch each part to the real service. See [prototype/README.md](prototype/README
 | **Secret Manager** | Session secret, dev and webhook tokens, provider keys | Built (deploy script) |
 | **Firestore** | Transactional catalog, stock reservations and orders | Built; demo runs on the in-memory store |
 | **Pub/Sub, Cloud Tasks, Cloud Storage, Cloud KMS** | Events, per-order expiry, media, token encryption | Pilot (in-process equivalents today) |
-| **MCP / UCP / AP2** | MCP server; UCP-style profile at `/.well-known/ucp`; AP2 payments | MCP and profile built; AP2 roadmap |
+| **MCP / UCP / AP2** | MCP server; UCP business server (profile at `/.well-known/ucp`, Checkout over REST); AP2 payments | MCP and UCP built (official conformance suite: see [docs/16](docs/16-ucp.md)); AP2 roadmap |
 
 ## Judging criteria at a glance
 

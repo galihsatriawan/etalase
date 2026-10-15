@@ -18,6 +18,21 @@ from etalase.config import Settings  # noqa: E402
 from etalase.container import build_context  # noqa: E402
 from etalase.models import Address, Seller  # noqa: E402
 
+GOOGLE_ENV = ("GOOGLE_API_KEY", "GOOGLE_GENAI_USE_VERTEXAI", "GOOGLE_CLOUD_PROJECT", "GOOGLE_CLOUD_LOCATION")
+
+
+@pytest.fixture(autouse=True)
+def isolate_google_env():
+    """export_google_env() writes to os.environ for the Google SDKs; a test must not leak that into the next one."""
+    saved = {k: os.environ.get(k) for k in GOOGLE_ENV}
+    yield
+    for k, v in saved.items():
+        if v is None:
+            os.environ.pop(k, None)
+        else:
+            os.environ[k] = v
+
+
 BUYER = Address(name="Dewi", phone="6285700001111", line1="Jl. Dago 10", city="Bandung", postal_code="40135")
 
 

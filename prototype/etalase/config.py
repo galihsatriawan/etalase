@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 from functools import lru_cache
 
@@ -100,3 +101,15 @@ COUNTRY_PACKS: dict[str, CountryPack] = {
 @lru_cache
 def get_settings() -> Settings:
     return Settings()
+
+
+def export_google_env(s: Settings) -> None:
+    """Make Gemini credentials from `.env` visible to ADK and google-genai, which read real environment
+    variables. Variables that are already set (Cloud Run, your shell) always win."""
+    if s.google_genai_use_vertexai:
+        os.environ.setdefault("GOOGLE_GENAI_USE_VERTEXAI", "true")
+        if s.google_cloud_project:
+            os.environ.setdefault("GOOGLE_CLOUD_PROJECT", s.google_cloud_project)
+        os.environ.setdefault("GOOGLE_CLOUD_LOCATION", s.google_cloud_location)
+    elif s.google_api_key:
+        os.environ.setdefault("GOOGLE_API_KEY", s.google_api_key)

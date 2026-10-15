@@ -2,6 +2,18 @@
 
 Python 3.11+, FastAPI, Google ADK, MCP, deployable to Cloud Run.
 
+## Quick start with make
+
+```bash
+make setup     # venv, dependencies, .env, offline checks, tests
+make doctor    # after you fill .env: tests every key against the real service
+make eval      # catalog-extraction accuracy (offline rules, plus Gemini when a key is set)
+make deploy    # PROJECT_ID=my-project make deploy: Cloud Run from your .env (make deploy-dry prints the plan only)
+make help      # all targets, including the UCP conformance runner
+```
+
+Where every key comes from: [../SETUP.md](../SETUP.md).
+
 ## Quick start (offline, no credentials)
 
 ```bash
@@ -25,7 +37,9 @@ uvicorn etalase.api.main:app --reload --port 8080
 | `/` | Seller dashboard (WhatsApp one-time-code sign-in; in dev mode the code is in `/dev/outbox`) |
 | `/docs` | Interactive API docs (OpenAPI) |
 | `/mcp/` | MCP server for AI agents (streamable HTTP) |
-| `/.well-known/ucp` | UCP-style discovery profile |
+| `/.well-known/ucp` | UCP discovery profile (spec 2026-04-08) |
+| `/ucp/v1/checkout-sessions` | UCP Checkout over REST (create, get, update, complete, cancel) |
+| `/checkout/{id}` | Hosted QRIS payment page (the UCP `continue_url`) |
 | `/agent/v1/*` | REST mirror of the agent tools |
 | `/connector/v1/*` | Connector API for OMSs, plugins and website builders |
 | `/connect/instagram` | Instagram Login for catalog import (needs `INSTAGRAM_APP_ID` / `INSTAGRAM_APP_SECRET`) |

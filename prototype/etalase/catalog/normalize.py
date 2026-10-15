@@ -66,6 +66,7 @@ def guess_category(title: str) -> tuple[str, int]:
 
 
 _PRICE_PATTERNS = [
+    (re.compile(r"(\d+(?:[.,]\d+)?)\s*(?:jt|juta)\b", re.I), 1_000_000),
     (re.compile(r"(\d+(?:[.,]\d+)?)\s*(?:rb|ribu|rbu|k)\b", re.I), 1000),
     (re.compile(r"rp\.?\s*(\d{1,3}(?:[.,]\d{3})+|\d+)", re.I), 1),
     (re.compile(r"harga\s*:?\s*(\d{1,3}(?:[.,]\d{3})+|\d+)", re.I), 1),
@@ -73,12 +74,12 @@ _PRICE_PATTERNS = [
 
 
 def parse_price(text: str) -> int | None:
-    """'85rb' -> 85000, 'Rp85.000' -> 85000, '85 ribu' -> 85000, 'harga 90000' -> 90000."""
+    """'85rb' -> 85000, 'Rp85.000' -> 85000, '85 ribu' -> 85000, '1,2jt' -> 1200000, 'harga 90000' -> 90000."""
     for pattern, mult in _PRICE_PATTERNS:
         m = pattern.search(text)
         if m:
             raw = m.group(1)
-            if mult == 1000:
-                return int(round(float(raw.replace(",", ".")) * 1000))
+            if mult > 1:
+                return int(round(float(raw.replace(",", ".")) * mult))
             return int(re.sub(r"[.,]", "", raw))
     return None

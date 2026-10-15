@@ -18,7 +18,7 @@ from ..adapters import instagram
 from ..adapters.messaging import ConsoleMessenger, Inbound, parse_whatsapp_webhook
 from ..connector.service import OrderStatusIn, ProductIn, StockIn
 from ..container import AppContext, build_context
-from ..gateway import discovery
+from ..gateway import discovery, ucp as ucp_protocol
 from ..gateway.mcp_server import build_mcp
 from ..gateway.tools import order_view
 from ..models import Address, CheckoutError, Connection, Seller
@@ -89,7 +89,16 @@ def healthz():
 # ------------------------------------------------------------------ discovery
 @app.get("/.well-known/ucp")
 def ucp():
-    return discovery.ucp_profile(ctx)
+    return ucp_protocol.ucp_profile(ctx)
+
+
+app.include_router(ucp_protocol.build_router(ctx, limits))   # /ucp/v1/checkout-sessions ... (UCP Checkout, REST)
+
+
+@app.get("/checkout/{checkout_id}", response_class=HTMLResponse, include_in_schema=False)
+def hosted_checkout(request: Request, checkout_id: str):
+    rate_limit(request, "pay-page", 600, 60)
+    return ucp_protocol.pay_page_response(ctx, checkout_id)
 
 
 @app.get("/stores/{seller_id}/products.jsonld")

@@ -124,7 +124,7 @@ pytest -q
 ```text
 ........................................................................ [ 87%]
 ..........                                                               [100%]
-82 passed in 0.60s
+139 passed in 2.15s
 ```
 
 `tests/conftest.py` removes the provider keys (`GOOGLE_API_KEY`, `WHATSAPP_*`, `XENDIT_*`, `BITESHIP_API_KEY`, `INSTAGRAM_*`), the tokens and URLs (`DEV_TOKEN`, `WEBHOOK_TOKEN`, `SESSION_SECRET`, `PUBLIC_BASE_URL`) and a few others from the environment, then changes into `tests/`, so no `prototype/.env` is read either. The tests always run offline, whatever is in your shell or `.env`. [Testing](/ship/testing) walks through what they cover.
@@ -148,7 +148,9 @@ INFO:     Uvicorn running on http://127.0.0.1:8080 (Press CTRL+C to quit)
 | `/docs` | Interactive OpenAPI docs |
 | `/healthz` | Liveness plus the mode of each part |
 | `/mcp/` | MCP server for agents (note the trailing slash) |
-| `/.well-known/ucp` | UCP-style discovery profile |
+| `/.well-known/ucp` | UCP discovery profile (spec 2026-04-08) |
+| `/ucp/v1/checkout-sessions` | UCP Checkout over REST; see [UCP checkout](/architecture/ucp) |
+| `/checkout/{id}` | Hosted QRIS payment page (the UCP `continue_url`) |
 | `/agent/v1/*` | REST versions of the agent tools |
 | `/connector/v1/*` | Connector API |
 | `/dev/*` | Simulation endpoints (only when `ETALASE_ENV=dev`) |

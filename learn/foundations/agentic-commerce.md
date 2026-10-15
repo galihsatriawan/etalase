@@ -5,7 +5,7 @@ Agentic commerce is shopping where an AI agent, not a person clicking, searches,
 ::: tip What you will learn
 - What an AI shopping agent is and why it needs structured catalogs
 - The Model Context Protocol (MCP): hosts, clients, servers, tools and streamable HTTP
-- Google's Universal Commerce Protocol (UCP), its `/.well-known/ucp` discovery, and how Etalase's "UCP-style" profile differs from the official spec
+- Google's Universal Commerce Protocol (UCP), its `/.well-known/ucp` discovery, and how Etalase implements it as a business
 - Where AP2, A2A and schema.org Product data fit
 - Google ADK basics (`LlmAgent`, tools, `Runner`, sessions) through Etalase's two agents
 :::
@@ -103,46 +103,38 @@ The ideas you need, from the official spec (version 2026-04-08 at `ucp.dev`):
 - **Capabilities** have reverse-domain names, for example `dev.ucp.shopping.checkout`. Extensions build on them, for example `dev.ucp.shopping.fulfillment`, or `dev.ucp.shopping.ap2_mandate` for AP2.
 - **Transports.** REST (described with OpenAPI), MCP (described with OpenRPC) and A2A (described with an Agent Card).
 
-### Etalase's "UCP-style" profile
+### Etalase as a UCP business
 
-Etalase serves a profile at `/.well-known/ucp`. Its own docstring is explicit that it is **not** the official format. From **`prototype/etalase/gateway/discovery.py`**:
+Etalase serves a valid UCP profile at `/.well-known/ucp` and implements the Checkout and Fulfillment capabilities over REST at `/ucp/v1`. From **`prototype/etalase/gateway/ucp.py`**:
 
 ```python
-"""Discovery documents for agents and crawlers.
-
-- /.well-known/ucp: a simplified, UCP-style business profile pointing agents at our MCP
-  and REST endpoints. The field names here are illustrative; align them with the published
-  Universal Commerce Protocol specification before production.
-# ...
-"""
-
-def ucp_profile(ctx: "AppContext") -> dict:
+def ucp_profile(ctx):
     base = ctx.settings.public_base_url.rstrip("/")
-    return {
-        "name": "Etalase",
-        "description": "Independent Indonesian WhatsApp & Instagram sellers, shoppable by AI agents.",
-        "profile_version": "draft",
-        "services": {
-            "mcp": {"transport": "streamable-http", "endpoint": f"{base}/mcp/"},
-            "rest": {"endpoint": f"{base}/agent/v1"},
+    return {"ucp": {
+        "version": "2026-04-08",
+        "services": {"dev.ucp.shopping": [{"version": "2026-04-08", "transport": "rest",
+                                           "endpoint": f"{base}/ucp/v1", ...}]},
+        "capabilities": {
+            "dev.ucp.shopping.checkout": [{"version": "2026-04-08", ...}],
+            "dev.ucp.shopping.fulfillment": [{"version": "2026-04-08", ..., "extends": "dev.ucp.shopping.checkout"}],
         },
-        "capabilities": ["catalog.search", "catalog.get", "shipping.quote", "checkout.create", "checkout.status"],
-        "markets": [{"country": "ID", "currency": "IDR", "delivery": "domestic"}],
-        "payment_methods": ["qris"],
-        "policies": {"stock": "held for 15 minutes during checkout; some sellers confirm stock first"},
-    }
+        "payment_handlers": {},   # QRIS is paid by the buyer on continue_url, not through an instrument handler
+    }}
 ```
 
-| Aspect | Official UCP | Etalase profile today |
+| Aspect | Official UCP | Etalase today |
 |---|---|---|
 | Location | `/.well-known/ucp` | Same <Badge type="tip" text="Built" /> |
-| Top level | `ucp` object with `version`, `services`, `payment_handlers`; `signing_keys` | Flat object, `profile_version: "draft"`, no signing keys |
-| Capability names | Namespaced, e.g. `dev.ucp.shopping.checkout` | Own short names, e.g. `checkout.create` |
-| Checkout | UCP checkout capability with its schemas | Etalase's own MCP tools and REST endpoints |
-| Payments | Payment handlers, optional AP2 mandate extension | `payment_methods: ["qris"]` |
+| Profile shape | `ucp` object with `version`, `services`, `capabilities`, `payment_handlers` | Same; parsed in the tests with the official `BusinessSchema` <Badge type="tip" text="Built" /> |
+| Checkout | `dev.ucp.shopping.checkout`: create, get, update, complete, cancel | Implemented over REST; QRIS ends in `requires_escalation` with a `continue_url` <Badge type="tip" text="Built" /> |
+| Payments | Payment handlers, optional AP2 mandate extension | No handlers, no AP2 <Badge type="info" text="Roadmap" /> |
+| Other capabilities | Cart, catalog, order, discount, buyer consent | Not implemented, not advertised |
+| Signing keys, message signing | Optional | Not implemented |
+
+The full story, with the sequence diagram and the conformance results, is on [UCP checkout](/architecture/ucp).
 
 ::: warning How to say it to a judge
-"We publish a **UCP-style** discovery profile that points agents at our MCP and REST endpoints. Full UCP conformance (the official profile, the checkout capability and payment handlers) is the next step once UCP checkout reaches Indonesia; the roadmap moves it up if that happens early (`docs/11-roadmap.md`)." Do not say "Etalase is UCP-compliant" and do not claim that an unmodified UCP client can buy from it today.
+"We implement UCP's checkout and fulfillment over REST and run Google's own conformance suite against it: it passes the applicable tests and every failure is listed with its reason. We don't claim certification, since there isn't one, and we haven't tried it with AI Mode or the Gemini app." Do not say "Etalase works with Gemini" or "UCP certified".
 :::
 
 ## AP2: Agent Payments Protocol
@@ -232,7 +224,7 @@ Status: <Badge type="warning" text="Mocked in demo" />. The agent is built and r
 |---|---|---|---|
 | MCP | Main agent interface: search, shipping, checkout, status | `gateway/mcp_server.py`, `gateway/tools.py` | <Badge type="tip" text="Built" /> |
 | REST mirror | Same operations for non-MCP clients | `api/main.py` (`/agent/v1`) | <Badge type="tip" text="Built" /> |
-| UCP | Discovery profile at `/.well-known/ucp`, UCP-style | `gateway/discovery.py` | <Badge type="tip" text="Built" /> (not spec-conformant) |
+| UCP | Profile at `/.well-known/ucp` and Checkout/Fulfillment over REST | `gateway/ucp.py` | <Badge type="tip" text="Built" /> (29 of 77 official tests pass; failures explained) |
 | schema.org | JSON-LD per store | `gateway/discovery.py` | <Badge type="tip" text="Built" /> |
 | ADK + Gemini | Seller agent; demo buyer agent | `agents/seller_agent.py`, `agents/buyer_agent.py` | <Badge type="warning" text="Mocked in demo" /> |
 | Gemini structured output | Photos, voice and text to catalog JSON | `catalog/extractor.py` (`GeminiExtractor`) | <Badge type="warning" text="Mocked in demo" /> |
@@ -241,8 +233,8 @@ Status: <Badge type="warning" text="Mocked in demo" />. The agent is built and r
 
 ## Pitfalls
 
-- **Mixing up MCP and UCP.** MCP is a generic tool protocol. UCP is a commerce standard that can *use* MCP as one transport. Etalase is solid on MCP and only "UCP-style" on discovery.
-- **"Gemini will find our sellers."** Only once UCP checkout reaches Indonesia and Etalase conforms to it. Today, the proof is any MCP client, shown with the ADK buyer agent.
+- **Mixing up MCP and UCP.** MCP is a generic tool protocol. UCP is a commerce standard that can *use* MCP as one transport. Etalase serves both: its own MCP server, and UCP over REST (it does not use UCP's MCP binding).
+- **"Gemini will find our sellers."** Only once UCP checkout reaches Indonesia and a platform chooses to call us; Etalase now speaks the protocol, but that is a distribution question. Today, the proof is any MCP client, shown with the ADK buyer agent.
 - **Letting the model hold identifiers that matter.** Keep seller identity in session state, not tool arguments, for any new tool.
 
 ## Check yourself

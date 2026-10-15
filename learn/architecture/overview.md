@@ -84,7 +84,7 @@ The arrows show who calls whom. Routes stay thin: they authenticate, validate th
 |---|---|---|
 | `etalase/api/main.py` | FastAPI app: routes, webhooks, dev endpoints, request size limit, security headers, expiry loop | <Badge type="tip" text="Built" /> |
 | `etalase/api/dashboard.html` | Single-page seller dashboard served at `/` | <Badge type="tip" text="Built" /> |
-| `etalase/gateway/` | `mcp_server.py` (five MCP tools), `tools.py` (`GatewayTools`, `order_view`, `next_step` hints), `discovery.py` (UCP-style profile, schema.org JSON-LD) | <Badge type="tip" text="Built" /> |
+| `etalase/gateway/` | `mcp_server.py` (five MCP tools), `tools.py` (`GatewayTools`, `order_view`, `next_step` hints), `discovery.py` (schema.org JSON-LD), `ucp.py` (UCP profile and Checkout over REST, hosted payment page) | <Badge type="tip" text="Built" /> |
 | `etalase/catalog/` | Extraction (`GeminiExtractor`, `HeuristicExtractor`), normalisation, readiness score, sell mode, search, offline intents | <Badge type="tip" text="Built" /> (Gemini needs a key) |
 | `etalase/checkout/service.py` | Reservation, confirm-first, payment, acceptance, shipping, delivery, payout, expiry | <Badge type="tip" text="Built" /> |
 | `etalase/seller/` | `inbox.py` (every inbound WhatsApp message), `notifications.py` (events to messages), `i18n.py` (en / id) | <Badge type="tip" text="Built" /> |

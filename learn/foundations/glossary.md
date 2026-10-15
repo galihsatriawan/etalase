@@ -216,7 +216,7 @@ flowchart LR
 
 ## U
 
-**UCP (Universal Commerce Protocol).** Google's protocol, launched January 2026, that lets shoppers buy inside AI Mode and the Gemini app; merchants publish a profile at `/.well-known/ucp`. Etalase serves a simplified, UCP-style profile. [Agent gateway](/architecture/agent-gateway)
+**UCP (Universal Commerce Protocol).** Google's protocol, launched January 2026, that lets shoppers buy inside AI Mode and the Gemini app; merchants publish a profile at `/.well-known/ucp`. Etalase implements it as a business (profile, Checkout and Fulfillment over REST). [UCP checkout](/architecture/ucp)
 
 ## V
 

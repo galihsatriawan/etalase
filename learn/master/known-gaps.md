@@ -165,7 +165,7 @@ Code cannot answer these; a pilot can. Most come from `docs/10-business-model.md
 
 1. **Will sellers pay 3–5% per delivered order?** The whole model rests on it.
 2. **How many sellers track stock at all?** If few do, confirm-first fires on most orders, and buyers wait for the seller before they can pay. How long will buyers and their agents wait (the window is 60 minutes)?
-3. **When does UCP checkout reach Indonesia, and how will agents find Etalase?** Publishing `/.well-known/ucp` does not make any assistant call us. Distribution to agents (Merchant Center feed, agent directories, partnerships) is unsolved.
+3. **When does UCP checkout reach Indonesia, and how will agents find Etalase?** Publishing `/.well-known/ucp` and passing the applicable conformance tests does not make any assistant call us. Distribution to agents (Merchant Center feed, agent directories, partnerships) is unsolved.
 4. **Will the payment provider support sub-accounts and delayed release for this use case?** If not, the payout design changes (`docs/11`, "What could change the order").
 5. **Who pays the gateway's fixed fee?** Passing IDR 4,000 to the buyer may hurt conversion; absorbing it removes the margin at list price.
 6. **What is the buyer experience after payment?** Buyers do not register, and Etalase never messages them; shipping updates and refunds reach them only if their agent polls `get_checkout_status`.
@@ -210,7 +210,7 @@ Any two of: the 24-hour window is open (send a message from the seller's phone f
 **5. Why is "how will agents find Etalase?" an open product question rather than a code task?**
 
 ::: details Answer
-The code already publishes an MCP server and a UCP-style profile. Whether assistants call them depends on distribution: Merchant Center feeds, directories, partnerships and when UCP checkout reaches Indonesia. That is a go-to-market problem to test in the pilot.
+The code already publishes an MCP server and a UCP business server. Whether assistants call them depends on distribution: Merchant Center feeds, directories, partnerships and when UCP checkout reaches Indonesia. That is a go-to-market problem to test in the pilot.
 :::
 
 ## Next

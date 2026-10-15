@@ -1,0 +1,8 @@
+{
+  "test_fixtures": {
+    "valid_item": {"sku": "item_1", "expected_price": 50000.0, "quantity": 1}
+  },
+  "shipping_locations": {
+    "domestic_destination": {"street": "Jl. Dago 10", "city": "Bandung", "state": "Jawa Barat", "postal_code": "40135", "country": "ID"}
+  }
+}

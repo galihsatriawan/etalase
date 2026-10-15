@@ -1,6 +1,6 @@
 # Testing
 
-How Etalase's 82 automated tests are organised, what each file proves, how to run and extend them, and what still has to be measured before a pilot.
+How Etalase's 139 automated tests are organised, what each file proves, how to run and extend them, and what still has to be measured before a pilot.
 
 ::: tip What you will learn
 - The layout of `prototype/tests/`, the fixtures in `conftest.py` and the regression tests for fixed bugs
@@ -14,27 +14,31 @@ How Etalase's 82 automated tests are organised, what each file proves, how to ru
 
 Etalase holds stock for strangers' AI agents and decides when money moves. The dangerous bugs are not crashes but **wrong outcomes**: the last unit sold twice, a payout released on a forged webhook, an order expired after it was paid. Most tests therefore set up a race or an attack and assert on the **state** afterwards (stock counts, order status, refunds, messages sent).
 
-All tests run offline in under a second. ADR 0005 (`docs/adr/0005-adapters-and-country-packs.md`) puts every external service behind a small interface with a mock, so the suite never needs a Gemini key, WhatsApp, Xendit or Biteship.
+All tests run offline in in a couple of seconds. ADR 0005 (`docs/adr/0005-adapters-and-country-packs.md`) puts every external service behind a small interface with a mock, so the suite never needs a Gemini key, WhatsApp, Xendit or Biteship.
 
 ```bash
 cd prototype
 pip install -r requirements-dev.txt
-pytest -q          # 82 passed
+pytest -q          # 139 passed
 ```
 
 ## How the suite is organised
 
 | File | Tests | Covers |
 |---|---|---|
-| `tests/test_parsing.py` | 18 | Price parsing (`85rb`, `Rp85.000`, `price 85k`), the offline extractor in English and Indonesian, CSV import, stock and price intents, stable SKUs |
+| `tests/test_parsing.py` | 23 | Price parsing (`85rb`, `Rp85.000`, `price 85k`, `1,2jt`), Gemini colours normalised to the parser's ("Hitam" is "Black"), the offline extractor in English and Indonesian, CSV import, stock and price intents, stable SKUs |
 | `tests/test_checkout.py` | 9 | Instant order end to end (paid, accepted, shipped, delivered, paid out), confirm-first, seller sold out, refund after payment, expiry, domestic-only, KYC gate, tenant isolation, gateway errors as data |
 | `tests/test_stock.py` | 6 | The 100-way oversell race, idempotent commit, release and restock, cross-seller `set_stock`, sell-mode rules, chat stock blocked for OMS sellers |
 | `tests/test_instagram.py` | 4 | Posts to drafts, non-product posts skipped, idempotent re-import, imported products searchable, minimal OAuth scope |
 | `tests/test_security.py` | 24 | Startup checks, OTP abuse, signed state, payment races, payout safety, input limits, media paths, webhook dedupe, SSRF, stale writes |
 | `tests/test_api.py` | 12 | The HTTP layer through FastAPI's `TestClient`: discovery, WhatsApp webhook, Connector key, MCP tool list, OpenAPI, `/dev` protection, webhook tokens, Meta signature, CSP and media route, oversized input |
 | `tests/test_regressions.py` | 9 | Bugs found while writing this guide, each with the test that failed before the fix: transaction retries, purpose-bound signatures, "Which product?", late Available taps, OMS-owned stock, short titles and plural search, shipment status never going backwards, unknown couriers |
+| `tests/test_ucp.py` | 16 | Etalase as a real UCP business server: the profile validates against the official `ucp-sdk` schema, a full checkout (create, update, complete, cancel) with every response validated by the SDK's `Checkout` model, idempotency, closed sessions, protocol errors, escaping, sold-out and confirm-first orders |
+| `tests/test_doctor.py` | 12 | The setup doctor: each service reports skip, ok or fail with a fix hint, with the network mocked; no key value is ever printed |
+| `tests/test_evals.py` | 17 | The extraction eval's scoring (title tokens, effective prices, invented price/stock/product counters, question behaviour), so the number on the slide is trustworthy |
+| `tests/test_scripts.py` | 7 | `scripts/env_to_cloud.py` and the deploy script's dry run: secrets travel on stdin only, unchanged secrets get no new version, nothing leaks into output |
 
-The parametrised tests in `test_parsing.py` count once per case, which is why 7 functions make 18 tests.
+The parametrised tests in `test_parsing.py` count once per case, which is why 8 functions make 23 tests.
 
 ```mermaid
 flowchart LR
@@ -261,7 +265,7 @@ The emulator keeps data between tests, so clear it in the fixture (the emulator 
 
 **Live providers.** Put them behind a marker and an environment check, run them by hand or nightly with test-mode keys, never in the default run: `@pytest.mark.skipif(not os.getenv("XENDIT_SECRET_KEY"), reason="needs Xendit test keys")`. Register the marker in `pyproject.toml` and select with `pytest -m live`.
 
-**Gemini evals.** Accuracy is a score, not a pass/fail, so it belongs in an evaluation script rather than pytest. `docs/12` plans two data sets: `eval/catalog/` (50 photo sets with expected structured output, scored field by field) and `eval/seller_messages.jsonl` (100 real seller messages with expected intents). The offline parser can be scored on the same message file today, which gives a baseline for the agent.
+**Gemini evals.** Accuracy is a score, not a pass/fail, so it lives in an evaluation script rather than pytest: `prototype/evals/` holds 43 labelled seller messages (`extraction_cases.jsonl`, Indonesian and English, including hard ones: sold-out lines, several products in one message, "1,2jt" prices, missing prices that must trigger a question) and `run_eval.py`, which scores a case only when every field is right, nothing is invented and the extractor asks when it should. `make eval-baseline` scores the offline rules (49% today, which is why Gemini is in the product); `make eval` adds Gemini when a key is set and writes `evals/results/latest.md`. The scoring itself is unit-tested in `tests/test_evals.py`. **The Gemini number has not been produced yet**: it needs a key, so do not quote one until you have run it. Photo sets (`eval/catalog/` in `docs/12`) and the 100-message intent set are still to do.
 
 ## The benchmark plan
 
@@ -273,7 +277,7 @@ From `docs/12-benchmark-plan.md`:
 | Duplicate and late payments | `test_checkout.py`, `test_security.py` | No double stock change; late payment refunded | Passing |
 | Payment vs expiry race | `test_security.py` | Exactly one wins | Passing |
 | Webhook and sign-in abuse | `test_security.py`, `test_api.py` | Rejected | Passing |
-| Catalog extraction accuracy | 50 labelled products through Gemini | 90%+ fields correct | To run on Vertex AI |
+| Catalog extraction accuracy | 43 labelled messages (`make eval`); photo sets next | 90%+ fields correct | Offline rules 49%; Gemini run needs a key |
 | Catalog build time | Photos and voice to published product | Under 15 s | To run |
 | Agent tool latency | p95 of `search_products`, `create_checkout` on Cloud Run | Under 2 s | To run |
 | Seller alert speed | Payment webhook to WhatsApp message | Under 5 s | To run |

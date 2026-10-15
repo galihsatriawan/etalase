@@ -135,7 +135,7 @@ In Q&A, open this page, find the card, read the quote, then give the "If a judge
 - **Where:** `docs/01`, README. **Data year:** 2026.
 - **Source:** [Google blog](https://blog.google/products/ads-commerce/agentic-commerce-ai-tools-protocol-retailers-platforms/) · [InfoQ](https://infoq.com/news/2026/01/google-agentic-commerce-ucp)
 - **Note:** Google's own post does not name NRF; InfoQ does.
-- **If a judge asks** "What is UCP exactly?": "Google's open standard for agent checkout, launched in January 2026 and co-developed with Shopify, Etsy, Wayfair, Target and Walmart. Etalase exposes a UCP-style profile and an MCP server."
+- **If a judge asks** "What is UCP exactly?": "Google's open standard for agent checkout, launched in January 2026 and co-developed with Shopify, Etsy, Wayfair, Target and Walmart. Etalase answers the UCP checkout over REST and also serves an MCP server."
 
 ### 13. UCP works over REST, A2A and MCP, with AP2 for payments, and a profile at /.well-known/ucp <Badge type="tip" text="Verified" />
 
@@ -146,8 +146,8 @@ In Q&A, open this page, find the card, read the quote, then give the "If a judge
 > "a standard JSON manifest located at /.well-known/ucp"
 
 - **Data year:** 2026. **Source:** [Google Developers Blog, 11 Jan 2026](https://developers.googleblog.com/en/under-the-hood-universal-commerce-protocol-ucp/) · [UCP specification overview](https://ucp.dev/2026-04-08/specification/overview/) (lists REST via OpenAPI, MCP via OpenRPC, A2A via Agent Card, and "supports the AP2 Mandates Extension")
-- **Honesty note:** Etalase's `/.well-known/ucp` is "UCP-style", not a certified UCP implementation, and AP2 is roadmap.
-- **If a judge asks** "Are you UCP compliant?": "Our profile follows UCP's discovery shape and our MCP server is live. Full UCP compliance and Merchant Center are planned for when checkout reaches Indonesia."
+- **Honesty note:** Etalase implements the UCP Checkout and Fulfillment capabilities over REST (spec 2026-04-08) and runs Google's conformance suite against them: 29 of 77 tests pass, and each of the 22 failures is explained ([UCP checkout](/architecture/ucp)). There is no UCP certification, nothing has been tried with Google's own surfaces, and AP2 is roadmap.
+- **If a judge asks** "Are you UCP compliant?": "We implement UCP's checkout and fulfillment over REST and run Google's own conformance suite against it. It passes discovery, idempotency, totals and the fulfillment flow, and fails 22 tests that assume card payment, order or discount capabilities we do not offer, or the sample server's test hooks. Every failure is listed with its reason. We don't claim certification, and we have not tried it with AI Mode."
 
 ### 14. Co-developed with Shopify, Etsy, Wayfair, Target and Walmart <Badge type="tip" text="Verified" />
 
@@ -460,7 +460,7 @@ These are the facts as reported by the sources on the dates shown. Indonesian ru
 | "WhatsApp replies are free" | Sources conflict since 1 Oct 2026 | Claim 28 |
 | "Big retailers are agent-ready by default" | PYMNTS: 19% of large merchants | Claim 11 wording |
 | Settlement "T+7" | Xendit documents T+2 business days for QRIS | Claim 32 |
-| Catalog accuracy, build time, latency results | Deck lists them as TBD | Only "82 automated tests pass" and the in-memory race result |
+| Catalog accuracy, build time, latency results | Deck lists them as TBD | Only "139 automated tests pass" and the in-memory race result |
 | Number of Indonesian e-commerce businesses | Databoks cites "approximately 3.81 million e-commerce businesses in Indonesia in 2024", but the deck does not use it | If you add it, cite it as a 2024 BPS estimate via Databoks |
 
 ## Link check log (10 October 2026)

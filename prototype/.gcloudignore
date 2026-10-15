@@ -8,3 +8,10 @@ __pycache__/
 *.pyc
 .git/
 .gitignore
+.ucp-work/
+.venv/
+evals/
+ucp_conformance/
+scripts/
+.env.*
+!.env.example

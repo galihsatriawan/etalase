@@ -1,8 +1,6 @@
 """Discovery documents for agents and crawlers.
 
-- /.well-known/ucp: a simplified, UCP-style business profile pointing agents at our MCP
-  and REST endpoints. The field names here are illustrative; align them with the published
-  Universal Commerce Protocol specification before production.
+- /.well-known/ucp lives in gateway/ucp.py (the real Universal Commerce Protocol profile).
 - /stores/{seller_id}/products.jsonld: schema.org Product data per store (also the basis
   for a Merchant Center feed).
 """
@@ -13,23 +11,6 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from ..container import AppContext
-
-
-def ucp_profile(ctx: "AppContext") -> dict:
-    base = ctx.settings.public_base_url.rstrip("/")
-    return {
-        "name": "Etalase",
-        "description": "Independent Indonesian WhatsApp & Instagram sellers, shoppable by AI agents.",
-        "profile_version": "draft",
-        "services": {
-            "mcp": {"transport": "streamable-http", "endpoint": f"{base}/mcp/"},
-            "rest": {"endpoint": f"{base}/agent/v1"},
-        },
-        "capabilities": ["catalog.search", "catalog.get", "shipping.quote", "checkout.create", "checkout.status"],
-        "markets": [{"country": "ID", "currency": "IDR", "delivery": "domestic"}],
-        "payment_methods": ["qris"],
-        "policies": {"stock": "held for 15 minutes during checkout; some sellers confirm stock first"},
-    }
 
 
 def schema_org_products(ctx: "AppContext", seller_id: str) -> list[dict]:

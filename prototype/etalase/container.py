@@ -12,7 +12,7 @@ from .adapters.shipping import BiteshipShipping, MockShipping, ShippingProvider
 from .catalog.extractor import GeminiExtractor, HeuristicExtractor
 from .catalog.service import CatalogService
 from .checkout.service import CheckoutService
-from .config import Settings, get_settings
+from .config import Settings, export_google_env, get_settings
 from .events import EventBus
 from .store import Store, build_store
 
@@ -48,6 +48,7 @@ def build_context(settings: Settings | None = None, echo_messages: bool = False)
     from .seller.inbox import SellerInbox
 
     s = settings or get_settings()
+    export_google_env(s)
     events = EventBus()
     store = build_store(s.store_backend, s.google_cloud_project)
 

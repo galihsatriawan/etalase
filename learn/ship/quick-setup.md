@@ -19,7 +19,7 @@ make eval      # extraction accuracy: offline rules, plus Gemini when a key is s
 PROJECT_ID=my-project make deploy   # Cloud Run from your .env; `make deploy-dry` prints the plan only
 ```
 
-`make help` lists the rest (demo, run, UCP conformance, building this site).
+`make e2e` plays the whole story over real HTTP against a server it starts itself, so you can see it work before any key is filled in. `make help` lists the rest (demo, run, UCP conformance, building this site).
 
 ## What to fill in
 

@@ -20,3 +20,9 @@ jobs:
       - run: pip install -r requirements-dev.txt
       - run: pytest -q
       - run: python scripts/demo.py
+      - name: End to end over real HTTP (own server, mock adapters)
+        run: python scripts/e2e_http.py
+      - name: Offline setup doctor and extraction baseline
+        run: |
+          python -m etalase.doctor --offline
+          python -m evals.run_eval --extractor heuristic

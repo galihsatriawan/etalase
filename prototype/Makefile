@@ -2,7 +2,7 @@
 VENV := .venv
 PY   := $(if $(wildcard $(VENV)/bin/python),$(VENV)/bin/python,python3)
 
-.PHONY: help setup doctor doctor-offline eval eval-baseline test demo run deploy deploy-dry ucp-conformance ucp-reference ucp-server academy
+.PHONY: help setup doctor doctor-offline eval eval-baseline test demo run e2e deploy deploy-dry ucp-conformance ucp-reference ucp-server academy
 
 help:            ## list the targets
 	@grep -E '^[a-z-]+:.*##' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  make %-18s %s\n", $$1, $$2}'
@@ -27,6 +27,9 @@ test:            ## unit tests (no network, no keys)
 
 demo:            ## the whole flow in the terminal on mock services
 	$(PY) scripts/demo.py
+
+e2e:             ## the whole story over real HTTP: starts the app, then seller, agent (UCP and MCP), payment, shipping, payout
+	$(PY) scripts/e2e_http.py
 
 run:             ## API on http://localhost:8080 (reads .env)
 	$(PY) -m uvicorn etalase.api.main:app --reload --port 8080

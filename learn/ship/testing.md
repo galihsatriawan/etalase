@@ -56,6 +56,10 @@ flowchart LR
 
 Most tests call services directly (unit and integration level). Only `test_api.py` goes through HTTP.
 
+## End to end over real HTTP: `scripts/e2e_http.py`
+
+The pytest suite uses FastAPI's in-process `TestClient`. `make e2e` goes further: it starts the real app with `uvicorn` on a free port, in a clean environment with no `.env`, and plays the whole story over sockets: the seller builds a catalog on WhatsApp, an agent finds it over REST, buys it over UCP (profile, create, update, courier choice, complete, hosted QRIS page), the payment webhook fires, the seller accepts and ships on WhatsApp, the courier webhook delivers, the payout is released, and a second agent sees the shop over MCP with the real client library. It fails on the first wrong step and runs in CI. It uses the mock adapters, so it proves our own wiring, not Meta, Xendit, Biteship or Gemini.
+
 ## Fixtures: `conftest.py`
 
 **`prototype/tests/conftest.py`**

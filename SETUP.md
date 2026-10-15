@@ -123,6 +123,7 @@ Needed only to import a seller's real posts. The bundled sample posts already sh
 | `make eval` / `make eval-baseline` | catalog extraction accuracy (offline rules; plus Gemini when a key is set) |
 | `make test` | the unit-test suite, no network, no keys |
 | `make demo` | the whole flow in the terminal on mock services |
+| `make e2e` | the same story over real HTTP: starts the app, then seller on WhatsApp, an agent over UCP and MCP, payment, shipping, payout |
 | `make run` | API on `http://localhost:8080` (reads `.env`) |
 | `make deploy` / `make deploy-dry` | Cloud Run deploy using `.env` / print the plan only |
 | `make ucp-conformance` | Google's official UCP conformance suite against Etalase (needs `git`, `uv`, network) |

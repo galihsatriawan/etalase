@@ -164,7 +164,7 @@ Create all three before re-running: `validate_settings` refuses to start with a 
         resp = httpx.post(f"{self.BASE}/qr_codes", headers=headers, timeout=15, json=body)
 ```
 
-**Concepts.** **QRIS** is Indonesia's national QR payment standard: any banking or e-wallet app can pay a QRIS code. A **dynamic** QR encodes one amount for one order. **xenPlatform** is Xendit's product for platforms: each seller gets a **sub-account**, and the `for-user-id` header makes the payment land in that sub-account, so Etalase never holds the money (`docs/adr/0003-never-hold-funds.md`; see [Checkout and orders](/architecture/checkout-and-orders)).
+**Concepts.** **QRIS** is Indonesia's national QR payment standard: any banking or e-wallet app can pay a QRIS code. A **dynamic** QR encodes one amount for one order. **xenPlatform** is Xendit's product for platforms: each seller gets a **sub-account**, and the `for-user-id` header makes the payment land in that sub-account, so buyer payments never land in an Etalase account (`docs/adr/0003-never-hold-funds.md`; whether Xendit can enforce the payout hold is unconfirmed; see [Checkout and orders](/architecture/checkout-and-orders)).
 
 **Provider setup (verify against the provider docs):**
 

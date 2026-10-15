@@ -225,13 +225,13 @@ A 3–5% commission (4% in the prototype, `COMMISSION_RATE`), excluding VAT, cha
 **33. What is the estimated platform cost per order in the pilot, and which component dominates it?**
 
 ::: details Answer
-About IDR 2,000–3,500 per order. WhatsApp messages are most of it (about IDR 1,460–1,840 for about four utility messages); cloud and Gemini make up the rest. See [Business model and costs](/business/business-model).
+About IDR 2,900–5,100 per order in our estimate. WhatsApp messages are most of it: since 1 October 2026 Meta's newer documentation charges in-window replies, so 7–9 charged messages cost IDR 2,535–4,140; cloud and Gemini make up the rest. On top, per-seller fixed costs (a possible Rp25,000 a month xenPlatform account fee, Biteship Rp149,000 a month) mean a pure 4% commission is comfortable only above roughly 20 orders per seller per month. See [Business model and costs](/business/business-model).
 :::
 
-**34. Why is "Etalase never holds funds" a design decision and not just a slogan?**
+**34. Why is "Etalase does not receive buyer payments in its own account" a design decision, and what do we not claim?**
 
 ::: details Answer
-Holding and forwarding other people's money is a regulated payment activity in Indonesia (to verify with counsel). So payments go to the seller's sub-account at a licensed provider, and Etalase only instructs when to release and how to split the commission; KYC and bank details live at the provider (ADR 0003). In code, `refund` and `release_to_seller` are provider calls, not ledger moves. See [Checkout and orders](/architecture/checkout-and-orders).
+Holding and forwarding other people's money is a regulated payment activity in Indonesia (to verify with counsel). So payments go to the seller's sub-account at a licensed provider, and Etalase instructs when to release and how to split the commission; KYC and bank details live at the provider (ADR 0003). In code, `refund` and `release_to_seller` are provider calls, not ledger moves. We do **not** claim "Etalase never holds funds" as a legal conclusion, "Xendit holds the money for us" (no Xendit page documents a platform-controlled hold), or that the activity is cleared by regulators (PBI 23/6/PBI/2021 lists disbursement to goods and services providers as a payment-service activity). See [Checkout and orders](/architecture/checkout-and-orders).
 :::
 
 **35. Multiple choice. Why does Etalase use Xendit, not Stripe, in Indonesia?**
@@ -244,7 +244,7 @@ Holding and forwarding other people's money is a regulated payment activity in I
 **36. Name three of the four assumptions `docs/10` says to validate first.**
 
 ::: details Answer
-Sellers' willingness to pay 3–5% per order; the share of sellers who track stock at all; when UCP checkout reaches Indonesia; payment-provider support for sub-accounts and delayed release. See [Business model and costs](/business/business-model) and [Known gaps](/master/known-gaps).
+Sellers' willingness to pay 3–5% per order (and commission versus minimum fee versus subscription); orders per seller per month and the share who track stock at all; when UCP checkout reaches Indonesia; payment-provider support for sub-accounts and delayed release (the gating one). See [Business model and costs](/business/business-model) and [Known gaps](/master/known-gaps).
 :::
 
 ## Evidence
@@ -252,19 +252,19 @@ Sellers' willingness to pay 3–5% per order; the share of sellers who track sto
 **37. State the BPS chat-commerce number correctly, including its nuance.**
 
 ::: details Answer
-95.33% of Indonesian e-commerce businesses sell through instant messaging apps such as WhatsApp; 17.80% use marketplaces and 1.77% a website (BPS, *E-Commerce Statistics 2023*, published January 2025). Businesses can use several channels, so it means "use chat", not "sell only via chat". See [Evidence and sources](/business/evidence).
+95.33% of Indonesian e-commerce businesses use instant messaging apps such as WhatsApp to sell; 17.80% use marketplaces and 1.77% a website (BPS, *E-Commerce Statistics 2023*, 40,011 businesses, published January 2025). Businesses can use several channels and the survey counts any business that took orders online, so it means "chat is the default inbox", not "sell only via chat" and not "95% have no store system". See [Evidence and sources](/business/evidence).
 :::
 
 **38. Is UCP agent checkout live in Indonesia? Give the honest status by country.**
 
 ::: details Answer
-No. Live in the US (February 2026); started with select retailers in Australia (June 2026), while Google's own pages still call checkout US-only and place the self-serve hub in Australia in 2027; a limited Flipkart test in India (September 2026); Indonesia was named as a future market in January 2026, with no date known. See [Evidence and sources](/business/evidence).
+No. Live in the US (February 2026); started with select retailers in Australia (June 2026), while Google's own pages still call checkout US-only and place the self-serve hub in Australia in 2027; a limited Flipkart test in India (September 2026); one trade report (InfoQ, January 2026, not a Google quote) says Indonesia is next, with no date known. In Indonesia AI discovery is live but we found no agent checkout and no agent-initiated purchase. See [Evidence and sources](/business/evidence).
 :::
 
 **39. What is the QRIS fee situation for a typical Etalase order of IDR 170,000 since 1 October 2026?**
 
 ::: details Answer
-For a micro merchant, the QRIS MDR is 0% for transactions up to Rp500,000 (and 0% for all merchants up to Rp100,000). The gateway may still add a fixed fee; Xendit lists IDR 4,000 per transaction, which the pilot shows to the buyer as a payment fee. See [Evidence and sources](/business/evidence).
+The QRIS MDR is 0% for all merchants up to Rp100,000 and for micro merchants up to Rp500,000. A IDR 170,000 order is above the first threshold, so it is 0% only if the gateway classifies the seller as micro (the BI release does not define it); otherwise it is 0.7%, IDR 1,190. The gateway may also add a fixed fee: Xendit's global list shows IDR 4,000, unconfirmed for Indonesian contracts, which the pilot plan shows to the buyer as a payment fee. See [Evidence and sources](/business/evidence).
 :::
 
 **40. Which benchmark results can you claim today, and which are still TBD?**

@@ -48,7 +48,7 @@ stateDiagram-v2
 
 ## Money flow
 
-Etalase never holds seller funds ([ADR 0003](adr/0003-never-hold-funds.md)).
+Etalase does not receive buyer payments in its own bank account: money sits in the seller's sub-account at the payment provider and Etalase instructs the release ([ADR 0003](adr/0003-never-hold-funds.md)). Whether the provider can enforce the hold, and how the activity is classified, are not yet confirmed.
 
 ```
 Buyer ──QRIS──► Payment provider (seller's sub-account)

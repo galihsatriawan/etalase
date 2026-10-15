@@ -13,15 +13,17 @@ Customer and Business Experiences**.
 
 ## Why
 
-- AI assistants started buying for people in 2026 (Google's Universal Commerce Protocol, AP2, MCP).
-  Agents only see **structured catalogs**.
+- AI shopping is arriving in 2026 (Google's Universal Commerce Protocol, AP2, MCP), but real checkout inside an assistant is still narrow:
+  live in the US, started in Australia, and in Indonesia only discovery so far. Agents only see **structured catalogs**, so a seller who
+  has none is invisible to them.
 - Southeast Asia's e-commerce reached about **US$185B in 2025**, and buying through chat apps is
-  normal here (WhatsApp, LINE, Zalo, Messenger). In Indonesia, **95% of online businesses sell through
-  chat apps and only 18% use marketplaces** (BPS, 2023 data).
-- Only **11% of small and mid-size merchants** are agent-ready, and small sellers keep their catalogs
+  normal here. In Indonesia, **95% of e-commerce businesses use messaging apps to sell and 18% use marketplaces**
+  (BPS, 2023; businesses can use several channels, so this shows chat is the default order inbox, not that 95% lack a store system).
+- Only **11% of small and mid-size merchants** are agent-ready (a global vendor survey), and small sellers keep their catalogs
   in photos, captions and chats, which agents cannot read.
-- Marketplaces bring sellers to AI agents only inside their own ecosystem and fees. Sellers want a
-  channel of their own.
+- Marketplaces bring sellers to AI agents only inside their own ecosystem and fees, and WhatsApp's own business AI is moving into
+  the conversation. We did not find a tool that builds the catalog from photos and voice notes or holds the payout through a return window.
+  Whether sellers will pay for that is not yet tested.
 
 Every number has a source and a quote in [Evidence and sources](docs/15-evidence.md).
 

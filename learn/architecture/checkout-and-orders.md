@@ -18,7 +18,7 @@
 - **Webhook.** The provider calls our URL when something happens ("paid", "delivered"). Providers retry, so the same event may arrive twice. Handlers must be **idempotent**: the second delivery changes nothing.
 - **Retry-safe callback.** Firestore runs a transaction function again when another write conflicts with it. Any code inside the callback may therefore run more than once, and only the last run counts. Callbacks must not leave traces of earlier runs behind.
 - **Confirm-first.** When stock is uncertain, the seller confirms before the buyer gets a payment code. No money is taken for an item that may not exist.
-- **Never hold funds** (ADR 0003, `docs/adr/0003-never-hold-funds.md`). Money goes to the seller's sub-account at the provider. Etalase only tells the provider when to release it and how much commission to split off.
+- **No buyer payments in Etalase's own account** (ADR 0003, `docs/adr/0003-never-hold-funds.md`). Money goes to the seller's sub-account at the provider. Etalase tells the provider when to release it and how much commission to split off. This is a design statement, not a legal conclusion: whether the provider can enforce the hold and how the activity is classified are unconfirmed.
 
 | Part | Status |
 |---|---|

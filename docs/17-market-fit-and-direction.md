@@ -1,8 +1,10 @@
 # 17. Market fit and direction
 
-Written on 2026-10-15 after re-checking the market and competitor claims behind the idea. Every fact below is labelled
+Written on 2026-10-15 after re-checking the market and competitor claims behind the idea, and revised on 2026-10-16 after a deeper review of competitors, sellers and buyers, agent adoption in Indonesia and platform economics. Every fact below is labelled
 **verified** (read on the source's own page on that date), **partly** (read, with a caveat) or **unverified**. Sources and quotes are in
-[doc 15](15-evidence.md). This is not legal or investment advice.
+[doc 15](15-evidence.md). All pages were read through a summarising fetch tool; items marked KEY in doc 15 must be re-opened in a browser before they are quoted. This is not legal or investment advice.
+
+**Verdict of the 16 October review.** The background (chat-first Indonesian sellers) **holds with corrections**: the BPS 95.33% is a floor effect of a wide definition, not a count of sellers without a store system. The objective (catalog from photos, a QRIS store link, agent access, orders in the seller's chat) **holds in a narrower form**: Meta Business Agent and Mayar already cover much of "AI plus WhatsApp plus catalog plus pay". The commercial goal (4% commission with a payout hold) **does not hold as it stands**: per-seller fixed costs make a pure commission comfortable only above about 20 orders per seller per month, and the hold is not documented at the payment provider.
 
 ## The question
 
@@ -13,9 +15,9 @@ Not "does the idea fit our code", but: **is the idea still relevant to the Indon
 Yes, but narrower than the first pitch, and with a different centre of gravity.
 
 - The problem is real and large: Indonesian online sellers work in chat apps, with catalogs in photos and voice notes (BPS 2023, verified).
-- Tools already exist for the seller's own human customers (cshub, Jubelio, others). We did not find one on its own pages that offers an
-  **agent-facing storefront** (MCP, UCP) built from a seller's photos. That is our difference, and it is only valuable if agents or
-  agent-like channels send buyers. Today they barely do in Indonesia.
+- Tools already exist for the seller's own human customers. The closest are **Mayar** (storefront, QRIS, couriers, a merchant-side MCP server) and **cshub** (AI orders, Biteship, Midtrans QRIS), and **Meta Business Agent** is moving into the
+  WhatsApp conversation for free. We did not find a competitor page that builds a catalog from a seller's photos and voice notes, or one that offers a payout hold with returns. Those two are our difference (on marketing pages, not tested products), and the
+  agent door is only valuable if agents or agent-like channels send buyers. Today there is no measured agent purchase in Indonesia.
 - So the value we can **prove today** is on the seller side (catalog from photos, stock, orders, QRIS, couriers, payouts) and on **trust**
   (payout hold, returns, a visible policy). The agent side is an option on the future, not the revenue plan.
 
@@ -23,23 +25,30 @@ Yes, but narrower than the first pitch, and with a different centre of gravity.
 
 | Topic | Fact | Status |
 |---|---|---|
-| Channels | 95.33% of Indonesian e-commerce businesses sell through instant messaging, 33.29% on social media, 17.80% on marketplaces, 1.77% on websites (BPS, E-Commerce Statistics 2023, via Databoks). Businesses use several channels | **Verified** (secondary pages; the PDF table was not opened) |
-| WhatsApp today | GoodStats (26 Mar 2026) names WhatsApp the most used social platform for selling in 2026 | **Partly** (headline page, numbers not read) |
+| Channels | 95.33% of Indonesian e-commerce businesses use instant messaging to sell, 33.29% social media, 17.80% marketplaces, 1.77% websites (BPS, E-Commerce Statistics 2023, via Databoks; 40,011 businesses; multiple answers). The base is any business that took orders over the internet, so chat is the default inbox; it does **not** show that 95% have no store system, and the overlap with marketplaces is not published. The 2024 edition exists and its channel table is unread | **Verified** as a number (secondary pages; the PDF table was not opened); **partly** as evidence of the segment |
+| WhatsApp today | GoodStats × Jakpat (26 Mar 2026, n=1,387): WhatsApp used for selling by 72% of Gen Z, 80% of Millennials, 78% of Gen X; the base (all respondents or about 360–371 business owners) is not stated | **Partly** (numbers read on the second pass, base unclear) |
+| Buyer side | Populix 2022: WhatsApp 21% of social-buying channels against TikTok Shop 45%; TikTok Shop live use up 39% year on year in Q1 2026 | **Partly** (2022 buyer data); the realistic profile is "WhatsApp plus one social channel" |
+| Segment size | Funnel: 65 million MSMEs, 12.2 million on e-commerce platforms, 3.8–4.4 million e-commerce businesses (BPS versions); chat-first product sellers have no number | **Unverified**; seller interviews have to size it |
 | Marketplace share | A GoodStats × Jakpat survey (Feb 2026, 371 business owners) and an INDEF survey list marketplaces but not WhatsApp, so they cannot size chat commerce | **Partly**; earlier percentages we quoted from them were wrong and are withdrawn |
-| UCP in Indonesia | Google named Indonesia as a future market in January 2026 (InfoQ). Google's May 2026 post and the October 2026 Merchant Center news do not mention Indonesia. Checkout is US-only on Google's own pages; Australia started with select retailers in June (Ragtrader) and the self-serve hub is expected there in 2027 (PPC Land, 7 Oct 2026) | **Verified**; no date for Indonesia is known |
-| Agent buyers | Forecasts exist for the US (Morgan Stanley); we found no figure for Indonesian consumers buying through agents | **Unverified** for Indonesia |
+| UCP in Indonesia | One trade report (InfoQ, January 2026) says UCP will expand to markets including Indonesia; that is InfoQ's narration, not a Google quote, and Google's own pages do not name Indonesia. Checkout is US-only on Google's own pages; Australia started with select retailers in June (Ragtrader) and the self-serve hub is expected there in 2027 (PPC Land, 7 Oct 2026). UCP's payment handler is Google Pay (cards), not QRIS | **Partly**; no date for Indonesia is known |
+| Agent buyers | Forecasts exist for the US (Morgan Stanley). In Indonesia AI **discovery** is live (Google AI Mode in Indonesian since Sep 2025, AI shopping from Mar 2026, Shopee in ChatGPT since Jun 2026) but we found no agent checkout and no report of an agent-initiated purchase. OpenAI scaled back its checkout in Mar 2026; Visa Agentic Ready excludes Indonesia; surveys show people accept AI for searching and comparing but not for deciding and paying | **Unverified** for Indonesian purchases; discovery is **verified** |
+| Agent discovery of our server | No source shows consumer assistants finding sellers' MCP servers automatically; Shopify's own storefront MCP needs a registered agent profile. Our MCP door works for agents that their owner connects to our URL | **Partly** |
 | cshub | AI customer service that creates orders inside WhatsApp; Starter Rp300,000 a month; no mention of agent storefronts, payout holds or returns on the page | **Verified** as a statement about the page |
 | Jubelio | Order and stock system, Rp150 per order, many channels | **Verified** as a statement about the page |
-| Qontak, Mayar, Ginee, Sirclo | Prices and features from earlier research | **Unverified**, not to be quoted |
+| Mayar | Starter Rp0 per month with 3% platform fee on physical goods plus 0.7% QRIS; Business Rp349,000; storefront, catalog, checkout, QRIS, courier pickup; a merchant-side MCP server with 65 tools; "149,969+ businesses joined" is a vendor claim; no escrow or hold documented | **Verified** as a statement about the pages. The closest fast follower |
+| Meta Business Agent / WhatsApp Business AI | An AI sales agent that answers customers, recommends products from the catalog and "closes sales"; the press reports an Indonesian launch on 11 Aug 2026; pricing and payment support in Indonesia are not confirmed. On the pages we read it does not build a catalog from photos, run QRIS checkout or expose the catalog to third-party agents | **Partly**; strongest threat on the conversation side |
+| Qontak, Ginee, Sirclo, Cekat.ai, Lincah/Orderfaz, DOKU MCP | Qontak Rp2–3.5 million a month from 5 users (the old "Rp400,000 per user" is withdrawn); Ginee annual plans Rp11.2–16.7 million (partner page); Cekat "3,000+ businesses" (vendor claim); Lincah acquired Orderfaz in Nov 2025; DOKU's MCP server has a QRIS tool (still early) | **Partly**; see doc 15 |
 | Seller willingness to pay 3–5% and to wait 3–7 days for the payout | No data. We have not spoken to sellers | **Unverified** and the largest gap |
 | Return rates of WhatsApp sellers | No data | **Unverified** |
-| Xendit holding a seller balance for the hold; automatic refunds | Xendit's own pages disagree on QRIS refunds (7 vs 30 days, partial or not) | **Unverified** |
+| Xendit holding a seller balance for the hold; automatic refunds | No Xendit page documents a platform-controlled hold; in Indonesia auto-withdrawal can be changed but not paused; Xendit's pages give three versions of the QRIS refund rules | **Unsupported**; the gating question for the hold |
+| Unit economics | Per order: WhatsApp Rp2,535–4,140 (since 1 Oct 2026 in-window replies are charged, per Meta's newer page), AI Rp90–380, cloud Rp160–480; per seller: possible xenPlatform fee Rp25,000 per active account per month, Biteship Grow Rp149,000 per month from 2 Nov 2026. Against a Rp6,800 commission the margin is negative at 4 orders per seller and positive only above about 20 | **Partly**: our arithmetic from unconfirmed inputs ([doc 10](10-business-model.md)) |
+| Legal classification of the hold | PBI 23/6/PBI/2021 lists disbursement to goods and services providers among payment-service activities; TikTok Shop Tokopedia's withheld seller funds drew parliamentary attention in 2026 | **Unverified**; needs counsel |
 
 ## Does Etalase need UCP in Indonesia to be useful?
 
-No. UCP is one door. The same catalog and checkout are open through MCP and REST to any agent, and the seller side works without any agent.
+No. UCP is one door, and today an exercise in following a specification: Google's checkout is US-only and takes cards through Google Pay, not QRIS. The same catalog and checkout are open through MCP and REST to an agent that its owner connects to our server (there is no automatic discovery), and the seller side works without any agent.
 
-That was the real gap in "usable now": a buyer could only arrive through an agent (MCP, REST or UCP), more than UCP timing. **It is now closed**: every
+That was the real gap in "usable now": a buyer could only arrive through an agent (MCP, REST or UCP), more than UCP timing. **It is now closed** in the prototype: every
 seller has a public store link (`/stores/{id}`) where a person sees the catalog and the return policy, buys, pays with QRIS and follows the order, and agents read the
 same page. See [doc 02](02-product.md#2b-buying-without-an-agent-the-store-link) and [doc 09](09-security-privacy-compliance.md). Whether anyone uses it is still unmeasured.
 
@@ -63,8 +72,11 @@ Not changed, on purpose: one core with MCP, REST and UCP doors; WhatsApp as the 
 | Item | Why | Cost | Risk if skipped |
 |---|---|---|---|
 | **Public store link** for buyers (people and agents on the same page), shareable in an Instagram bio or a WhatsApp status; orders still land in WhatsApp | Closes the real gap: usable without an agent | **Built** (2026-10-15): catalog, buy form, QRIS page, order status, return form; server-rendered HTML; found and fixed a form-post bug in a real browser | Demand depends on agents that barely exist in Indonesia; people-demand is unmeasured |
-| **One combined WhatsApp reply per photo burst**, plus a usage meter | Cost: each extra WhatsApp message and Gemini call comes out of a 4% commission | Small | Margin disappears for chatty sellers |
-| **`Order.channel`** (`mcp`, `rest`, `ucp`, later `web`) | Lets us measure which door sends buyers; needed for any claim about demand | Small | We cannot show where orders came from |
+| **One combined WhatsApp reply per photo burst**, plus a usage meter that counts charged messages per order | Cost: since 1 Oct 2026 each charged WhatsApp message (Rp357–460) and each Gemini call comes out of a Rp6,800 commission | Small | Margin disappears for chatty sellers. **Review recommends making this a priority; awaiting the product owner's decision, not built** |
+| **`Order.channel`** (`mcp`, `rest`, `ucp`, later `web`) and the referrer of store-link visits (chatgpt.com, gemini.google.com) | Lets us measure which door sends buyers; the only agent-demand data we can own | Small | We cannot show where orders came from. **Not built; awaiting decision** |
+| **Biteship `disposed` and `returnInTransit` / `returned` statuses** in payout and refund logic; test return-to-sender | A parcel that never reaches the buyer must not release the payout, and a returned parcel must refund | Small to medium | Wrong payouts. **Not built; awaiting decision** |
+| **A published hold policy page** (duration, who decides disputes, how to appeal, payout schedule); never call it "rekber" | Withheld seller funds are a live public issue in 2026 | Small | Looks like the practices that drew parliamentary attention |
+| **An explicit COD decision** ("pilot is QRIS only") and a measure of buyers who abandon at the payment page | COD is common in Indonesia (NielsenIQ 2023: 56% in five cities; one vendor claims over 90%); a QRIS-only checkout may exclude those buyers | Decision | Unknown lost orders |
 | **Seller interviews** (below) | Every willingness-to-pay and return-rate assumption is unverified | Time, no code | The largest risk stays unmeasured |
 | Automatic Xendit refunds and provider-side delayed release | The hold is only as real as the provider's support for it | Depends on Xendit's answer | Operators send every refund by hand |
 | Real seller KYC | The payout hold reduces buyer risk, it does not identify sellers | Provider onboarding | Trust rests on policy and track record only |
@@ -79,7 +91,7 @@ Questions raised after the first UI review, and where they landed. Facts are lab
 | Question | Answer |
 |---|---|
 | Can the seller side handle more than WhatsApp (Telegram, Instagram, Facebook, LINE)? | Yes in design, **one proven**: orders, stock checks, payouts and the dashboard code reach a linked Telegram chat through the same interface, and an end-to-end test shows one order flow on both. The others each need their own review and window rules: not built |
-| Is "use Click-to-WhatsApp ads to be free" right? | **Unconfirmed**, and narrower for us than it sounds. Two resellers describe a free window for conversations that start from a CTWA ad (7 days vs 72 hours, they disagree); Meta's own page that we could read still showed the old rules. CTWA frees a business's chat with someone who clicked an ad. Etalase's alerts go to sellers on events no ad opens, so it does not make them free. It can make a seller's first chat free (our own ads) and the buyer chats of sellers who run CTWA ads |
+| Is "use Click-to-WhatsApp ads to be free" right? | **Unconfirmed**, and narrower for us than it sounds. Sources describe a free window for conversations that start from a CTWA ad but disagree on its length (72 hours: Meta's page as fetched, Wati, Chatfuel; up to 7 days from 28 Sep 2026: Qontak, respond.io, Spurnow); we do not quote a number. CTWA frees a business's chat with someone who clicked an ad. Etalase's alerts go to sellers on events no ad opens, so it does not make them free. It can make a seller's first chat free (our own ads) and the buyer chats of sellers who run CTWA ads |
 | Would an Instagram DM bot make Etalase stronger? | For market fit, partly: it is where sellers talk to buyers and a seller's own Instagram has no per-message price we could find (**unverified**). It must run **per seller, on the seller's own account**: no buyer buys from an "Etalase" account. It would reuse the agent tools and send the checkout link. For the competition it is weaker per unit of effort: chatbots for WhatsApp and Instagram are a crowded category, the agent-commerce story gets blurred, and it needs Advanced Access (App Review), so a live demo against real sellers' accounts is unlikely before the deadline. **Roadmap, not built** |
 | Can each shop have a subdomain? | Yes, **built** and optional: `rina.<domain>`, needs wildcard DNS and a wildcard certificate. Each shop gets its own browser origin. Per-shop UCP profiles are not built |
 
@@ -91,18 +103,21 @@ Two directions have two rules: seller ↔ Etalase can use one shared bot or numb
 |---|---|
 | Too broad: WhatsApp, Instagram, UCP, MCP, payments, couriers at once | Agreed. The pitch should be one story: a WhatsApp seller sends photos, an agent buys, the order and money behave. Everything else is a footnote |
 | "Retail and commerce" is a crowded theme | Agreed. The difference is the seller who has no store system, and the money rules (hold, returns) that most demos skip |
-| UCP is not live in Indonesia | Verified, and we say so. MCP works today; UCP readiness is a bonus |
-| WhatsApp message cost | Real: about half of the platform cost per order ([doc 10](10-business-model.md)). Fix: fewer, combined messages |
+| UCP is not live in Indonesia | Verified, and we say so. MCP works for agents that are pointed at our server; UCP readiness is a specification exercise until Google opens Indonesia and adds a local payment handler |
+| WhatsApp message cost | Real and larger than first thought: since 1 Oct 2026 in-window replies are charged, which puts the per-order cost at 37–61% of the commission ([doc 10](10-business-model.md)). Fix: fewer, combined messages, a message meter, and a pricing structure with a minimum or a subscription |
+| Fixed per-seller costs | A possible xenPlatform account fee and Biteship's subscription make a pure 4% commission unprofitable below about 20 orders per seller per month. To test in interviews |
+| Meta Business Agent and Mayar | They occupy much of "AI plus WhatsApp plus catalog plus pay". Our narrow remaining claims are catalog from photos, reserved stock and the hold; if Meta adds payment or catalog intake, only quality and the hold are left |
+| The hold may not be enforceable or may be a regulated activity | The gating risk. Ask Xendit and counsel in writing before real money moves (doc 09) |
 | Gemini must be central | It is the catalog builder and the seller agent. The demo should show a messy input (mixed language, voice note) turning into a clean catalog |
 | A second opinion called the idea "potential but not an automatic favourite" | Fair. Our edge is depth in one flow, not breadth |
 
 ## How to describe it honestly
 
-Say: "Sellers in Indonesia work in WhatsApp. Etalase turns their photos into a catalog any AI agent can read and buy from, keeps the order in WhatsApp,
-holds the payout until the buyer's return window ends, and shows agents the seller's return policy."
+Say: "Sellers in Indonesia work in WhatsApp. Etalase turns their photos into a catalog and a store link where anyone can pay with QRIS and an agent that its owner connects can search and reserve, keeps the order in the seller's chat,
+holds the payout until the buyer's return window ends (once the provider confirms it can), and shows the seller's return policy to buyers and agents. The agent door is an option; the seller side and the store link are the product today."
 
-Do not say: "UCP is live in Indonesia", "agents are already buying from Indonesian sellers", a return rate, a willingness-to-pay figure, "Xendit holds the funds for us",
-"sellers are KYC-verified", or any market-share number that [doc 15](15-evidence.md) marks unverified.
+Do not say: "UCP is live in Indonesia", "Google named Indonesia" as a Google statement, "agents are already buying from Indonesian sellers", "95% of sellers have no store system", "nobody else builds a catalog from photos" (say "we did not find"), "Etalase never holds funds" as a legal conclusion,
+a return rate, a willingness-to-pay figure, "Xendit holds the funds for us", "sellers are KYC-verified", Telegram adoption, "Instagram DMs are free", or any market-share number that [doc 15](15-evidence.md) marks unverified.
 
 ## Validation plan: ten seller conversations
 
@@ -114,7 +129,12 @@ Goal: replace the unverified rows above with answers. Ten WhatsApp or Instagram 
 4. Would you pay 4% per order? What do you pay now (marketplace, a chat tool, nothing)?
 5. Do you keep stock numbers anywhere? How do you know something is sold out?
 6. Have buyers ever used an AI assistant to ask about your products? Would you want that?
-7. Show us your catalog as it exists (photos, captions, notes). Can we build the shop from it live?
+7. Show us your catalog as it exists (photos, captions, notes). Can we build the shop from it live? How many corrections do you need before you would publish it?
+8. How many orders do you get per month, what share is COD, and who pays for returns today?
+9. Would you rather pay 4% per order, 3% with a monthly minimum, or a small monthly subscription? Do 72 hours (168 for new sellers) of hold feel acceptable?
+10. Have you tried Meta's business AI in WhatsApp, cshub or Mayar? What was missing?
+
+Ask 5 to 10 buyers who usually buy through chat: do you hesitate to pay first, and would you use a store link or still transfer to a seller you know?
 
 Signals that the idea holds: most sellers describe returns as a real, recurring problem; at least some accept the hold; sellers accept the catalog
 produced from their own photos with few corrections. Signals that it does not: sellers see no returns problem and refuse any delay, or would use only
@@ -122,7 +142,11 @@ the catalog and ignore agents. Either result changes the plan, which is why it i
 
 ## Sources
 
-Evidence rows and quotes: [doc 15](15-evidence.md). Key pages read on 2026-10-15:
+Evidence rows and quotes: [doc 15](15-evidence.md). Key pages read on 2026-10-15 and 2026-10-16:
+[Mayar pricing](https://mayar.id/pricing), [Meta Business Agent](https://whatsappbusiness.com/blog/introducing-meta-business-agent-ai/),
+[Meta non-template messages pricing](https://developers.facebook.com/documentation/business-messaging/whatsapp/pricing/non-template-messages),
+[Biteship pricing](https://biteship.com/en/pricing), [Xendit Indonesia fees](https://id.xendit.co/biaya/index.html),
+[Bank Indonesia press release on QRIS MDR](https://www.bi.go.id/id/publikasi/ruang-media/news-release/Pages/sp_2815926.aspx),
 [cshub pricing](https://cshub.id/pricing), [Jubelio pricing](https://jubelio.com/harga),
 [Google blog, 20 May 2026](https://blog.google/products-and-platforms/products/shopping/shopping-updates-google-marketing-live),
 [PPC Land, 7 Oct 2026](https://ppc.land/canada-and-australia-face-2027-wait-for-googles-merchant-center-ucp-hub/),

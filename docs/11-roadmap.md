@@ -9,6 +9,18 @@
 
 Dates beyond the hackathon are indicative and depend on the pilot results.
 
+## Gates before real money moves (from the 16 Oct 2026 market review)
+
+Phase 2 does not start until these have answers. None is a code task.
+
+1. **Xendit in writing:** can a platform hold a sub-account balance and release it by API call; what the xenPlatform account fee is for Indonesia; whether the Rp4,000 fixed fee applies; how sub-merchants are classified for QRIS MDR; the current QRIS refund and settlement rules; KYC for sellers without an NIB. (DOKU's custom hold periods and Midtrans are the alternatives to ask in parallel.)
+2. **Counsel:** whether instructing releases and deducting a commission is a regulated payment activity (PBI 23/6/PBI/2021), whether Etalase is a PMSE needing a licence (PP 80/2019), the PMK 37/2025 collector definition, the PP 33/2026 controller/processor role, and which legal entity can sign the provider contracts.
+3. **Meta or a BSP:** confirm the seller agent is on the "business purpose" side of the WhatsApp Business AI policy, and the real price of in-window replies in Indonesia.
+4. **Ten seller conversations** ([doc 17](17-market-fit-and-direction.md#validation-plan-ten-seller-conversations)): orders per month, COD share, who pays for returns, commission versus minimum fee versus subscription, 72/168-hour hold, and whether a catalog built from their own photos is accepted with few corrections. Also try Meta's business AI, cshub and Mayar as a seller would.
+5. **Extraction quality with Gemini** on real catalogs ([doc 12](12-benchmark-plan.md)); the only measurement so far is the offline baseline.
+
+Recommended product changes that are **not built and await a decision**: one combined reply per photo burst with a per-seller message meter (every charged message comes out of the commission), `Order.channel` and store-link referrer logging, Biteship `disposed` / `returnInTransit` handling in payout and refund logic, a published hold-policy page, and an explicit pilot decision on COD.
+
 ## What could change the order
 
 - UCP checkout arriving in Indonesia earlier → prioritise Merchant Center feed and UCP compliance.

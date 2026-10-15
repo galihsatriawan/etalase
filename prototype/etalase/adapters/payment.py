@@ -1,5 +1,6 @@
-"""Payment adapters. Etalase never holds funds: money sits with the payment provider,
-in the seller's sub-account, and Etalase only decides when it is released."""
+"""Payment adapters. Etalase does not receive buyer payments in its own bank account: money sits
+with the payment provider, in the seller's sub-account, and Etalase decides when it is released.
+Whether the provider can enforce that timing is unconfirmed (ADR 0003)."""
 
 from __future__ import annotations
 

@@ -31,24 +31,39 @@
 ## Payments regulation
 
 Holding and forwarding other people's money is a regulated payment activity in Indonesia
-(**verify**). Etalase avoids it by design: funds stay in seller sub-accounts at a licensed provider and
-Etalase only instructs when they are released ([ADR 0003](adr/0003-never-hold-funds.md)), and it
+(**verify**). By design, Etalase does not receive buyer payments in its own bank account: funds stay in seller sub-accounts at a licensed provider and
+Etalase instructs when they are released ([ADR 0003](adr/0003-never-hold-funds.md)), and it
 instructs the release only after the courier-confirmed delivery and the buyer's return window
 ([ADR 0007](adr/0007-payout-hold-and-returns.md)).
 
+**What is not settled.** "Not holding the money in our account" is not the same as "not carrying out a regulated activity". Bank Indonesia's PBI 23/6/PBI/2021 lists forwarding funds (disbursement) to goods and services providers
+among the payment-service activities (the lowest licence category has a minimum capital of Rp15 billion), and the explanation of PP 80/2019 mentions a business licence and registration for e-commerce operators (the operative text has not been read).
+The sub-account balance is the provider's liability to the sub-account holder. Public attention is also on platforms that withhold seller money: in 2026 TikTok Shop Tokopedia said it was withholding about Rp24 billion from 217 sellers, sellers' representatives spoke of about 500 sellers and Rp3 trillion in parliament,
+and a legislator questioned the OJK licence ([Katadata](https://katadata.co.id/digital/e-commerce/6aa7c6d3c4062/dana-seller-rp-24-m-tokopedia-tiktok-tertahan-pemerintah-dan-dpr-turun-tangan)).
+So the hold must be published (duration, who decides disputes, how to appeal, when the money is paid), time-limited, and **not branded "rekber"**. Questions for counsel and for the provider are in the market-validation review; none has been answered. Do not describe the design as legally cleared or say that "Xendit holds the funds for us".
+
+**Payment-provider feasibility (gating).** No Xendit page we read documents a platform-controlled hold. If it cannot be done there, the options are a scheduled disbursement at the provider, DOKU's custom hold periods, or a smaller deposit model (already on the roadmap).
+
+**Also open:** whether sellers' payout fees and the Rp4,000 gateway fee apply to Indonesian contracts; whether the xenPlatform account fee applies (Rp25,000 per active account per month on Xendit's Indonesian page); and which legal entity can sign the xenPlatform and Biteship invoice contracts (NPWP, NIB, deed).
+
 **Consumer-facing duties (verify with a lawyer).** Our reading of Permendag 31/2023, through a summary and not the
 legal text, is that an e-commerce operator must offer a complaint service (Pasal 9–10) and that social-commerce
-operators may not facilitate payments (Pasal 21(3)). Whether Etalase is a PMSE operator, needs a licence, or has
-statutory return duties is open. The return flow is a product decision, not a legal conclusion.
+operators may not facilitate payments (Pasal 21(3)). Whether Etalase is a PMSE operator, needs a licence and registration (PP 80/2019 Article 11), or has
+statutory return duties is open. The definition of social commerce (Article 1(17)) appears to target social-media operators, so Article 21(3) probably does not reach Etalase, but this is a question for counsel and the primary text was not read.
+The return flow is a product decision, not a legal conclusion.
 
 ## Tax
 
 | Tax | Who | Notes |
 |---|---|---|
 | Seller income tax | The seller | Final income tax of 0.5% on turnover up to Rp4.8 billion a year under PP 55/2022; for individuals the first Rp500 million of turnover a year is untaxed, and PP 20/2026 extends the 0.5% rate to tax year 2026 for individuals whose period had ended ([DDTC](https://news.ddtc.co.id/berita/nasional/1798923/pajak-final-umkm-05-dikali-apa-simak-lagi-skema-di-pp-552022), [IKPI](https://ikpi.or.id/resmi-pemerintah-perpanjang-fasilitas-pph-final-umkm-lewat-revisi-pp-55/)). Etalase will provide monthly sales reports to help sellers file |
-| PPh 22 collection by marketplaces (PMK 37/2025) | Marketplace operators appointed by the tax office (DJP) | DJP postponed collection until 31 October 2026 (PENG-46/PJ.09/2026), revoked earlier appointments and will reissue them; the minister has floated a start in 2027. Etalase is unlikely to be appointed early on, but the `tax_profile` in each country pack is where withholding would be applied at payout |
+| PPh 22 collection by marketplaces (PMK 37/2025) | Marketplace operators appointed by the tax office (DJP) | DJP postponed collection until 31 October 2026 (PENG-46/PJ.09/2026), revoked earlier appointments and will reissue them; the minister has floated a start in 2027. Etalase is unlikely to be appointed early on, but the `tax_profile` in each country pack is where withholding would be applied at payout. The PMK 37/2025 definition of a collector covers PMSE operators that use an escrow account to hold merchants' earnings above a DJP threshold we have not found, and a sub-account and payout-hold design is close to that definition: ask a tax adviser |
 | VAT on Etalase's commission | Etalase | Commission is a service; VAT applies once Etalase is VAT-registered (mandatory above Rp4.8 billion annual turnover, voluntary earlier) (**verify**). Pricing states commission excluding VAT |
 | VAT on goods | The seller | Most small sellers are not VAT-registered |
+
+**Personal data update.** PP 33/2026, the PDP implementing regulation, was enacted on 15 July 2026 and applies from 15 January 2027 according to Hukumonline (datapribadi.id gives 16 July and 16 January). Reported content: controller and processor roles, a data protection officer, data-subject rights within 3×24 hours and fines of up to 2% of annual revenue. We have not read the full text and have not confirmed that the PDP agency exists. Open questions: whether Etalase is a controller, processor or joint controller of buyers' names, phone numbers and addresses; whether a DPO and a DPIA are required for AI processing of photos and voice; and whether Vertex AI processing outside Jakarta counts as a cross-border transfer.
+
+**Platform policy.** Meta has barred AI chatbots from the WhatsApp Business API when the chatbot is the main service offered (from 15 January 2026). Our seller agent is on the business-purpose side as we read it, but this needs confirmation from Meta or the business solution provider.
 
 Sources: [IKPI on the postponement](https://ikpi.or.id/en/djp-tunda-pungutan-pph-pasal-22-marketplace-hingga-31-oktober-2026/),
 [IKPI on a possible 2027 start](https://ikpi.or.id/purbaya-buka-opsi-tunda-penerapan-pajak-markerplace-hingga-2027/),

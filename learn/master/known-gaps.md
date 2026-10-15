@@ -93,7 +93,10 @@ Fix: [Exercise 13](/master/exercises#_13-run-the-store-contract-against-the-fire
 - **A crash mid-payout** leaves `payout.status = "releasing"` forever, because the claim and the provider call are separate steps. Add a reconciliation job that checks the provider.
 - **Orphan QR codes.** `seller_confirms_stock` creates the payment before it knows it won the race against expiry; a lost race leaves an unused QR at the provider.
 - **No cancel, return or dispute flow.** Buyers cannot cancel a checkout (it just expires), the `returned` shipping status has no money flow, and there is no dispute policy. Write the policy before writing the code.
-- **Licensing.** "Etalase never holds funds" (ADR 0003) is a design that must be confirmed with the provider and a lawyer.
+- **Licensing and hold feasibility.** "Etalase never holds funds" is no longer used as a legal conclusion (ADR 0003 now says Etalase does not receive buyer payments in its own account). Two things are open: no Xendit page documents a hold or scheduled release controlled by the platform (the payout hold may not be enforceable there; DOKU documents custom hold periods), and PBI 23/6/PBI/2021 lists disbursement to goods and services providers as a payment-service activity, so instructing releases may itself be regulated. Both need written answers from Xendit and counsel before real money moves (`docs/09`).
+- **Unit economics.** Since 1 October 2026 WhatsApp in-window replies are charged (37–61% of the commission per order), and per-seller fixed costs (a possible xenPlatform account fee, Biteship's subscription from 2 Nov 2026) make a pure 4% commission comfortable only above about 20 orders per seller per month (`docs/10`). Recommended, not built, awaiting a product decision: one combined reply per photo burst, a message meter, `Order.channel`, Biteship `disposed`/`returnInTransit` handling, a published hold-policy page, an explicit COD decision.
+- **Competition.** Meta Business Agent and Mayar occupy much of "AI plus WhatsApp plus catalog plus pay". What we did not find elsewhere is catalog-from-photos and a payout hold, based on marketing pages and not tested products.
+- **No seller or buyer has been interviewed**, so willingness to pay, to wait 72–168 hours, return rates, orders per month and the size of the chat-first segment have no data.
 
 ### Seller onboarding and KYC
 

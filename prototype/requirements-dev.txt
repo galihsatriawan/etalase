@@ -1,3 +1,5 @@
 -r requirements.txt
 pytest>=8
 pillow>=10
+# the official UCP models: tests check every response we send against them
+ucp-sdk==0.4.6

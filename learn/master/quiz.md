@@ -1,11 +1,11 @@
 # Final quiz
 
-Forty questions across concepts, code, flows, security, business and evidence, with answers, links back to the pages that explain them, and a scoring guide.
+Forty-three questions across concepts, code, flows, security, business, evidence and channels, with answers, links back to the pages that explain them, and a scoring guide.
 
 ::: tip What you will learn
 - Whether you can explain Etalase without notes, the way a judge or a first engineer hire would test you
 - Which pages to reread, based on the questions you miss
-- What "mastery" means for this project: 36 of 40
+- What "mastery" means for this project: 39 of 43
 :::
 
 ## How to take the quiz
@@ -16,7 +16,7 @@ The questions follow the levels of this site:
 
 ```mermaid
 flowchart LR
-  C["Concepts 1-7"] --> K["Code 8-17"] --> F["Flows 18-25"] --> S["Security 26-31"] --> B["Business 32-36"] --> E["Evidence 37-40"]
+  C["Concepts 1-7"] --> K["Code 8-17"] --> F["Flows 18-25"] --> S["Security 26-31"] --> B["Business 32-36"] --> E["Evidence and channels 37-43"]
 ```
 
 ## Concepts
@@ -36,7 +36,7 @@ Agents request structured catalog data (title, price, availability, variants) th
 **3. What are UCP, MCP and AP2, in one line each, and which does Etalase actually implement?**
 
 ::: details Answer
-UCP is Google's Universal Commerce Protocol for agent shopping (merchants publish a profile at `/.well-known/ucp`); MCP is the Model Context Protocol, a standard way for agents to call tools; AP2 is the Agent Payments Protocol, UCP's payment layer. Etalase implements an MCP server, serves a UCP-*style* profile with illustrative field names, and has AP2 on the roadmap. See [Agentic commerce 101](/foundations/agentic-commerce).
+UCP is Google's Universal Commerce Protocol for agent shopping (merchants publish a profile at `/.well-known/ucp`); MCP is the Model Context Protocol, a standard way for agents to call tools; AP2 is the Agent Payments Protocol, UCP's payment layer. Etalase implements an MCP server and a UCP business server (valid profile, Checkout and Fulfillment over REST, tested with the official conformance suite), and has AP2 on the roadmap. See [Agentic commerce 101](/foundations/agentic-commerce) and [UCP checkout](/architecture/ucp).
 :::
 
 **4. What does "one stock owner per seller" mean, and what are the three possible owners?**
@@ -119,7 +119,7 @@ From `tool_context.state["seller_id"]`, set when the session is created for the 
 Both implement the `CatalogExtractor` protocol and return the same `ExtractedCatalog` schema. `GeminiExtractor` (multimodal, `response_schema=ExtractedCatalog`, temperature 0.1) is used when an API key or Vertex AI is configured; `HeuristicExtractor` (text and CSV rules) is used otherwise, including in all tests. See [Catalog and stock](/architecture/catalog-and-stock).
 :::
 
-**17. Multiple choice. The command that runs the 82 automated tests is:**
+**17. Multiple choice. The command that runs the 503 automated tests is:**
 (a) `python scripts/demo.py` (b) `cd prototype && pytest -q` (c) `uvicorn etalase.api.main:app --port 8080` (d) `npm run build`
 
 ::: details Answer
@@ -225,13 +225,13 @@ A 3–5% commission (4% in the prototype, `COMMISSION_RATE`), excluding VAT, cha
 **33. What is the estimated platform cost per order in the pilot, and which component dominates it?**
 
 ::: details Answer
-About IDR 2,000–3,500 per order. WhatsApp messages are most of it (about IDR 1,460–1,840 for about four utility messages); cloud and Gemini make up the rest. See [Business model and costs](/business/business-model).
+About IDR 2,900–5,100 per order in our estimate. WhatsApp messages are most of it: since 1 October 2026 Meta's newer documentation charges in-window replies, so 7–9 charged messages cost IDR 2,535–4,140; cloud and Gemini make up the rest. On top, per-seller fixed costs (a possible Rp25,000 a month xenPlatform account fee, Biteship Rp149,000 a month) mean a pure 4% commission is comfortable only above roughly 20 orders per seller per month. See [Business model and costs](/business/business-model).
 :::
 
-**34. Why is "Etalase never holds funds" a design decision and not just a slogan?**
+**34. Why is "Etalase does not receive buyer payments in its own account" a design decision, and what do we not claim?**
 
 ::: details Answer
-Holding and forwarding other people's money is a regulated payment activity in Indonesia (to verify with counsel). So payments go to the seller's sub-account at a licensed provider, and Etalase only instructs when to release and how to split the commission; KYC and bank details live at the provider (ADR 0003). In code, `refund` and `release_to_seller` are provider calls, not ledger moves. See [Checkout and orders](/architecture/checkout-and-orders).
+Holding and forwarding other people's money is a regulated payment activity in Indonesia (to verify with counsel). So payments go to the seller's sub-account at a licensed provider, and Etalase instructs when to release and how to split the commission; KYC and bank details live at the provider (ADR 0003). In code, `refund` and `release_to_seller` are provider calls, not ledger moves. We do **not** claim "Etalase never holds funds" as a legal conclusion, "Xendit holds the money for us" (no Xendit page documents a platform-controlled hold), or that the activity is cleared by regulators (PBI 23/6/PBI/2021 lists disbursement to goods and services providers as a payment-service activity). See [Checkout and orders](/architecture/checkout-and-orders).
 :::
 
 **35. Multiple choice. Why does Etalase use Xendit, not Stripe, in Indonesia?**
@@ -244,7 +244,7 @@ Holding and forwarding other people's money is a regulated payment activity in I
 **36. Name three of the four assumptions `docs/10` says to validate first.**
 
 ::: details Answer
-Sellers' willingness to pay 3–5% per order; the share of sellers who track stock at all; when UCP checkout reaches Indonesia; payment-provider support for sub-accounts and delayed release. See [Business model and costs](/business/business-model) and [Known gaps](/master/known-gaps).
+Sellers' willingness to pay 3–5% per order (and commission versus minimum fee versus subscription); orders per seller per month and the share who track stock at all; when UCP checkout reaches Indonesia; payment-provider support for sub-accounts and delayed release (the gating one). See [Business model and costs](/business/business-model) and [Known gaps](/master/known-gaps).
 :::
 
 ## Evidence
@@ -252,35 +252,53 @@ Sellers' willingness to pay 3–5% per order; the share of sellers who track sto
 **37. State the BPS chat-commerce number correctly, including its nuance.**
 
 ::: details Answer
-95.33% of Indonesian e-commerce businesses sell through instant messaging apps such as WhatsApp; 17.80% use marketplaces and 1.77% a website (BPS, *E-Commerce Statistics 2023*, published January 2025). Businesses can use several channels, so it means "use chat", not "sell only via chat". See [Evidence and sources](/business/evidence).
+95.33% of Indonesian e-commerce businesses use instant messaging apps such as WhatsApp to sell; 17.80% use marketplaces and 1.77% a website (BPS, *E-Commerce Statistics 2023*, 40,011 businesses, published January 2025). Businesses can use several channels and the survey counts any business that took orders online, so it means "chat is the default inbox", not "sell only via chat" and not "95% have no store system". See [Evidence and sources](/business/evidence).
 :::
 
 **38. Is UCP agent checkout live in Indonesia? Give the honest status by country.**
 
 ::: details Answer
-No. Live in the US (February 2026) and Australia (June 2026, the first Asia-Pacific market); a limited Flipkart test in India (September 2026); Indonesia named among the next markets. See [Evidence and sources](/business/evidence).
+No. Live in the US (February 2026); started with select retailers in Australia (June 2026), while Google's own pages still call checkout US-only and place the self-serve hub in Australia in 2027; a limited Flipkart test in India (September 2026); one trade report (InfoQ, January 2026, not a Google quote) says Indonesia is next, with no date known. In Indonesia AI discovery is live but we found no agent checkout and no agent-initiated purchase. See [Evidence and sources](/business/evidence).
 :::
 
 **39. What is the QRIS fee situation for a typical Etalase order of IDR 170,000 since 1 October 2026?**
 
 ::: details Answer
-For a micro merchant, the QRIS MDR is 0% for transactions up to Rp500,000 (and 0% for all merchants up to Rp100,000). The gateway may still add a fixed fee; Xendit lists IDR 4,000 per transaction, which the pilot shows to the buyer as a payment fee. See [Evidence and sources](/business/evidence).
+The QRIS MDR is 0% for all merchants up to Rp100,000 and for micro merchants up to Rp500,000. A IDR 170,000 order is above the first threshold, so it is 0% only if the gateway classifies the seller as micro (the BI release does not define it); otherwise it is 0.7%, IDR 1,190. The gateway may also add a fixed fee: Xendit's global list shows IDR 4,000, unconfirmed for Indonesian contracts, which the pilot plan shows to the buyer as a payment fee. See [Evidence and sources](/business/evidence).
 :::
 
 **40. Which benchmark results can you claim today, and which are still TBD?**
 
 ::: details Answer
-Claimable: 0 units oversold when 100 concurrent reservations race for the last unit (on the in-memory store), and duplicate and late payments handled (no double stock change, late payment refunded), all in the 82 passing tests. TBD: catalog extraction accuracy, catalog build time, agent tool latency, seller alert speed and stock-update intent accuracy with Gemini. See [Testing](/ship/testing) and [Pitch and Q&A](/business/pitch-and-qa).
+Claimable: 0 units oversold when 100 concurrent reservations race for the last unit (on the in-memory store), and duplicate and late payments handled (no double stock change, late payment refunded), all in the 503 passing tests. TBD: catalog extraction accuracy, catalog build time, agent tool latency, seller alert speed and stock-update intent accuracy with Gemini. See [Testing](/ship/testing) and [Pitch and Q&A](/business/pitch-and-qa).
+:::
+
+**41. How does the same order alert reach a seller on WhatsApp or on Telegram without the core knowing which?**
+
+::: details Answer
+The core only calls the `Messenger` interface. `ChannelRouter` implements it and picks the adapter from the address string: `tg:<chat id>` goes to the Telegram adapter, anything else to WhatsApp. `Seller.address` returns the chosen channel's address, and `SellerInbox.to()` replies on the channel the seller wrote on. Telegram needs no template because it has no 24-hour window. See [WhatsApp seller agent](/architecture/seller-agent).
+:::
+
+**42. What stops a stranger from linking their own Telegram chat to someone else's shop, and what is the known gap?**
+
+::: details Answer
+Linking needs a code issued inside a signed-in dashboard session: `<seller id>-<expiry>-<random>-<HMAC>`, valid for 10 minutes, with the purpose "link" so a sign-in token cannot be replayed as one, and a chat already linked to a shop is not moved by another code. The code also works only once (an atomic record per code), and replacing a linked chat is announced to the old chat and the WhatsApp number. What remains: until it is used it is a bearer value, so whoever uses it first links their chat. An independent review found the first, replayable version. See [Security model](/architecture/security) and [Known gaps](/master/known-gaps).
+:::
+
+**43. A friend says "use Click-to-WhatsApp ads and WhatsApp becomes free" and "Instagram DMs are free, so build an Instagram bot". What do you say?**
+
+::: details Answer
+CTWA frees a chat that starts from an ad; Etalase's alerts to sellers are not that, and the length of the window is reported differently by different resellers (claim 51). "Instagram DMs are free" came from a vendor table we could not confirm (claim 53). An Instagram buyer bot would have to run per seller on each seller's own account, needs Meta's Advanced Access, and is roadmap, not built (claim 52, Q49 in [Pitch and Q&A](/business/pitch-and-qa)).
 :::
 
 ## Scoring guide
 
 | Score | Level | What to do next |
 |---|---|---|
-| 36–40 | **Mastery** | You can defend Etalase in front of judges. Do two advanced [exercises](/master/exercises) to stay sharp. |
-| 30–35 | Solid | Reread the pages linked from the questions you missed, then retake those sections. |
-| 22–29 | Getting there | Redo the [Hands-on walkthrough](/run/hands-on) and the Level 3 pages before pitching. |
-| 0–21 | Start again | Go back to [Start here](/guide/start-here) and follow the sidebar in order. |
+| 39–43 | **Mastery** | You can defend Etalase in front of judges. Do two advanced [exercises](/master/exercises) to stay sharp. |
+| 33–38 | Solid | Reread the pages linked from the questions you missed, then retake those sections. |
+| 24–32 | Getting there | Redo the [Hands-on walkthrough](/run/hands-on) and the Level 3 pages before pitching. |
+| 0–23 | Start again | Go back to [Start here](/guide/start-here) and follow the sidebar in order. |
 
 Two rules on top of the score:
 

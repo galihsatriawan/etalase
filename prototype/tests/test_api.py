@@ -17,9 +17,9 @@ def c():
 
 def test_health_and_discovery(c):
     assert c.get("/healthz").json()["ok"] is True
-    profile = c.get("/.well-known/ucp").json()
-    assert profile["services"]["mcp"]["endpoint"].endswith("/mcp/")
-    assert "checkout.create" in profile["capabilities"]
+    profile = c.get("/.well-known/ucp").json()["ucp"]
+    assert profile["services"]["dev.ucp.shopping"][0]["endpoint"].endswith("/ucp/v1")
+    assert "dev.ucp.shopping.checkout" in profile["capabilities"]
 
 
 def test_whatsapp_webhook_verification(c):
@@ -48,7 +48,8 @@ def test_connector_requires_key_and_otp_rejects_wrong_code(c):
 
 def test_mcp_exposes_the_agent_tools():
     names = {t.name for t in asyncio.run(mcp.list_tools())}
-    assert names == {"search_products", "get_product", "get_shipping_options", "create_checkout", "get_checkout_status"}
+    assert names == {"search_products", "get_product", "get_shipping_options", "create_checkout", "get_checkout_status",
+                     "request_return", "submit_return_tracking"}
 
 
 def test_openapi_documents_connector_api(c):

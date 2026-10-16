@@ -2,111 +2,517 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Etalase · Seller dashboard</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#ffffff">
+<title>Etalase seller dashboard</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='9' fill='%2308815a'/%3E%3Cpath d='M9.5 7.5h13l3.5 6.5a3.5 3.5 0 0 1-7 0 3.5 3.5 0 0 1-7 0 3.5 3.5 0 0 1-7 0z' fill='%23fff'/%3E%3Crect x='8' y='17.5' width='16' height='7.5' rx='1.6' fill='%23fff' fill-opacity='.92'/%3E%3C/svg%3E">
+<link rel="preload" href="/static/plus-jakarta-sans.woff2" as="font" type="font/woff2" crossorigin>
 <style>
-  :root { --ink:#202124; --muted:#5f6368; --line:#dadce0; --card:#f1f3f4; --blue:#1a73e8; --green:#188038; --red:#d93025; --amber:#b06000; }
-  * { box-sizing: border-box; }
-  body { margin:0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color:var(--ink); background:#fff; }
-  header { display:flex; align-items:center; justify-content:space-between; padding:16px 24px; border-bottom:1px solid var(--line); }
-  header b { font-size:18px; } header span { color:var(--muted); font-size:14px; }
-  main { max-width:1080px; margin:0 auto; padding:24px; }
-  .login { max-width:360px; margin:64px auto; display:grid; gap:12px; }
-  input, button { font:inherit; padding:10px 12px; border-radius:8px; border:1px solid var(--line); }
-  button { background:var(--blue); color:#fff; border:none; cursor:pointer; }
-  button.ghost { background:none; color:var(--blue); border:1px solid var(--line); }
-  .hint { color:var(--muted); font-size:13px; }
-  h2 { font-size:16px; margin:28px 0 12px; }
-  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:16px; }
-  .card { background:var(--card); border-radius:12px; padding:16px; }
-  .card h3 { margin:0 0 4px; font-size:15px; }
-  .pill { display:inline-block; font-size:12px; padding:2px 8px; border-radius:999px; background:#fff; border:1px solid var(--line); }
-  .published { color:var(--green); } .needs_review, .draft { color:var(--amber); }
-  table { width:100%; border-collapse:collapse; font-size:14px; }
-  th, td { text-align:left; padding:8px; border-bottom:1px solid var(--line); vertical-align:top; }
-  th { color:var(--muted); font-weight:500; }
-  .bar { height:6px; background:#fff; border-radius:3px; overflow:hidden; margin:8px 0; }
-  .bar i { display:block; height:100%; background:var(--blue); }
-  .err { color:var(--red); font-size:13px; min-height:1em; }
-  @media (max-width:600px){ main{padding:16px;} header{padding:12px 16px;} }
+/*@@BASE_CSS@@*/
+.wrap{width:100%;max-width:60rem;margin:0 auto;padding:0 1rem}
+main.wrap{flex:1;padding-top:1.25rem;padding-bottom:3rem}
+.brand svg{width:1.75rem;height:1.75rem;display:block}
+.who{margin-left:auto;display:flex;align-items:center;gap:.6rem;min-width:0}
+.avatar{width:2.25rem;height:2.25rem;flex:none;border-radius:50%;display:grid;place-items:center;color:#fff;font:800 1rem/1 var(--sans);background:linear-gradient(135deg,var(--c1,#0a5c42),var(--c2,#1fb384))}
+.who .name{font-weight:650;max-width:12rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+@media(max-width:34rem){.who .name{display:none}}
+.who .iconbtn{margin-right:-.6rem}
+/* sign in */
+.login{display:grid;gap:1rem;max-width:62rem;margin:0 auto}
+@media(min-width:56rem){.login{grid-template-columns:1.1fr 1fr;gap:1.5rem;margin-top:1rem}}
+.pitch{position:relative;overflow:hidden;display:grid;align-content:center;gap:1.25rem;padding:1.75rem 1.5rem;border-radius:var(--r-lg);color:#fff;
+background:radial-gradient(110% 90% at 100% 0%,rgba(255,255,255,.18),transparent 58%),linear-gradient(150deg,#0a5c42,#073b2b)}
+.pitch h1{color:#fff;font-size:clamp(1.75rem,6.5vw,2.5rem)}
+.pitch p{color:rgba(255,255,255,.82);max-width:30rem}
+.pitch .checks{gap:.6rem;font-size:.9375rem;color:rgba(255,255,255,.92)}.pitch .checks .ico{color:#7fe3bd}
+@media(min-width:56rem){.pitch{padding:2.5rem 2.25rem}}
+.signin{padding:1.5rem}
+.signin h2{font-size:1.375rem}
+.signin .lead{color:var(--muted);margin:.35rem 0 1.25rem;font-size:.9375rem}
+.signin .btn{margin-top:1rem}
+.signin .fine{margin-top:1rem}
+.err{display:none;margin-top:1rem}.err.on{display:flex}
+.dev{margin-top:.85rem;font-size:.8125rem;color:var(--soft)}
+/* app */
+.hello{margin:0 0 1rem}.hello h1{margin-top:.2rem;font-size:clamp(1.5rem,5.5vw,2rem)}
+.linkrow{display:flex;align-items:center;gap:.25rem;padding:.4rem .4rem .4rem 1rem}
+.linkrow .ico.lead{color:var(--brand);margin-right:.35rem}
+.linkrow .url{flex:1;min-width:0;font-weight:650;color:var(--ink);text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.linkrow .iconbtn{background:var(--bg)}
+.linkhint{margin:.5rem .25rem 0;font-size:.8125rem;color:var(--muted)}
+.tiles{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.6rem;margin-top:1rem}
+@media(min-width:48rem){.tiles{grid-template-columns:repeat(4,minmax(0,1fr))}}
+.tile{display:flex;flex-direction:column;justify-content:space-between;gap:.2rem;min-height:4.75rem;padding:.8rem 1rem;border:0;border-radius:var(--r-lg);background:var(--surface);color:var(--ink);
+text-align:left;font:inherit;box-shadow:var(--shadow-1);transition:box-shadow .2s,transform .14s var(--ease)}
+button.tile{cursor:pointer}button.tile:active{transform:scale(.975)}
+.tile b{font:800 1.625rem/1.1 var(--sans);letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+.tile small{font:600 .8125rem/1.25 var(--sans);color:var(--muted)}
+.tile.hot b{color:var(--amber)}.tile.zero b{color:var(--soft)}.tile.good b{color:var(--brand)}
+.tile[aria-pressed=true]{box-shadow:inset 0 0 0 2px var(--brand)}
+.tile .money-lg{font-size:1.25rem;padding-top:.2rem}
+.tabs{position:sticky;top:3.5rem;z-index:20;display:flex;gap:1.75rem;margin:1.25rem -1rem 1rem;padding:0 1rem;background:var(--bg);box-shadow:0 1px 0 var(--line)}
+.tab{position:relative;display:flex;align-items:center;gap:.45rem;min-height:3rem;padding:0;border:0;background:none;color:var(--muted);font:650 .9375rem/1 var(--sans);cursor:pointer;transition:color .2s}
+.tab::after{content:"";position:absolute;left:0;right:0;bottom:0;height:2.5px;border-radius:2px 2px 0 0;background:var(--brand);transform:scaleX(0);transition:transform .3s var(--ease)}
+.tab[aria-selected=true]{color:var(--ink)}.tab[aria-selected=true]::after{transform:scaleX(1)}
+@media(hover:hover){.tab:hover{color:var(--ink)}}
+.tab .n{min-width:1.35rem;padding:.15rem .4rem;border-radius:999px;background:rgba(14,26,20,.08);font:700 .75rem/1.2 var(--sans);font-variant-numeric:tabular-nums;text-align:center}
+.tab[aria-selected=true] .n{background:var(--brand-soft);color:var(--brand-ink)}
+.panel{display:grid;gap:.75rem;align-content:start}
+@media(min-width:48rem){#orders,#products{grid-template-columns:repeat(2,minmax(0,1fr))}#orders>.wide,#products>.wide{grid-column:1/-1}}
+.filter{display:flex;align-items:center;gap:.5rem;margin:-.25rem 0 .25rem}
+.filter button{display:inline-flex;align-items:center;gap:.4rem;min-height:2.75rem;padding:0 .9rem;border:0;border-radius:999px;background:var(--ink);color:#fff;font:650 .875rem/1 var(--sans);cursor:pointer}
+.ord{display:grid;gap:.8rem;align-content:start;padding:1.05rem 1.15rem}
+.ord.needs{box-shadow:inset 4px 0 0 var(--amber-dot),var(--shadow-1)}
+.ord-head{display:flex;justify-content:space-between;gap:.75rem;align-items:flex-start}
+.ord-head b{display:block;font-weight:700}.ord-head small{display:block;color:var(--muted);font-size:.8125rem}
+.items{list-style:none;margin:0;padding:.7rem 0;display:grid;gap:.3rem;border-block:1px solid var(--line)}
+.items li{display:flex;justify-content:space-between;gap:1rem}.items li span:first-child{min-width:0;overflow-wrap:anywhere}.items li span:last-child{color:var(--muted);white-space:nowrap;font-variant-numeric:tabular-nums}
+.ord-foot{display:flex;justify-content:space-between;align-items:baseline;gap:1rem}
+.ord-foot .total{font:800 1.125rem/1.2 var(--sans);letter-spacing:-.015em;margin:0}
+.ord-foot .ref{font-size:.75rem;color:var(--soft)}
+.todo{display:flex;gap:.6rem;align-items:flex-start;padding:.7rem .85rem;border-radius:var(--r);background:var(--amber-bg);color:#5a3500;font-size:.875rem;line-height:1.45;font-weight:550}
+.todo .ico{color:var(--amber);margin-top:.1rem}
+.ord-extra{display:grid;gap:.15rem;font-size:.8125rem;color:var(--muted);overflow-wrap:anywhere}.ord-extra:empty{display:none}
+.pill.action{background:var(--amber);color:#fff}.pill.wait{background:var(--bg);color:var(--muted)}.pill.ok{background:var(--brand-soft);color:var(--brand-ink)}
+.prow{display:grid;grid-template-columns:4.25rem minmax(0,1fr) auto;gap:.25rem 1rem;align-items:center;padding:.9rem 1rem}
+.thumb{grid-row:1/3;width:4.25rem;height:4.25rem;border-radius:var(--r);overflow:hidden;background:var(--bg);display:grid;place-items:center;color:var(--soft)}
+.thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.pname{font-weight:700;min-width:0;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.pprice{font:800 1rem/1.3 var(--sans);letter-spacing:-.015em;white-space:nowrap;font-variant-numeric:tabular-nums}
+.stock{grid-column:2/-1;display:flex;flex-wrap:wrap;gap:.35rem}
+.stock span{padding:.2rem .6rem;border-radius:999px;background:var(--bg);font:600 .75rem/1.3 var(--sans);color:var(--muted)}
+.stock span.held{background:var(--amber-bg);color:var(--amber)}
+.plinks{grid-column:1/-1;display:flex;gap:1rem;flex-wrap:wrap;margin-top:.15rem;font-size:.875rem;font-weight:650}
+.plinks a{display:inline-flex;align-items:center;gap:.35rem;min-height:2.25rem;text-decoration:none}
+.gap{grid-column:1/-1;display:flex;gap:.5rem;align-items:flex-start;margin-top:.35rem;padding:.6rem .8rem;border-radius:var(--r);background:var(--amber-bg);color:var(--amber);font-size:.8125rem;font-weight:600;line-height:1.4}
+.gap .ico{width:1rem;height:1rem;margin-top:.05rem}
+.draft{margin-left:.4rem;vertical-align:middle}
+.empty{display:grid;justify-items:center;text-align:center;gap:.35rem;padding:2.5rem 1.25rem}
+.empty .bubble{display:grid;place-items:center;width:3.5rem;height:3.5rem;border-radius:50%;background:var(--brand-soft);color:var(--brand);margin-bottom:.5rem}
+.empty p{color:var(--muted);max-width:26rem}
+.skel-row{display:flex;gap:1rem;align-items:center;padding:1rem}.skel-row .skel:first-child{width:4rem;height:4rem}.skel-row .skel:nth-child(2){height:1rem;width:45%}
+.policy,.account{padding:1.35rem}
+.policy .intro{color:var(--muted);font-size:.9375rem;margin:.35rem 0 1.25rem}
+.switch{display:flex;gap:1rem;align-items:flex-start;justify-content:space-between;padding:1rem 0;margin:0;border-block:1px solid var(--line);cursor:pointer}
+.switch span{display:block;font-weight:650}.switch small{display:block;margin-top:.2rem;color:var(--muted);font:400 .8125rem/1.45 var(--sans)}
+.switch input{appearance:none;-webkit-appearance:none;position:relative;flex:none;width:3.25rem;min-height:1.875rem;height:1.875rem;margin:.1rem 0 0;border-radius:999px;background:#b6c1bb;box-shadow:none;cursor:pointer;transition:background-color .25s var(--ease)}
+.switch input::before{content:"";position:absolute;top:.2rem;left:.2rem;width:1.475rem;height:1.475rem;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(14,26,20,.35);transition:transform .3s var(--ease)}
+.switch input:checked{background:var(--brand)}.switch input:checked::before{transform:translateX(1.375rem)}
+.switch input:focus-visible{outline:2px solid var(--brand);outline-offset:3px;box-shadow:none}
+.count-note{display:flex;justify-content:space-between;gap:1rem;margin-top:.35rem}
+.policy .save{margin-top:1.25rem}
+@media(max-width:34rem){.policy .save{width:100%}}
+.address{padding:1.35rem}
+.address .intro{color:var(--muted);font-size:.9375rem;margin:.35rem 0 1.1rem}
+.slugrow{display:flex;align-items:center;gap:.5rem}.slugrow input{flex:1;min-width:0}.slugrow span{color:var(--soft);font-weight:600;overflow-wrap:anywhere}
+.address .save{margin-top:1rem}
+@media(max-width:34rem){.address .save{width:100%}}
+.channel{padding:1.35rem}
+.channel .intro{color:var(--muted);font-size:.9375rem;margin:.35rem 0 1.1rem}
+.seg{display:inline-flex;padding:.25rem;border-radius:999px;background:var(--bg);border:1px solid var(--line)}
+.segbtn{min-height:2.5rem;padding:0 1.15rem;border:0;border-radius:999px;background:transparent;color:var(--muted);font:650 .9375rem var(--sans);cursor:pointer;transition:background-color .2s var(--ease),color .2s var(--ease)}
+.segbtn[aria-pressed=true]{background:var(--brand);color:#fff}
+.segbtn:disabled{opacity:.5;cursor:not-allowed}
+.segbtn:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+#tg-connect{margin-top:1.1rem;display:grid;gap:.75rem;justify-items:start}
+#tg-connect .hint{margin:0}
+.tgcode{margin:0;padding:.6rem .8rem;border-radius:var(--r);background:var(--bg);font:600 .8125rem/1.5 ui-monospace,Menlo,Consolas,monospace;overflow-wrap:anywhere}
+@media(max-width:34rem){#tg-connect .btn{width:100%}}
+.account dl{display:grid;gap:.9rem;margin:1rem 0 1.25rem}.account dt{font:650 .8125rem/1.3 var(--sans);color:var(--soft)}.account dd{margin:.1rem 0 0;font-weight:600;overflow-wrap:anywhere}
+.account .row{display:flex;gap:.6rem;flex-wrap:wrap}
+@media(prefers-reduced-motion:no-preference){
+.tabpanel-in{animation:rise .35s var(--ease) both}
+::view-transition-old(root){animation:.12s ease both vt-out}::view-transition-new(root){animation:.3s var(--ease) both vt-in}
+@keyframes vt-in{from{opacity:0}}@keyframes vt-out{to{opacity:0}}
+}
 </style>
 </head>
 <body>
-<header><b>Etalase</b><span id="who">Seller dashboard</span></header>
-<main>
-  <section id="login" class="login">
-    <h2>Sign in with your WhatsApp number</h2>
-    <input id="wa" placeholder="628123456789" inputmode="numeric">
-    <button id="send">Send code via WhatsApp</button>
-    <input id="code" placeholder="6-digit code" inputmode="numeric" hidden>
-    <button id="verify" hidden>Sign in</button>
-    <div class="err" id="err"></div>
-    <p class="hint">The code comes from Etalase's WhatsApp number. Your own WhatsApp account is never connected.
-      Local mode: find the code in <a href="/dev/outbox" target="_blank">/dev/outbox</a>.</p>
+<!--@@SPRITE@@-->
+<a class="skip" href="#main">Skip to content</a>
+<header class="bar">
+  <div class="wrap in">
+    <span class="brand"><svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="9" fill="#08815a"/><path d="M9.5 7.5h13l3.5 6.5a3.5 3.5 0 0 1-7 0 3.5 3.5 0 0 1-7 0 3.5 3.5 0 0 1-7 0z" fill="#fff"/><rect x="8" y="17.5" width="16" height="7.5" rx="1.6" fill="#fff" fill-opacity=".92"/></svg>Etalase</span>
+    <div class="who" id="who" hidden>
+      <span class="avatar" id="avatar" aria-hidden="true"></span><span class="name" id="shopname"></span>
+      <button class="iconbtn" id="logout" type="button" aria-label="Sign out" title="Sign out"><svg class="ico" aria-hidden="true"><use href="#i-out"/></svg></button>
+    </div>
+  </div>
+</header>
+<main id="main" class="wrap" tabindex="-1">
+  <section id="login" class="login" aria-labelledby="login-title">
+    <div class="pitch rise">
+      <div>
+        <h1>Your shop, answered from WhatsApp.</h1>
+        <p style="margin-top:.75rem">Orders, stock and returns arrive in the chat you already use. This page is where you see everything at a glance.</p>
+      </div>
+      <ul class="checks">
+        <li><svg class="ico" aria-hidden="true"><use href="#i-check"/></svg><span>Every order lands in WhatsApp with one-tap buttons</span></li>
+        <li><svg class="ico" aria-hidden="true"><use href="#i-check"/></svg><span>Buyers and AI shopping assistants use the same shop link</span></li>
+        <li><svg class="ico" aria-hidden="true"><use href="#i-check"/></svg><span>Money is released after delivery and the return window</span></li>
+      </ul>
+    </div>
+    <div class="card signin rise" style="--i:1">
+      <h2 id="login-title">Sign in</h2>
+      <p class="lead">We send a 6-digit code to your WhatsApp. Your own WhatsApp account is never connected.</p>
+      <div class="field">
+        <label for="wa">Your WhatsApp number</label>
+        <input id="wa" placeholder="0812 3456 7890" inputmode="tel" autocomplete="tel">
+      </div>
+      <button class="btn block" id="send" type="button">Send code to WhatsApp</button>
+      <div id="codebox" hidden>
+        <div class="field" style="margin-top:1.25rem">
+          <label for="code">6-digit code</label>
+          <input id="code" placeholder="123456" inputmode="numeric" autocomplete="one-time-code" maxlength="6">
+        </div>
+        <button class="btn block" id="verify" type="button">Sign in</button>
+      </div>
+      <div class="alert err" id="err" role="alert"></div>
+      <p class="fine">First time? Send "hi" to Etalase on WhatsApp. WhatsApp only delivers the code within 24 hours of your last message.</p>
+      <p class="dev" id="dev" hidden>Local mode: find the code in <a href="/dev/outbox" target="_blank" rel="noopener">/dev/outbox</a>.</p>
+    </div>
   </section>
+
   <section id="app" hidden>
-    <h2>Products</h2>
-    <div class="grid" id="products"></div>
-    <h2>Orders from AI agents</h2>
-    <table><thead><tr><th>Order</th><th>Items</th><th>Total</th><th>Status</th><th>Payout</th></tr></thead>
-      <tbody id="orders"></tbody></table>
-    <p><button class="ghost" id="logout">Sign out</button></p>
+    <div class="hello"><p class="eyebrow" id="greet"></p><h1 id="title"></h1></div>
+    <div class="card linkrow">
+      <svg class="ico lead" aria-hidden="true"><use href="#i-store"/></svg>
+      <a class="url" id="shoplink" target="_blank" rel="noopener"></a>
+      <button class="iconbtn" id="share" type="button" aria-label="Share shop link" hidden><svg class="ico" aria-hidden="true"><use href="#i-share"/></svg></button>
+      <button class="iconbtn" id="copy" type="button" aria-label="Copy shop link"><svg class="ico" aria-hidden="true"><use href="#i-copy"/></svg></button>
+      <a class="iconbtn" id="openshop" target="_blank" rel="noopener" aria-label="Open your shop"><svg class="ico" aria-hidden="true"><use href="#i-external"/></svg></a>
+    </div>
+    <p class="linkhint">Put this link in your Instagram bio or WhatsApp status. Buyers and AI assistants both use it.</p>
+    <div class="tiles" id="tiles" role="group" aria-label="Show orders that need you" aria-live="polite">
+      <div class="tile zero"><b class="skel" style="width:2rem;height:1.6rem"></b><small class="skel" style="width:4rem;height:.8rem"></small></div>
+      <div class="tile zero"><b class="skel" style="width:2rem;height:1.6rem"></b><small class="skel" style="width:4rem;height:.8rem"></small></div>
+      <div class="tile zero"><b class="skel" style="width:2rem;height:1.6rem"></b><small class="skel" style="width:4rem;height:.8rem"></small></div>
+      <div class="tile zero"><b class="skel" style="width:2rem;height:1.6rem"></b><small class="skel" style="width:4rem;height:.8rem"></small></div>
+    </div>
+
+    <div class="tabs" role="tablist" aria-label="Dashboard sections">
+      <button class="tab" role="tab" id="tab-orders" aria-controls="orders" aria-selected="true" type="button">Orders <span class="n" id="n-orders">0</span></button>
+      <button class="tab" role="tab" id="tab-products" aria-controls="products" aria-selected="false" tabindex="-1" type="button">Products <span class="n" id="n-products">0</span></button>
+      <button class="tab" role="tab" id="tab-settings" aria-controls="settings" aria-selected="false" tabindex="-1" type="button">Settings</button>
+    </div>
+    <div class="panel" id="orders" role="tabpanel" aria-labelledby="tab-orders"><div class="card skel-row"><span class="skel"></span><span class="skel"></span></div></div>
+    <div class="panel" id="products" role="tabpanel" aria-labelledby="tab-products" hidden><div class="card skel-row"><span class="skel"></span><span class="skel"></span></div></div>
+    <div class="panel" id="settings" role="tabpanel" aria-labelledby="tab-settings" hidden>
+      <form class="card policy" id="policy">
+        <h2>Returns and payouts</h2>
+        <p class="intro" id="policytext"></p>
+        <p class="intro" style="margin-top:-.5rem"><a href="/policy/payouts" target="_blank" rel="noopener">How payouts are held, and who decides a dispute</a></p>
+        <label class="switch" for="mind"><div><span>Accept returns for a change of mind</span><small>The buyer pays the return shipping and gets the product price back, not the original shipping.</small></div><input type="checkbox" id="mind" role="switch"></label>
+        <div class="field" style="margin-top:1.25rem">
+          <label for="note">A note buyers see with your return policy (optional)</label>
+          <textarea id="note" maxlength="300" aria-describedby="notehint"></textarea>
+          <div class="count-note"><span class="hint" id="notehint" style="margin:.35rem 0 0">It is shown as written by you.</span><span class="hint money" id="notecount" style="margin:.35rem 0 0">0/300</span></div>
+        </div>
+        <button class="btn save" type="submit" id="savepolicy" disabled>Save changes</button>
+      </form>
+      <form class="card address" id="addr-form" aria-labelledby="addr-h" hidden>
+        <h2 id="addr-h">Your shop address</h2>
+        <p class="intro">A short address you can say out loud and put in your bio. If you change it, the old address stops working.</p>
+        <div class="field">
+          <label for="slug">Address</label>
+          <div class="slugrow"><input id="slug" autocomplete="off" autocapitalize="none" spellcheck="false" maxlength="30" aria-describedby="slug-err"><span id="slug-suffix"></span></div>
+          <p class="hint" id="slug-err" role="alert" style="color:var(--red);margin:.35rem 0 0"></p>
+        </div>
+        <button class="btn save" type="submit" id="slug-save" disabled>Save address</button>
+      </form>
+      <section class="card channel" id="channel" aria-labelledby="chan-h" hidden>
+        <h2 id="chan-h">Where Etalase messages you</h2>
+        <p class="intro">New orders, stock checks and payouts arrive on one channel. You can switch at any time, and you can still write to Etalase on both.</p>
+        <div class="seg" role="group" aria-label="Channel for orders and stock checks">
+          <button class="segbtn" type="button" id="ch-whatsapp" aria-pressed="true">WhatsApp</button>
+          <button class="segbtn" type="button" id="ch-telegram" aria-pressed="false">Telegram</button>
+        </div>
+        <div id="tg-connect" hidden>
+          <p class="hint">Link a Telegram chat to your shop. Telegram has no 24-hour window and no message fees.</p>
+          <button class="btn alt" id="tg-start" type="button">Connect Telegram</button>
+          <a class="btn" id="tg-open" target="_blank" rel="noopener" hidden>Open Telegram and tap Start</a>
+          <p class="tgcode" id="tg-code" hidden></p>
+        </div>
+      </section>
+      <section class="card account">
+        <h2>Your shop</h2>
+        <dl>
+          <div><dt>Shop name</dt><dd id="acc-name"></dd></div>
+          <div><dt>WhatsApp number</dt><dd id="acc-wa"></dd></div>
+          <div><dt>Shop link</dt><dd id="acc-link"></dd></div>
+        </dl>
+        <div class="row"><button class="btn alt" id="signout2" type="button"><svg class="ico" aria-hidden="true"><use href="#i-out"/></svg>Sign out</button></div>
+      </section>
+    </div>
   </section>
 </main>
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
 <script>
 const $ = (id) => document.getElementById(id);
 const rp = (n) => n == null ? "-" : "Rp" + Number(n).toLocaleString("id-ID");
 const esc = (v) => String(v ?? "").replace(/[&<>"'`]/g, (c) => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;", "`": "&#96;"}[c]));
-let token = null;
+const ic = (name, cls = "") => `<svg class="ico ${cls}" aria-hidden="true"><use href="#i-${name}"/></svg>`;
+const go = (fn) => document.startViewTransition ? document.startViewTransition(fn) : fn();
+const COVERS = [["#0a5c42", "#1fb384"], ["#9a4a00", "#f0a73a"], ["#2c3b95", "#6a82f0"], ["#98234a", "#ec6a8e"], ["#4d3187", "#9a76e0"], ["#0b5568", "#35b3d1"]];
+let token = null, lastMe = {}, shown = "", toastTimer, allOrders = [], filter = "", base = { mind: false, note: "" };
 try { token = sessionStorage.getItem("etalase_token"); } catch (e) {}
+if (/^(localhost|127\.|\[::1\])/.test(location.hostname) || location.hostname.endsWith(".localhost")) $("dev").hidden = false;
 
 async function api(path, opts = {}) {
-  const res = await fetch(path, { ...opts, headers: { "content-type": "application/json",
-    ...(token ? { authorization: "Bearer " + token } : {}) } });
-  if (!res.ok) throw new Error((await res.json()).detail || res.statusText);
+  const res = await fetch(path, { ...opts, headers: { "content-type": "application/json", ...(token ? { authorization: "Bearer " + token } : {}) } });
+  if (!res.ok) { let d = res.statusText; try { d = (await res.json()).detail || d; } catch (e) {} throw new Error(typeof d === "string" ? d : "Request failed"); }
   return res.json();
 }
+const busy = (btn, on, text) => {
+  if (on) { btn.dataset.label = btn.innerHTML; if (text) btn.textContent = text; btn.setAttribute("aria-busy", "true"); }
+  else { if (btn.dataset.label) btn.innerHTML = btn.dataset.label; btn.removeAttribute("aria-busy"); }
+};
+const toast = (msg) => { const t = $("toast"); t.textContent = msg; t.classList.add("on"); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove("on"), 3500); };
+const show = (msg) => { const e = $("err"); e.innerHTML = msg ? ic("alert") + "<div>" + esc(msg) + "</div>" : ""; e.classList.toggle("on", !!msg); };
+// 0812... and +62 812... both mean the same number; the server wants digits with the country code.
+const normWa = (v) => { let d = String(v).replace(/\D/g, ""); if (d.startsWith("0")) d = "62" + d.slice(1); else if (d.startsWith("8")) d = "62" + d; return d; };
+const ago = (iso) => {
+  const t = Date.parse(iso); if (!t) return "";
+  const s = Math.max(0, (Date.now() - t) / 1000);
+  if (s < 90) return "just now"; if (s < 3600) return Math.round(s / 60) + " min ago"; if (s < 86400) return Math.round(s / 3600) + " h ago";
+  if (s < 604800) return Math.round(s / 86400) + " d ago"; return new Date(t).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+};
 
 $("send").onclick = async () => {
-  $("err").textContent = "";
-  if (!/^\d{9,15}$/.test($("wa").value)) { $("err").textContent = "Enter a number like 628123456789"; return; }
-  await api("/auth/otp", { method: "POST", body: JSON.stringify({ whatsapp: $("wa").value }) });
-  $("code").hidden = $("verify").hidden = false;
+  show("");
+  const wa = normWa($("wa").value);
+  if (!/^\d{9,15}$/.test(wa)) { show("Enter your WhatsApp number, for example 0812 3456 7890."); $("wa").focus(); return; }
+  busy($("send"), true, "Sending…");
+  try {
+    await api("/auth/otp", { method: "POST", body: JSON.stringify({ whatsapp: wa }) });
+    $("codebox").hidden = false; $("code").focus();
+    $("send").dataset.label = "Send the code again";
+  } catch (e) { show("We could not send the code: " + e.message + ". Send \"hi\" to Etalase on WhatsApp first, then try again."); }
+  busy($("send"), false);
 };
 $("verify").onclick = async () => {
-  $("err").textContent = "";
-  if (!/^\d{6}$/.test($("code").value)) { $("err").textContent = "The code has 6 digits"; return; }
+  show("");
+  if (!/^\d{6}$/.test($("code").value.trim())) { show("The code has 6 digits."); $("code").focus(); return; }
+  busy($("verify"), true, "Signing in…");
   try {
-    const r = await api("/auth/verify", { method: "POST", body: JSON.stringify({ whatsapp: $("wa").value, code: $("code").value }) });
+    const r = await api("/auth/verify", { method: "POST", body: JSON.stringify({ whatsapp: normWa($("wa").value), code: $("code").value.trim() }) });
     token = r.token;
     try { sessionStorage.setItem("etalase_token", token); } catch (e) {}
-    load();
-  } catch (e) { $("err").textContent = "Wrong or expired code"; }
+    await load(true);
+  } catch (e) { show("That code is wrong or has expired. Ask for a new one."); }
+  busy($("verify"), false);
 };
-$("logout").onclick = () => { token = null; try { sessionStorage.removeItem("etalase_token"); } catch (e) {} location.reload(); };
+for (const id of ["wa", "code"]) $(id).addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); $(id === "wa" ? "send" : "verify").click(); } });
+const signOut = () => { token = null; try { sessionStorage.removeItem("etalase_token"); } catch (e) {} location.reload(); };
+$("logout").onclick = signOut; $("signout2").onclick = signOut;
+const copyLink = async () => {
+  const url = $("shoplink").href;
+  try { await navigator.clipboard.writeText(url); toast("Link copied"); } catch (e) { toast(url); }
+};
+$("copy").onclick = copyLink;
+if (navigator.share) { $("share").hidden = false; $("share").onclick = () => navigator.share({ title: lastMe.name || "My shop", url: $("shoplink").href }).catch(() => {}); }
 
-async function load() {
-  try {
-    const me = await api("/api/me");
-    $("who").textContent = me.name;
-    $("login").hidden = true; $("app").hidden = false;
-    const products = await api("/api/me/products");
-    $("products").innerHTML = products.map(p => `
-      <div class="card">
-        <h3>${esc(p.title)}</h3>
-        <span class="pill ${esc(p.status)}">${esc(p.status.replace("_", " "))}</span>
-        <div class="bar"><i style="width:${Number(p.readiness_score) || 0}%"></i></div>
-        <div class="hint">Agent readiness ${Number(p.readiness_score) || 0}/100${p.readiness_missing.length ? " · missing: " + esc(p.readiness_missing.join(", ")) : ""}</div>
-        <table>${p.variants.map(v => `<tr><td>${esc(Object.values(v.options).join(" / ") || "Default")}</td>
-          <td>${rp(v.price)}</td><td>stock ${esc(v.stock.on_hand ?? "?")}${v.stock.reserved ? ` (${Number(v.stock.reserved)} held)` : ""}</td></tr>`).join("")}</table>
-      </div>`).join("") || `<p class="hint">No products yet. Send photos and a description to Etalase on WhatsApp.</p>`;
-    const orders = await api("/api/me/orders");
-    $("orders").innerHTML = orders.map(o => `<tr><td>${esc(o.checkout_id)}<div class="hint">${esc(o.buyer_city)}</div></td>
-      <td>${o.items.map(i => `${esc(i.title)} × ${Number(i.qty)}`).join("<br>")}</td><td>${rp(o.total)}</td>
-      <td>${esc(o.status.replaceAll("_", " "))}${o.tracking ? `<div class="hint">tracking ${esc(o.tracking)}</div>` : ""}</td>
-      <td>${o.payout ? rp(o.payout.seller_amount) : "-"}</td></tr>`).join("") || `<tr><td colspan="5" class="hint">No orders yet.</td></tr>`;
-  } catch (e) { token = null; }
+const TABS = ["orders", "products", "settings"];
+function pick(name, focus) {
+  if (!TABS.includes(name)) name = "orders";
+  for (const t of TABS) {
+    const on = t === name;
+    $("tab-" + t).setAttribute("aria-selected", on); $("tab-" + t).tabIndex = on ? 0 : -1; $(t).hidden = !on;
+    if (on) { $(t).classList.remove("tabpanel-in"); void $(t).offsetWidth; $(t).classList.add("tabpanel-in"); }
+  }
+  if (focus) $("tab-" + name).focus();
+  try { history.replaceState(null, "", "#" + name); } catch (e) {}
 }
+for (const t of TABS) $("tab-" + t).onclick = () => pick(t);
+document.querySelector(".tabs").addEventListener("keydown", (e) => {
+  const i = TABS.findIndex((t) => $("tab-" + t).getAttribute("aria-selected") === "true");
+  if (e.key === "ArrowRight") { e.preventDefault(); pick(TABS[(i + 1) % TABS.length], true); }
+  if (e.key === "ArrowLeft") { e.preventDefault(); pick(TABS[(i + TABS.length - 1) % TABS.length], true); }
+});
+
+// kind: action = the seller's turn, wait = somebody else's turn, ok = went well, bad = it did not work out.
+const STATUS = {
+  awaiting_seller_confirmation: ["Needs you", "action", "Confirm you have this in stock. Tap Yes or No in your WhatsApp chat with Etalase."],
+  awaiting_payment: ["Waiting for payment", "wait"],
+  paid: ["Paid, accept it", "action", "The buyer has paid. Tap Accept in WhatsApp, then pack the order."],
+  accepted: ["Ship it", "action", "Pack it and send the tracking number in your WhatsApp chat."],
+  shipped: ["On its way", "wait"], delivered: ["Delivered", "ok"], paid_out: ["Paid out", "ok"],
+  return_requested: ["Answer the return", "action", "The buyer asked for a return. Approve or dispute it in WhatsApp within 48 hours."],
+  return_approved: ["Waiting for the item", "wait"], return_disputed: ["Under review", "wait"],
+  refunded: ["Refunded", "bad"], rejected: ["Declined", "bad"], expired: ["Expired", "bad"],
+};
+const label = (s) => STATUS[s] || [String(s).replaceAll("_", " "), "wait"];
+const FILTERS = {
+  confirm: ["To confirm", ["awaiting_seller_confirmation"]], ship: ["To ship", ["paid", "accepted"]], returns: ["Returns open", ["return_requested", "return_approved"]],
+};
+const mediaUrl = (p) => /^https:\/\//.test(p) ? p : "/media/" + String(p).split("/").pop();
+const MISSING = { photo: "a photo", description: "a longer description", weight: "the weight", stock: "stock counts", category: "a category", price: "a price", title: "a title" };
+
+function renderProducts(products) {
+  $("n-products").textContent = products.length;
+  $("products").innerHTML = products.map((p, i) => {
+    const img = p.images && p.images[0] ? `<img src="${esc(mediaUrl(p.images[0]))}" alt="" loading="lazy" decoding="async">` : ic("image", "lg");
+    const live = p.status === "published";
+    const prices = p.variants.map(v => v.price).filter(n => n != null);
+    const from = prices.length ? Math.min(...prices) : null;
+    const stock = p.variants.map(v => `<span>${esc(Object.values(v.options).join(" / ") || "Default")} · ${esc(v.stock.on_hand ?? "?")}</span>` + (v.stock.reserved ? `<span class="held">${Number(v.stock.reserved)} held</span>` : "")).join("");
+    const need = (p.readiness_missing || []).map(m => MISSING[m] || m);
+    const gap = need.length ? `<div class="gap">${ic("alert")}<span>Add ${esc(need.join(", "))} so buyers and AI assistants can trust this listing.</span></div>` : "";
+    const view = live && lastMe.id ? `<div class="plinks"><a href="/stores/${esc(lastMe.id)}/p/${esc(p.id)}" target="_blank" rel="noopener">${ic("external", "sm")}View in your shop</a></div>` : "";
+    return `<article class="card prow rise" style="--i:${Math.min(i, 8)}"><div class="thumb">${img}</div><div class="pname">${esc(p.title)}${live ? "" : `<span class="pill wait draft">${esc(p.status.replace("_", " "))}</span>`}</div>
+      <div class="pprice">${from == null ? "" : (new Set(prices).size > 1 ? "from " : "") + rp(from)}</div><div class="stock">${stock}</div>${view}${gap}</article>`;
+  }).join("") || `<div class="card empty wide"><span class="bubble">${ic("bag", "lg")}</span><h3>No products yet</h3><p>Send photos and a short description to Etalase on WhatsApp. Your first product is live a minute later.</p></div>`;
+}
+
+function orderCard(o, i) {
+  const [text, kind, todo] = label(o.status);
+  const lines = [];
+  if (o.tracking) lines.push(`<span>Tracking ${esc(o.tracking)}</span>`);
+  if (o.return && o.return.reason) lines.push(`<span>Return: ${esc(o.return.reason.replaceAll("_", " "))}${o.return.outcome ? ", " + esc(o.return.outcome) : ""}</span>`);
+  if (o.return_detail && o.return_detail.note) lines.push(`<span>The buyer wrote: ${esc(o.return_detail.note)}</span>`);
+  if (o.return_detail) for (const [n, u] of (o.return_detail.evidence || []).filter(u => u.startsWith("https://")).entries())
+    lines.push(`<span><a href="${esc(u)}" target="_blank" rel="noopener noreferrer nofollow">Photo ${n + 1}</a> (a link from the buyer, open with care)</span>`);
+  if (o.payout) lines.push(`<span>${rp(o.payout.seller_amount)} paid out to you</span>`);
+  else if (o.payout_due_at && o.status === "delivered") lines.push(`<span>Your payout is due ${esc(o.payout_due_at.replace("T", " "))}</span>`);
+  const who = o.buyer_first_name ? esc(o.buyer_first_name) : "Buyer";
+  const items = o.items.map(it => `<li><span>${esc(it.title)}</span><span>&times; ${Number(it.qty)}</span></li>`).join("");
+  return `<article class="card ord rise${kind === "action" ? " needs" : ""}" style="--i:${Math.min(i, 8)}">
+    <div class="ord-head"><div><b>${who}</b><small>${esc(o.buyer_city)}${o.created_at ? " · " + esc(ago(o.created_at)) : ""}</small></div><span class="pill ${kind}"><i></i>${esc(text)}</span></div>
+    <ul class="items">${items}</ul>
+    <div class="ord-foot"><p class="total">${rp(o.total)}</p><span class="ref">#${esc(String(o.checkout_id).slice(-6))}</span></div>
+    ${todo ? `<div class="todo">${ic("message")}<span>${esc(todo)}</span></div>` : ""}
+    <div class="ord-extra">${lines.join("")}</div></article>`;
+}
+
+function renderOrders(orders) {
+  allOrders = orders;
+  const count = (...s) => orders.filter(o => s.includes(o.status)).length;
+  const paidOut = orders.reduce((sum, o) => sum + (o.payout ? Number(o.payout.seller_amount) || 0 : 0), 0);
+  const tile = (key, n, text, hot) => `<button class="tile ${n ? (hot ? "hot" : "good") : "zero"}" type="button" data-filter="${key}" aria-pressed="${filter === key}"><b>${n}</b><small>${esc(text)}</small></button>`;
+  $("tiles").innerHTML = Object.entries(FILTERS).map(([k, [t, s]]) => tile(k, count(...s), t, true)).join("")
+    + `<div class="tile ${paidOut ? "good" : "zero"}"><b class="money-lg">${rp(paidOut)}</b><small>paid out so far</small></div>`;
+  $("n-orders").textContent = orders.length;
+  const rank = (o) => label(o.status)[1] === "action" ? 0 : 1;
+  let list = orders.map((o, i) => [o, i]).sort((a, b) => rank(a[0]) - rank(b[0]) || a[1] - b[1]).map(x => x[0]);
+  if (filter && FILTERS[filter]) list = list.filter(o => FILTERS[filter][1].includes(o.status));
+  const bar = filter && FILTERS[filter] ? `<div class="filter wide"><button type="button" data-filter="">${esc(FILTERS[filter][0])} ${ic("x", "sm")}</button><span class="fine">${list.length} order${list.length === 1 ? "" : "s"}</span></div>` : "";
+  $("orders").innerHTML = bar + (list.map(orderCard).join("") || `<div class="card empty wide"><span class="bubble">${ic("inbox", "lg")}</span><h3>${filter ? "Nothing here right now" : "No orders yet"}</h3><p>${filter ? "Nothing needs you in this group." : "Share your shop link. Every order shows up here and as a WhatsApp message with buttons."}</p></div>`);
+}
+$("tiles").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-filter]"); if (!b) return;
+  filter = filter === b.dataset.filter ? "" : b.dataset.filter; go(() => { renderOrders(allOrders); pick("orders"); });
+});
+$("orders").addEventListener("click", (e) => { const b = e.target.closest("[data-filter]"); if (b) { filter = ""; go(() => renderOrders(allOrders)); } });
+
+function renderPolicy(me) {
+  const p = me.return_policy, rec = me.track_record || {};
+  $("policytext").textContent = p.window_hours
+    ? `Buyers can ask for a return for ${p.window_hours >= 24 && p.window_hours % 24 === 0 ? p.window_hours / 24 + " days" : p.window_hours + " hours"} after delivery, and your payout is released after that window. ` +
+      `${rec.orders_completed || 0} completed ${(rec.orders_completed || 0) === 1 ? "order" : "orders"} so far. The window is longer while you are new.`
+    : "Returns are switched off for this shop, so payouts are released right after delivery.";
+  $("mind").checked = (p.reasons || []).includes("changed_mind");
+  $("note").value = p.note || "";
+  base = { mind: $("mind").checked, note: $("note").value };
+  $("notecount").textContent = $("note").value.length + "/300"; sync();
+}
+const sync = () => { $("savepolicy").disabled = $("mind").checked === base.mind && $("note").value === base.note; };
+$("note").addEventListener("input", () => { $("notecount").textContent = $("note").value.length + "/300"; sync(); });
+$("mind").addEventListener("change", sync);
+$("policy").onsubmit = async (e) => {
+  e.preventDefault(); busy($("savepolicy"), true, "Saving…");
+  try {
+    const p = await api("/api/me/return-policy", { method: "PUT", body: JSON.stringify({ accepts_change_of_mind: $("mind").checked, note: $("note").value.slice(0, 300) }) });
+    lastMe = { ...lastMe, return_policy: p }; renderPolicy(lastMe); toast("Saved");
+  } catch (err) { toast("We could not save: " + err.message); }
+  busy($("savepolicy"), false); sync();
+};
+
+
+function renderLink(url) {
+  if (!/^https?:\/\//.test(url)) return;
+  const plain = url.replace(/^https?:\/\//, "");
+  $("shoplink").textContent = plain; $("shoplink").href = url; $("openshop").href = url; $("acc-link").textContent = plain;
+}
+// The shop's own address (rina.<domain>), only when the server has a base domain.
+function renderSlug(me) {
+  $("addr-form").hidden = !me.subdomains;
+  if (!me.subdomains) return;
+  $("slug-suffix").textContent = "." + me.subdomains.domain;
+  if (document.activeElement !== $("slug")) $("slug").value = me.slug || "";
+  base.slug = me.slug || ""; $("slug-save").disabled = $("slug").value.trim().toLowerCase() === base.slug;
+}
+$("slug").oninput = () => { $("slug-err").textContent = ""; $("slug").removeAttribute("aria-invalid"); $("slug-save").disabled = $("slug").value.trim().toLowerCase() === base.slug; };
+$("addr-form").onsubmit = async (ev) => {
+  ev.preventDefault(); const btn = $("slug-save"); busy(btn, true, "Saving…");
+  try {
+    const me = await api("/api/me/slug", { method: "PUT", body: JSON.stringify({ slug: $("slug").value }) });
+    lastMe = me; renderLink(me.store_url); renderSlug(me); toast("Your shop address is " + me.store_url.replace(/^https?:\/\//, ""));
+  } catch (e) { $("slug-err").textContent = e.message; $("slug").setAttribute("aria-invalid", "true"); $("slug").focus(); }
+  busy(btn, false); $("slug-save").disabled = $("slug").value.trim().toLowerCase() === base.slug;
+};
+
+// Which channel Etalase writes to: WhatsApp (default) or a linked Telegram chat.
+let linkPoll = 0;
+function renderChannel(me) {
+  const t = me.telegram || {};
+  $("channel").hidden = !t.available;
+  if (!t.available) return;
+  $("ch-whatsapp").setAttribute("aria-pressed", String(me.channel !== "telegram"));
+  $("ch-telegram").setAttribute("aria-pressed", String(me.channel === "telegram"));
+  $("ch-telegram").disabled = !t.linked;
+  $("tg-connect").hidden = !!t.linked;
+  if (t.linked) { clearInterval(linkPoll); $("tg-code").hidden = true; $("tg-open").hidden = true; }
+}
+async function chooseChannel(channel) {
+  try { renderChannel(await api("/api/me/channel", { method: "PUT", body: JSON.stringify({ channel }) })); toast(channel === "telegram" ? "Orders now arrive on Telegram" : "Orders now arrive on WhatsApp"); }
+  catch (e) { toast("We could not switch: " + e.message); }
+}
+$("ch-whatsapp").onclick = () => chooseChannel("whatsapp");
+$("ch-telegram").onclick = () => chooseChannel("telegram");
+$("tg-start").onclick = async () => {
+  busy($("tg-start"), true, "One moment…");
+  try {
+    const r = await api("/api/me/telegram/link", { method: "POST" });
+    if (r.url && /^https:\/\/t\.me\//.test(r.url)) { $("tg-open").href = r.url; $("tg-open").hidden = false; }
+    $("tg-code").textContent = (r.url ? "Or send this to the bot: " : "Send this to the Etalase bot: ") + r.command; $("tg-code").hidden = false;
+    clearInterval(linkPoll); let tries = 0;
+    linkPoll = setInterval(async () => {   // the seller taps Start in Telegram; the page notices without a reload
+      if (++tries > 200) return clearInterval(linkPoll);
+      try { const me = await api("/api/me"); if (me.telegram && me.telegram.linked) { lastMe = me; renderChannel(me); toast("Telegram is connected"); } } catch (e) {}
+    }, 3000);
+  } catch (e) { toast("We could not start the link: " + e.message); }
+  busy($("tg-start"), false);
+};
+
+async function fetchAll() { return Promise.all([api("/api/me"), api("/api/me/products"), api("/api/me/orders")]); }
+function paint(me, products, orders) {
+  lastMe = me;
+  const [c1, c2] = COVERS[[...me.name].reduce((a, c) => a + c.charCodeAt(0), 0) % COVERS.length];
+  $("avatar").style.setProperty("--c1", c1); $("avatar").style.setProperty("--c2", c2);
+  $("shopname").textContent = me.name; $("title").textContent = me.name; $("avatar").textContent = (me.name.trim().charAt(0) || "E").toUpperCase(); $("who").hidden = false;
+  const h = new Date().getHours();
+  $("greet").textContent = h < 11 ? "Good morning" : h < 15 ? "Good afternoon" : h < 19 ? "Good evening" : "Good night";
+  renderLink(me.store_url);
+  $("acc-name").textContent = me.name; $("acc-wa").textContent = me.whatsapp ? "+" + me.whatsapp : "";
+  $("login").hidden = true; $("app").hidden = false;
+  renderPolicy(me); renderSlug(me); renderChannel(me); renderProducts(products); renderOrders(orders);
+}
+async function load(first) {
+  try {
+    const [me, products, orders] = await fetchAll();
+    shown = JSON.stringify([products, orders]);
+    go(() => { paint(me, products, orders); if (first !== false) pick(location.hash.slice(1)); });
+    setTimeout(() => document.documentElement.classList.add("swapped"), 900);
+  } catch (e) { token = null; try { sessionStorage.removeItem("etalase_token"); } catch (x) {} $("login").hidden = false; $("app").hidden = true; $("who").hidden = true; }
+}
+// Orders change while the seller answers in WhatsApp, so the page checks quietly every 20 seconds and repaints only if something changed.
+setInterval(async () => {
+  if (!token || document.hidden || $("app").hidden) return;
+  try {
+    const [me, products, orders] = await fetchAll(), now = JSON.stringify([products, orders]);
+    if (now !== shown) { shown = now; const a = document.activeElement; renderProducts(products); renderOrders(orders); if (a && a.id) { const k = document.getElementById(a.id); if (k) k.focus(); } }
+  } catch (e) {}
+}, 20000);
 if (token) load();
 </script>
 </body>

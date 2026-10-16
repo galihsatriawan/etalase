@@ -31,6 +31,8 @@ class EventBus:
 TOPICS = (
     "catalog.drafted", "catalog.published", "stock.changed",
     "order.awaiting_confirmation", "order.awaiting_payment", "order.paid", "order.accepted",
-    "order.rejected", "order.expired", "order.shipped", "order.delivered", "payout.released",
+    "order.rejected", "order.expired", "order.shipped", "order.delivered", "order.returned_to_sender", "order.parcel_lost",
+    "payout.released",
+    "return.requested", "return.approved", "return.disputed", "return.shipped_back", "return.refunded", "return.closed",
     "ops.manual_action",   # a refund or payout an operator must finish by hand
 )

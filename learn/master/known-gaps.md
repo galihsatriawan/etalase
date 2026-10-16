@@ -31,11 +31,13 @@ These parts have real code paths, but the demo runs a stand-in. Each switches on
 
 | Part | Demo uses | Real adapter | What is still missing to go live |
 |---|---|---|---|
-| Catalog extraction <Badge type="warning" text="Mocked in demo" /> | `HeuristicExtractor` (text and CSV rules) | `GeminiExtractor` with Vertex AI or an API key | No accuracy eval yet; no timeout or fallback if Gemini fails |
+| Catalog extraction <Badge type="warning" text="Mocked in demo" /> | `HeuristicExtractor` (text and CSV rules) | `GeminiExtractor` with Vertex AI or an API key | Live accuracy not measured yet (run `make eval` with a key); retries and an offline fallback exist, but no explicit request timeout |
 | Seller chat <Badge type="warning" text="Mocked in demo" /> | Offline intent parser | ADK `LlmAgent` with five tools | Sessions in memory (`InMemorySessionService`); errors leave the seller with no reply |
-| Messaging <Badge type="warning" text="Mocked in demo" /> | `ConsoleMessenger` (outbox list) | `WhatsAppCloudMessenger` | Approved templates; per-message cost control; media types tested only against the mapping, not the live API |
-| Payments <Badge type="warning" text="Mocked in demo" /> | `MockPayment` (fake QRIS, instant refunds and releases) | `XenditPayment` (dynamic QRIS, callback token) | Refunds and xenPlatform settlement raise `ManualActionRequired` (an operator finishes them); field names to verify |
-| Shipping <Badge type="warning" text="Mocked in demo" /> | `MockShipping` (three couriers, `confirm_delivered` always true) | `BiteshipShipping` | Field names, tracking endpoint and booking payload to verify against the live API |
+| Messaging <Badge type="warning" text="Mocked in demo" /> | `ConsoleMessenger` (outbox list) | `WhatsAppCloudMessenger` | Templates must be created and approved by you (the code sends them); authentication template for sign-in codes; per-message cost control; media types and the template payload are tested against the documented shape, not the live API |
+| Telegram channel <Badge type="warning" text="Mocked in demo" /> | `ConsoleMessenger` labels it "Telegram" in the outbox; tests stub the Bot API | `TelegramMessenger` (Bot API over httpx) | Never called against the live Bot API: create the bot in @BotFather, set `TELEGRAM_BOT_TOKEN` and `TELEGRAM_WEBHOOK_SECRET`, run `python -m etalase.adapters.telegram set-webhook <url>`. The numeric limits (4096 characters, 64 bytes of callback data, 20 MB downloads) are the documented ones but were not re-read on the day of the check |
+| Shop subdomains <Badge type="warning" text="Not deployed" /> | Path links (`/stores/<id>`) are the default; `STORE_BASE_DOMAIN` is optional | `ShopHostMiddleware` maps `slug.<domain>` to the shop | Wildcard DNS and a wildcard TLS certificate (or a load balancer that terminates them) are not set up from the sandbox; tested with a fake `Host` header and in a real browser against `*.localhost` only |
+| Payments <Badge type="warning" text="Mocked in demo" /> | `MockPayment` (fake QRIS, instant refunds and releases) | `XenditPayment` (dynamic QRIS, callback token) | Refunds and xenPlatform settlement raise `ManualActionRequired` (an operator finishes them); uses the `/qr_codes` endpoint that Xendit calls legacy, and its official reference could not be opened, so the payload is community-sourced and unverified |
+| Shipping <Badge type="warning" text="Mocked in demo" /> | `MockShipping` (three couriers, `confirm_delivered` always true) | `BiteshipShipping` | Checked against Biteship's public docs (rates, orders, tracking, `order.status` webhook) and pinned by tests; not run against the live API; test mode bills rate and tracking calls |
 | Database <Badge type="warning" text="Mocked in demo" /> | `MemoryStore` (one lock) | `FirestoreStore` (transactions) | Never run against the emulator in tests; see the Firestore section below |
 | KYC <Badge type="warning" text="Mocked in demo" /> | `/dev/sellers` creates sellers with `kyc_status="verified"`; `payout_account_id` is `"mock-sub-account"` only with the mock payment adapter (`None` with real Xendit test keys) | None yet | A registration flow and sub-account creation at the provider |
 | Instagram import <Badge type="warning" text="Mocked in demo" /> | `SampleInstagramSource` (three sample posts) | `InstagramGraphSource` with Instagram Login | Long-lived token exchange, token encryption, Meta App Review |
@@ -50,7 +52,7 @@ These are ordered by risk to the submission. Registration closes on 11 October, 
 | D1 | Placeholders: team in `README.md` and slide 1, screenshots on slide 10, links on slide 13 | Judges see these first | Fill them in; the deck must link the public repo, the video and the Cloud Run URL |
 | D2 | Benchmark slide has five "TBD" rows (extraction accuracy, build time, tool latency, alert speed, intent accuracy) | Technical Merit is 40%; numbers beat promises | Run what you can (see [Exercise 17](/master/exercises#_17-build-the-gemini-extraction-eval)); otherwise keep "TBD" and say why. Never fill in a guess |
 | D3 | Real WhatsApp voice notes and CSV files: the fixed MIME mapping in `download_media` has no unit test and has never run against the live Cloud API | The voice-note scene is the heart of the video | Record a test voice note and send a CSV through the real Cloud API before filming |
-| D4 | WhatsApp 24-hour window: the prototype sends only free-form messages, and messages that start a conversation need approved templates | The "New paid order" alert can fail on camera | Send a message from the seller's phone to the Etalase number just before recording, and register that phone as a test recipient |
+| D4 | WhatsApp 24-hour window: alerts Etalase starts fall back to approved templates, but only if you created them in WhatsApp Manager, and sign-in codes are never templated | The "New paid order" alert or the dashboard code can fail on camera | Create the four templates ([guide](/ship/whatsapp-templates)), and send a message from the seller's phone to the Etalase number just before recording, with that phone registered as a test recipient |
 | D5 | The demo buyer agent must point to the deployed MCP URL | Otherwise it shops on localhost | `ETALASE_MCP_URL=<cloud run url>/mcp/` (checklist in `docs/13-demo-script.md`) |
 | D6 | Evidence: the exact BPS table number is still open in `docs/15-evidence.md` | The 95% number is your headline | Download the BPS PDF and note the table |
 
@@ -90,8 +92,11 @@ Fix: [Exercise 13](/master/exercises#_13-run-the-store-contract-against-the-fire
 - **Refunds and payouts are manual with Xendit.** `refund` and `release_to_seller` raise `ManualActionRequired`. `_refund` and `release_payout` treat **any** exception from the provider the same way: the order becomes `refund_pending` or `pending_manual`, and an `ops.manual_action` event is published. The topic is in `events.TOPICS`, and `container.py` subscribes a handler that logs `MANUAL ACTION REQUIRED` at ERROR level, so it shows up in Cloud Logging. That is a log line, not a page: before real money flows, add a log-based alert or a Pub/Sub alert that wakes an operator, and an ops queue to track each case until it is done.
 - **A crash mid-payout** leaves `payout.status = "releasing"` forever, because the claim and the provider call are separate steps. Add a reconciliation job that checks the provider.
 - **Orphan QR codes.** `seller_confirms_stock` creates the payment before it knows it won the race against expiry; a lost race leaves an unused QR at the provider.
-- **No cancel, return or dispute flow.** Buyers cannot cancel a checkout (it just expires), the `returned` shipping status has no money flow, and there is no dispute policy. Write the policy before writing the code.
-- **Licensing.** "Etalase never holds funds" (ADR 0003) is a design that must be confirmed with the provider and a lawyer.
+- **Cancel, and who answers an appeal.** Buyers cannot cancel a checkout (it just expires). Returns, disputes and the courier's `returned` and `lost` outcomes have money flows and a published payout policy (`/policy/payouts`); what is missing is a person to answer an appeal (`SUPPORT_CONTACT` must be set and staffed) and an answer to who bears a lost parcel (today the buyer is refunded and the seller carries the loss).
+- **Licensing and hold feasibility.** "Etalase never holds funds" is no longer used as a legal conclusion (ADR 0003 now says Etalase does not receive buyer payments in its own account). Two things are open: no Xendit page documents a hold or scheduled release controlled by the platform (the payout hold may not be enforceable there; DOKU documents custom hold periods), and PBI 23/6/PBI/2021 lists disbursement to goods and services providers as a payment-service activity, so instructing releases may itself be regulated. Both need written answers from Xendit and counsel before real money moves (`docs/09`).
+- **Unit economics.** Since 1 October 2026 WhatsApp in-window replies are charged (37–61% of the commission per order), and per-seller fixed costs (a possible xenPlatform account fee, Biteship's subscription from 2 Nov 2026) make a pure 4% commission comfortable only above about 20 orders per seller per month (`docs/10`). Built on 16 October 2026: `Order.channel` and a referrer label with an operator report, Biteship `disposed` and `return_in_transit` as their own statuses, a published hold-policy page, and the QRIS-only decision. Still not built, awaiting a product decision: one combined reply per photo burst and a message meter, so the WhatsApp cost per order (7–9 charged messages) remains an assumption.
+- **Competition.** Meta Business Agent and Mayar occupy much of "AI plus WhatsApp plus catalog plus pay". What we did not find elsewhere is catalog-from-photos and a payout hold, based on marketing pages and not tested products.
+- **No seller or buyer has been interviewed**, so willingness to pay, to wait 72–168 hours, return rates, orders per month and the size of the chat-first segment have no data.
 
 ### Seller onboarding and KYC
 
@@ -99,13 +104,17 @@ There is no registration flow. An unknown number is told to sign up at the dashb
 
 ### Messaging
 
-- Approved WhatsApp templates: *utility* for order alerts outside the 24-hour window, *authentication* for sign-in codes. The code sends free-form text everywhere today.
+- An approved WhatsApp *authentication* template for sign-in codes. Order alerts already fall back to *utility* templates (you create them once); codes are free-form today.
 - Event handlers swallow errors (`EventBus.publish` logs and continues), so a failed WhatsApp send silently loses an alert. Pub/Sub retries fix that ([Exercise 18](/master/exercises#_18-make-events-durable-with-pub-sub)).
 - Pricing for service messages is unclear (Meta says free; BSP rate cards list charges from October 2026). Confirm with the BSP ([Evidence](/business/evidence)).
+- **Telegram linking uses a code that is a bearer value until it is used.** The `/start <code>` code is signed, lasts 10 minutes and works once, so a copy is worthless after the seller linked; before that, whoever uses it first links their chat. Replacing a chat is announced to the old chat and the WhatsApp number.
+- **Sign-in stays on the WhatsApp number.** A seller who moves alerts to Telegram still signs in with their WhatsApp number (the code is sent to the chosen channel). A seller with no WhatsApp number cannot register yet.
+- **The Instagram DM buyer bot is a roadmap item, not built.** Buyers would talk to each seller's own Instagram account, so the bot must be per seller (each seller connects their own account), not one shared aggregator; Meta's review (Advanced Access) is needed for accounts we do not own. Whether Instagram messages are free is not confirmed ([Evidence](/business/evidence)).
+- **Order alerts do not record the channel.** `Order.channel` (where a buyer's order came from) does not exist yet; the seller's channel is stored, the buyer's is not.
 
 ### Security hardening
 
-- **MCP abuse.** `/mcp/` has no authentication and no per-IP limit (REST checkouts have 20 per IP per hour). Limits are per buyer phone (5 per hour) and 10 units per checkout, so a script that rotates fake phone numbers could keep a seller's stock on hold. DNS-rebinding protection is turned off in `build_mcp`, with a comment to restrict at the load balancer or with auth. See [Exercise 9](/master/exercises#_9-rate-limit-the-mcp-endpoint-per-ip).
+- **MCP abuse.** `/mcp/` has no authentication, but its tools now share the REST per-IP limits (checkout 20 per hour, shipping quotes 60 per minute, search 120 per minute), on top of 5 checkouts per buyer phone per hour and 10 units per checkout. A distributed script with many IPs and phone numbers could still hold some stock for 15 minutes at a time; the limiter is in memory per instance. DNS-rebinding protection is turned off in `build_mcp`, with a comment to restrict at the load balancer or with auth. See [Exercise 9](/master/exercises#_9-rate-limit-the-mcp-endpoint-per-ip) for the earlier coarse variant.
 - **Instagram tokens** are stored in `Connection.access_token` as plain text, and the short-lived token from `exchange_code` is stored without exchanging it for a long-lived one. Encrypt with Cloud KMS and exchange first.
 - **Media.** Cloud Storage with signed URLs and malware scanning instead of a local folder (on Cloud Run the local folder disappears on restart).
 - **Connector webhooks** check the target address and then post, so DNS could change in between; acceptable for a pilot, worth pinning the resolved IP later.
@@ -113,7 +122,7 @@ There is no registration flow. An unknown number is told to sign up at the dashb
 ### AI quality
 
 - No extraction eval and no intent eval yet: the 90% and 95% targets in `docs/12-benchmark-plan.md` are unmeasured.
-- No Gemini timeout or fallback; a failing call means no reply to the seller ([Exercise 10](/master/exercises#_10-fall-back-to-offline-rules-when-gemini-fails)).
+- Gemini calls are retried and fall back to the offline rules, and a failing seller agent tells the seller to try again; there is still no explicit request timeout ([Exercise 10](/master/exercises#_10-fall-back-to-offline-rules-when-gemini-fails)).
 - Prompt-injection defences (the `content_note`, session-scoped tenant id, no money or order actions for the model) are mitigations without a red-team test.
 
 ### Bugs and mismatches found by reading the code
@@ -144,6 +153,15 @@ These were found while writing this guide and are now fixed in the code. Each is
 | Schema.org offers linked to a store page that did not exist | Offer `url` is `{base}/agent/v1/products/{product_id}`; untracked stock is `LimitedAvailability` | `gateway/discovery.py` |
 | REST had no shipping-options endpoint | `GET /agent/v1/products/{product_id}/shipping-options` mirrors the MCP tool | `api/main.py` |
 | Inline comments in `.env.example` became values; tests could read a developer's `.env` | Comments on their own lines; `conftest.py` clears env vars and runs from `tests/` | `.env.example`, `tests/conftest.py` |
+| The Telegram bot token appeared in the log (httpx logs request URLs at INFO) | `httpx` and `httpcore` loggers held at WARNING | `adapters/telegram.py`; `test_the_bot_token_is_not_written_to_the_log` |
+| A Telegram link code could be replayed from another chat; relinking was silent | Single-use code (atomic record), replaced chat announced | `auth.py`, `seller/channels.py`; `test_a_link_code_works_once` |
+| Two shops could claim one address in a race; a released address was free at once | Atomic registry entry (`create_doc`), 30-day hold for the previous owner | `seller/slugs.py`; `test_two_shops_racing_for_one_address_cannot_both_win` |
+| One seller could type another's tracking number and receive that parcel's payout trigger | A waybill used by any order is refused | `checkout/service.py`; `test_another_shops_waybill_cannot_be_reused` |
+| A stock error after payment skipped the paid alert; during a rejection it skipped the refund | Guarded stock calls, flagged to an operator, refund first | `checkout/service.py`; `test_a_stock_error_*` |
+| A blocked Telegram chat locked the seller out of sign-in and alerts | Permanent Telegram refusals fall back to the WhatsApp number | `adapters/messaging.py` (`ChannelRouter`); `test_the_sign_in_code_falls_back_to_whatsapp_when_the_chat_is_blocked` |
+| A trailing dot, a port or several labels in the Host header reached the dashboard | Host normalised; every unclaimed host under the base domain is 404 | `seller/slugs.py`, `gateway/hosts.py`; `test_a_name_nobody_claimed_is_never_the_dashboard` |
+| The money endpoints accepted the shared webhook token in a query string | Separate `OPERATOR_TOKEN`, header only | `security.py`; `test_operator_endpoints_need_the_operator_token_in_a_header` |
+| Chunked uploads bypassed the body limit; malformed webhook bodies returned 500 | Bytes counted as read; bad bodies acknowledged and logged | `security.py` (`BodyLimitMiddleware`), `api/main.py` |
 
 ## Before scale
 
@@ -165,12 +183,13 @@ Code cannot answer these; a pilot can. Most come from `docs/10-business-model.md
 
 1. **Will sellers pay 3–5% per delivered order?** The whole model rests on it.
 2. **How many sellers track stock at all?** If few do, confirm-first fires on most orders, and buyers wait for the seller before they can pay. How long will buyers and their agents wait (the window is 60 minutes)?
-3. **When does UCP checkout reach Indonesia, and how will agents find Etalase?** Publishing `/.well-known/ucp` does not make any assistant call us. Distribution to agents (Merchant Center feed, agent directories, partnerships) is unsolved.
+3. **When does UCP checkout reach Indonesia, and how will agents find Etalase?** Publishing `/.well-known/ucp` and passing the applicable conformance tests does not make any assistant call us. Distribution to agents (Merchant Center feed, agent directories, partnerships) is unsolved.
 4. **Will the payment provider support sub-accounts and delayed release for this use case?** If not, the payout design changes (`docs/11`, "What could change the order").
 5. **Who pays the gateway's fixed fee?** Passing IDR 4,000 to the buyer may hurt conversion; absorbing it removes the margin at list price.
 6. **What is the buyer experience after payment?** Buyers do not register, and Etalase never messages them; shipping updates and refunds reach them only if their agent polls `get_checkout_status`.
-7. **Returns and disputes.** Who pays return shipping, and when is the seller's payout final?
+7. **Returns and disputes.** Today the buyer pays return shipping for every reason and nothing reimburses it. Should a defect return be reimbursed, by whom, and when is the seller's payout final?
 8. **Which channel next: WooCommerce or a local website builder?** `docs/08` calls WooCommerce-first an assumption to test in seller interviews.
+    Related, for the seller side: **is Telegram a real option for Indonesian sellers, or only a cheap proof?** Most sellers live on WhatsApp; Telegram shows that the channel is replaceable, and a pilot should ask whether anyone actually switches.
 9. **Will marketplaces allow stock sync from a third party that also sells to agents?** Partner terms are unconfirmed.
 10. **How does a buyer's agent judge a small seller's trustworthiness?** There are no ratings or seller signals in the agent view yet.
 
@@ -210,7 +229,7 @@ Any two of: the 24-hour window is open (send a message from the seller's phone f
 **5. Why is "how will agents find Etalase?" an open product question rather than a code task?**
 
 ::: details Answer
-The code already publishes an MCP server and a UCP-style profile. Whether assistants call them depends on distribution: Merchant Center feeds, directories, partnerships and when UCP checkout reaches Indonesia. That is a go-to-market problem to test in the pilot.
+The code already publishes an MCP server and a UCP business server. Whether assistants call them depends on distribution: Merchant Center feeds, directories, partnerships and when UCP checkout reaches Indonesia. That is a go-to-market problem to test in the pilot.
 :::
 
 ## Next

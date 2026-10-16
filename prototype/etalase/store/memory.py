@@ -6,11 +6,12 @@ implementation gets from transactions: two buyers can never both take the last u
 
 from __future__ import annotations
 
+import copy
 import threading
 from datetime import datetime
 from typing import Callable
 
-from ..models import Connection, Order, OutOfStock, Product, Reservation, Seller, StockChange, now
+from ..models import Connection, Order, OrderStatus, OutOfStock, Product, Reservation, Seller, StockChange, now
 
 
 class MemoryStore:
@@ -22,6 +23,7 @@ class MemoryStore:
         self._reservations: dict[str, list[Reservation]] = {}
         self._stock_log: list[StockChange] = []
         self._connections: dict[str, Connection] = {}
+        self._docs: dict[tuple[str, str], dict] = {}
 
     # ---- sellers
     def put_seller(self, seller: Seller) -> None:
@@ -37,6 +39,22 @@ class MemoryStore:
         with self._lock:
             for s in self._sellers.values():
                 if s.whatsapp == number:
+                    return s.model_copy(deep=True)
+        return None
+
+    def find_seller_by_slug(self, slug: str) -> Seller | None:
+        with self._lock:
+            for s in self._sellers.values():
+                if s.slug and s.slug == slug:
+                    return s.model_copy(deep=True)
+        return None
+
+    def find_seller_by_address(self, address: str) -> Seller | None:
+        if not address.startswith("tg:"):
+            return self.find_seller_by_whatsapp(address)
+        with self._lock:
+            for s in self._sellers.values():
+                if s.telegram_chat_id and s.telegram_chat_id == address[3:]:
                     return s.model_copy(deep=True)
         return None
 
@@ -86,6 +104,10 @@ class MemoryStore:
         with self._lock:
             return [o.model_copy(deep=True) for o in self._orders.values() if o.seller_id == seller_id]
 
+    def orders_in_status(self, statuses: list[OrderStatus]) -> list[Order]:
+        with self._lock:
+            return [o.model_copy(deep=True) for o in self._orders.values() if o.status in statuses]
+
     def update_order(self, order_id: str, change: Callable[[Order], bool]) -> Order | None:
         with self._lock:
             current = self._orders.get(order_id)
@@ -94,6 +116,33 @@ class MemoryStore:
             working = current.model_copy(deep=True)
             if change(working):
                 self._orders[order_id] = working.model_copy(deep=True)
+            return working
+
+    # ---- protocol documents
+    def put_doc(self, kind: str, doc_id: str, data: dict) -> None:
+        with self._lock:
+            self._docs[(kind, doc_id)] = copy.deepcopy(data)
+
+    def get_doc(self, kind: str, doc_id: str) -> dict | None:
+        with self._lock:
+            d = self._docs.get((kind, doc_id))
+            return copy.deepcopy(d) if d is not None else None
+
+    def create_doc(self, kind: str, doc_id: str, data: dict) -> bool:
+        with self._lock:
+            if (kind, doc_id) in self._docs:
+                return False
+            self._docs[(kind, doc_id)] = copy.deepcopy(data)
+            return True
+
+    def update_doc(self, kind: str, doc_id: str, change: Callable[[dict], bool]) -> dict | None:
+        with self._lock:
+            current = self._docs.get((kind, doc_id))
+            if current is None:
+                return None
+            working = copy.deepcopy(current)
+            if change(working):
+                self._docs[(kind, doc_id)] = copy.deepcopy(working)
             return working
 
     # ---- stock

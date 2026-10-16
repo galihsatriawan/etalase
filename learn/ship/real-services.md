@@ -41,13 +41,13 @@ It then records the result in `ctx.modes`, which `GET /healthz` returns, and run
 
 | Service | Status | Env vars | `/healthz` key: off → on |
 |---|---|---|---|
-| Gemini | <Badge type="tip" text="Built" /> needs a key or Vertex AI | `GOOGLE_API_KEY` or `GOOGLE_GENAI_USE_VERTEXAI` + `GOOGLE_CLOUD_PROJECT` + `GOOGLE_CLOUD_LOCATION`, `GEMINI_MODEL` | `ai`: `offline rules` → `gemini (gemini-2.5-flash)` |
+| Gemini | <Badge type="tip" text="Built" /> needs a key or Vertex AI | `GOOGLE_API_KEY` (or `GEMINI_API_KEY`) or `GOOGLE_GENAI_USE_VERTEXAI` (or `GOOGLE_GENAI_USE_ENTERPRISE`) + `GOOGLE_CLOUD_PROJECT` + `GOOGLE_CLOUD_LOCATION`, `GEMINI_MODEL` | `ai`: `offline rules` → `gemini (gemini-3.8-flash)` |
 | WhatsApp Cloud API | <Badge type="tip" text="Built" /> <Badge type="warning" text="Mocked in demo" /> | `WHATSAPP_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_VERIFY_TOKEN`, `WHATSAPP_APP_SECRET` | `messaging`: `console` → `whatsapp` |
 | Xendit QRIS | <Badge type="tip" text="Built" /> <Badge type="warning" text="Mocked in demo" /> | `XENDIT_SECRET_KEY`, `XENDIT_CALLBACK_TOKEN` | `payment`: `mock` → `xendit` |
 | Biteship | <Badge type="tip" text="Built" /> <Badge type="warning" text="Mocked in demo" /> | `BITESHIP_API_KEY` | `shipping`: `mock` → `biteship` |
 | Instagram Login | <Badge type="tip" text="Built" /> <Badge type="warning" text="Mocked in demo" /> | `INSTAGRAM_APP_ID`, `INSTAGRAM_APP_SECRET` | not reported; `/connect/instagram` returns 501 when off |
 | Firestore | <Badge type="tip" text="Built" /> <Badge type="warning" text="Mocked in demo" /> | `STORE_BACKEND=firestore`, `GOOGLE_CLOUD_PROJECT` | `store`: `memory` → `firestore` |
-| WhatsApp templates, Cloud Tasks, KMS for tokens | <Badge type="info" text="Roadmap" /> | | |
+| Cloud Tasks, KMS for tokens | <Badge type="info" text="Roadmap" /> | | |
 
 Order of switching that keeps the demo working: Gemini, then Firestore on the emulator, then Biteship rates, then Xendit, then WhatsApp last, because WhatsApp changes how you interact with the whole system.
 
@@ -85,7 +85,7 @@ Two ways to authenticate, both handled by `GeminiExtractor` in **`prototype/etal
 ```bash
 export GOOGLE_API_KEY=...        # or the three Vertex variables
 uvicorn etalase.api.main:app --port 8080
-curl -s localhost:8080/healthz   # "ai": "gemini (gemini-2.5-flash)"
+curl -s localhost:8080/healthz   # "ai": "gemini (gemini-3.8-flash)"
 curl -X POST localhost:8080/dev/sellers -H 'content-type: application/json' \
   -d '{"name":"Toko Rina","whatsapp":"6281234567890","city":"Jakarta","postal_code":"12950"}'
 curl -X POST localhost:8080/dev/whatsapp -H 'content-type: application/json' \
@@ -123,12 +123,12 @@ sequenceDiagram
   Meta->>E: POST /webhooks/whatsapp + X-Hub-Signature-256
   E->>E: HMAC-SHA256 of raw body with app secret
   E-->>Meta: 200 ok, even if handling failed
-  E->>Meta: POST /v21.0/PHONE_NUMBER_ID/messages
+  E->>Meta: POST /v26.0/PHONE_NUMBER_ID/messages
 ```
 
 The handler always returns 200 after a valid signature ("acknowledge anyway, or Meta retries the same message for days"), and the inbox drops duplicates by message id.
 
-**Env vars:** `WHATSAPP_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_VERIFY_TOKEN`, `WHATSAPP_APP_SECRET`; optional `WHATSAPP_API_VERSION` (default `v21.0`). On Cloud Run, create the three secrets under the names the deploy script looks for, then re-run it with the phone number id; the script wires every optional secret that exists:
+**Env vars:** `WHATSAPP_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_VERIFY_TOKEN`, `WHATSAPP_APP_SECRET`; optional `WHATSAPP_API_VERSION` (default `v26.0`). On Cloud Run, create the three secrets under the names the deploy script looks for, then re-run it with the phone number id; the script wires every optional secret that exists:
 
 ```bash
 printf '%s' "$WA_TOKEN"   | gcloud secrets create etalase-whatsapp-token --data-file=-
@@ -143,11 +143,11 @@ Create all three before re-running: `validate_settings` refuses to start with a 
 
 **Gotchas**
 
-- **Media types.** Voice notes arrive as `audio/ogg; codecs=opus`; `download_media` strips the parameters and maps JPEG, PNG, WebP, OGG, MP3, M4A, AAC, AMR and CSV to file extensions. This has not been run against the live API yet, so send one voice note and one CSV through the real number before the demo.
-- **Templates are not implemented.** <Badge type="info" text="Roadmap" /> The adapter only sends free-form text and reply buttons. Meta allows those only inside the 24-hour customer service window; a new-order alert or a sign-in code to a seller who has not messaged you recently needs an approved template (the adapter's docstring and `auth.py` say so). For the demo, message the business number from the seller phone first.
+- **Media types.** Voice notes arrive as `audio/ogg; codecs=opus`; `download_media` strips the parameters and maps JPEG, PNG, WebP, OGG, MP3, M4A, AAC, AMR and CSV to file extensions. This has not been run against the live API yet, so send one voice note and one CSV through the real number before the demo. Gemini does not accept AMR, so an AMR voice note is skipped and the seller is asked to describe the product in text.
+- **Templates.** <Badge type="tip" text="Built" /> Free-form text and reply buttons only work inside the 24-hour customer service window. Outside it Meta answers error 131047, and the adapter then re-sends the same alert as an approved template. You have to create the six templates once (`python -m etalase.adapters.whatsapp_templates` prints them; see [WhatsApp templates](/ship/whatsapp-templates)); until they are approved, an alert to a seller who has not messaged the business number in the last 24 hours is logged as failed. Sign-in codes are not templated: the seller must message the number first (the dashboard says so).
 - **Pricing.** Meta charges per message; utility templates inside an open service window are free. See [Evidence: WhatsApp prices](/business/evidence#costs-and-prices).
 - **`/dev/whatsapp` and `/dev/outbox` return empty lists** once WhatsApp is on: only the console messenger keeps an outbox. Dashboard codes now arrive on the phone.
-- **API version.** `v21.0` is hard-coded as the default. Graph API versions expire; check that it is still supported and set `WHATSAPP_API_VERSION` if not.
+- **API version.** `v26.0` is the default (the latest when this was checked, 2026-10-15). Meta retires old Graph API versions on a schedule; set `WHATSAPP_API_VERSION` to move.
 - **Media URLs are short-lived.** `download_media` resolves and downloads in one go, as Meta requires.
 
 ## Xendit QRIS (test mode)
@@ -164,7 +164,7 @@ Create all three before re-running: `validate_settings` refuses to start with a 
         resp = httpx.post(f"{self.BASE}/qr_codes", headers=headers, timeout=15, json=body)
 ```
 
-**Concepts.** **QRIS** is Indonesia's national QR payment standard: any banking or e-wallet app can pay a QRIS code. A **dynamic** QR encodes one amount for one order. **xenPlatform** is Xendit's product for platforms: each seller gets a **sub-account**, and the `for-user-id` header makes the payment land in that sub-account, so Etalase never holds the money (`docs/adr/0003-never-hold-funds.md`; see [Checkout and orders](/architecture/checkout-and-orders)).
+**Concepts.** **QRIS** is Indonesia's national QR payment standard: any banking or e-wallet app can pay a QRIS code. A **dynamic** QR encodes one amount for one order. **xenPlatform** is Xendit's product for platforms: each seller gets a **sub-account**, and the `for-user-id` header makes the payment land in that sub-account, so buyer payments never land in an Etalase account (`docs/adr/0003-never-hold-funds.md`; whether Xendit can enforce the payout hold is unconfirmed; see [Checkout and orders](/architecture/checkout-and-orders)).
 
 **Provider setup (verify against the provider docs):**
 
@@ -287,7 +287,7 @@ Reservations filtered by `status == "held"` and `expires_ts <= now`. Without the
 
 5. Why does a real order alert fail for a seller who last messaged three days ago?
 ::: details Answer
-Outside the 24-hour customer service window WhatsApp only delivers approved templates, and the adapter does not send templates yet.
+Outside the 24-hour customer service window WhatsApp only delivers approved templates. The adapter now re-sends such an alert as a template after Meta answers error 131047, but only if you created and got the six templates approved ([WhatsApp templates](/ship/whatsapp-templates)). Sign-in codes are not templated yet.
 :::
 
 ## Next

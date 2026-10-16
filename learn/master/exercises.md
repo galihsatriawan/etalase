@@ -1,9 +1,9 @@
 # Exercises
 
-Eighteen graded exercises, from beginner to advanced, that make you read recent fixes, change the Etalase code, add tests and wire Google Cloud services.
+Nineteen graded exercises, from beginner to advanced, that make you read recent fixes, change the Etalase code, add tests and wire Google Cloud services.
 
 ::: tip What you will learn
-- How to extend the offline parsers, the shipping mock and the readiness score without breaking the 82 existing tests
+- How to extend the offline parsers, the shipping mock and the readiness score without breaking the 503 existing tests
 - How to add a country pack, an MCP tool and a chat intent end to end
 - How to read a bug fix and its regression test, and why transaction retries need retry-safe code
 - How to test the Firestore store against the emulator
@@ -20,14 +20,14 @@ Work on a branch, and keep the baseline green:
 ```bash
 cd prototype
 pip install -r requirements-dev.txt
-pytest -q                     # 82 passed before you start
+pytest -q                     # 503 passed before you start
 python scripts/demo.py        # the ten-step story must still run
 ```
 
 ```mermaid
 flowchart LR
   B["Beginner 1-6: parsers, mocks, tests"] --> I["Intermediate 7-12: country pack, MCP, resilience"]
-  I --> A["Advanced 13-18: Firestore, Cloud Tasks, Pub/Sub, embeddings, evals"]
+  I --> A["Advanced 13-19: Firestore, Cloud Tasks, Pub/Sub, embeddings, evals, a third channel"]
 ```
 
 | Level | You should already know | Pages to reread |
@@ -332,7 +332,7 @@ In `payment_succeeded`, treat `CANCELLED` like `EXPIRED` in the late-payment bra
 
 ### 9. Rate-limit the MCP endpoint per IP
 
-**Goal.** REST checkouts are limited to 20 per IP per hour, but `/mcp/` has no per-IP limit. A script that rotates fake phone numbers could hold a seller's whole stock for 15 minutes at a time. Add a limit.
+**Goal.** *(Done in the repository for the tools: `gateway/mcp_server.py` limits each tool per client address through the request on FastMCP's `Context`, and `tests/test_gatekeeper.py` covers it. The coarse middleware variant below is still a good exercise, because it also protects `initialize` and `tools/list`.)* REST checkouts were limited to 20 per IP per hour, but `/mcp/` had no per-IP limit. A script that rotates fake phone numbers could hold a seller's whole stock for 15 minutes at a time. Add a limit.
 
 **Files.** `prototype/etalase/api/main.py` (the `guard` middleware), a test in `prototype/tests/test_api.py`.
 
@@ -361,13 +361,13 @@ Remember this limiter is in memory per instance; see [Known gaps](/master/known-
 
 ### 10. Fall back to offline rules when Gemini fails
 
-**Goal.** If Gemini times out or returns an error, the seller should still get a draft (from the offline parser) instead of silence. Today the exception travels up to the WhatsApp webhook, which logs it and replies nothing.
+**Goal.** If Gemini times out or returns an error, the seller should still get a draft (from the offline parser) instead of silence. **Partly done in the repository:** `FallbackExtractor` is now wired in `container.py` and the client retries 429/5xx with backoff; the seller agent answers "please try again in a minute" when it fails. What is left for you is the acceptance below (telling the seller that photos and voice notes were not read) and a request timeout.
 
 **Files.** `prototype/etalase/catalog/extractor.py`, `prototype/etalase/container.py`, `prototype/etalase/seller/inbox.py` (`handle_text`), tests.
 
 **Hints.**
 - Write a `FallbackExtractor(primary, fallback)` that implements the same `CatalogExtractor` protocol.
-- Do the same for the seller agent: wrap `seller_agent.respond` in `handle_text` and fall back to `handle_intent`.
+- The seller agent is deliberately *not* replayed through `handle_intent` on failure: the agent may already have changed stock before it failed, and replaying a restock would apply it twice. Think about why before you change that.
 - Set a request timeout on the Gemini client (google-genai accepts HTTP options; check the unit in its docs).
 - Test with a fake primary that raises; no network needed.
 
@@ -418,7 +418,7 @@ The current code in **`prototype/etalase/adapters/messaging.py`** (`WhatsAppClou
 - Decide what the inbox should do with a PDF (`application/pdf`): ignore it, or reply that only photos, voice notes and CSV files are read today.
 - Verify the exact MIME strings against Meta's media docs before relying on them.
 
-**Acceptance.** `extension_for("audio/ogg; codecs=opus") == ".ogg"`, `extension_for("TEXT/CSV") == ".csv"`, unknown types return `""`; `download_media` uses the function; all 82 existing tests still pass.
+**Acceptance.** `extension_for("audio/ogg; codecs=opus") == ".ogg"`, `extension_for("TEXT/CSV") == ".csv"`, unknown types return `""`; `download_media` uses the function; all 322 existing tests still pass.
 
 ::: details Solution sketch
 ```python
@@ -768,6 +768,56 @@ class PubSubEventBus(EventBus):
 # a handler error returns 500 so Pub/Sub retries.
 ```
 Start with `order.paid` (seller alert and connector webhook), because a lost one costs a sale.
+:::
+
+### 19. Add a third channel behind the router
+
+**Goal.** `ChannelRouter` knows two channels by hard-coded checks. Let it route any number of prefixes, so a third channel (say `line:<user id>`) is one adapter and one entry, with no change to services.
+
+**Files.** `prototype/etalase/adapters/messaging.py` (`ChannelRouter`), a new test in `prototype/tests/test_telegram.py` (it already tests the router), and, if you want sellers to choose it, `CHANNELS` in `prototype/etalase/seller/channels.py` and `Seller.address` in `prototype/etalase/models.py`.
+
+**Hints.**
+- Read `ChannelRouter._for` first: it picks Telegram when the address starts with `tg:` and the default messenger otherwise. Keep that behaviour exactly; the existing tests depend on it.
+- The `Messenger` interface is four methods (`send_text`, `send_buttons`, `send_notification`, `download_media`). A recording fake with those four methods is all the test needs; no HTTP.
+- Media ids carry the same prefix as addresses (`tg:<file id>`), which is why `download_media` routes on the media id.
+- Do not build the real LINE adapter. The point is that the core never has to change.
+
+**Acceptance.** A message to `line:U123` reaches the new fake and nothing else; WhatsApp numbers still reach the default messenger; `tg:555` still reaches Telegram; the 503 tests still pass.
+
+::: details Solution sketch
+```python
+class ChannelRouter:
+    def __init__(self, default, telegram, extra: dict[str, Messenger] | None = None):
+        self.default, self.telegram = default, telegram
+        self.extra = extra or {}                      # {"line:": LineMessenger(...)}
+
+    def _for(self, address: str) -> Messenger:
+        if address.startswith(TELEGRAM_PREFIX):
+            return self.telegram
+        for prefix, messenger in self.extra.items():
+            if address.startswith(prefix):
+                return messenger
+        return self.default
+```
+
+```python
+class Recorder:
+    def __init__(self): self.sent = []
+    def send_text(self, to, text): self.sent.append((to, text))
+    def send_buttons(self, to, text, buttons): self.sent.append((to, text, buttons))
+    def send_notification(self, to, text, buttons=None, template=None): self.sent.append((to, text, buttons))
+    def download_media(self, media_id, dest_dir): return ""
+
+
+def test_a_third_channel_is_picked_by_its_prefix():
+    default, tg, line = ConsoleMessenger(), Recorder(), Recorder()
+    router = ChannelRouter(default, tg, {"line:": line})
+    router.send_text("line:U123", "hi")
+    router.send_text("6281234567890", "hello")
+    assert line.sent == [("line:U123", "hi")] and tg.sent == []
+    assert [m.to for m in default.outbox] == ["6281234567890"]
+```
+Choosing the channel in the dashboard also needs `CHANNELS`, a `Seller` field for the chat id, the `address` property, and a way to link the chat; that is the rest of what `seller/channels.py` does for Telegram.
 :::
 
 ## Pitfalls

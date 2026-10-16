@@ -33,6 +33,6 @@ features:
     details: Pricing and unit economics, every number with its source, and a Q&A playbook for the judges.
     link: /business/business-model
   - title: Level 6 · Mastery
-    details: Hands-on exercises, honest known gaps and a 40-question final quiz.
+    details: Hands-on exercises, honest known gaps and a 43-question final quiz.
     link: /master/exercises
 ---

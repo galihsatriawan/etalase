@@ -1,11 +1,11 @@
 # Pitch and Q&A playbook
 
-How to pitch Etalase in 30 seconds and in 3 minutes, how to prove each judging criterion, and how to answer 47 hard judge questions honestly.
+How to pitch Etalase in 30 seconds and in 3 minutes, how to prove each judging criterion, and how to answer 51 hard judge questions honestly.
 
 ::: tip What you will learn
 - A 30-second pitch and a 3-minute pitch that follow the deck's slide order and the demo script in `docs/13-demo-script.md`
 - Which file, test or page proves each judging criterion and each special award
-- Model answers to 47 hard questions, each tagged as Built, Mocked in demo or Roadmap
+- Model answers to 51 hard questions, each tagged as Built, Mocked in demo or Roadmap
 - The overclaims that lose a judge's trust, and what to say instead
 :::
 
@@ -41,7 +41,7 @@ Each box is one idea. If you run out of time, cut from the business box, never f
 
 Learn this word for word. It fits in about 75 words.
 
-> AI assistants have started buying things for people. Google's checkout protocol is already live in the US and Australia. But agents only read structured catalogs, and in Indonesia 95% of online businesses sell through chat apps like WhatsApp, with catalogs in photos and voice notes. Etalase turns those photos and chats into a shop that any AI agent can find and buy from over MCP. Stock is held while the buyer pays with QRIS, and every order comes back to the seller's WhatsApp.
+> A WhatsApp seller sends photos and a voice note. Etalase turns them into a catalog and a store link where anyone can pay with QRIS, and an AI agent that its owner connects can search and reserve over MCP. Stock is held while the buyer pays, the order lands in the seller's chat, and the payout waits for the return window. In Indonesia 95% of e-commerce businesses use chat apps like WhatsApp to sell, but their catalogs live in photos and voice notes. The seller side and the store link are the product today; the agent door is an option for when agents start buying.
 
 If a judge asks "where is the AI?", add one sentence: "Gemini builds the catalog from photos, voice and text with structured output, and an ADK agent runs the seller's WhatsApp chat."
 
@@ -51,13 +51,13 @@ This version follows the deck slide order (slides 2 to 12 in `submission/Etalase
 
 | Time | Deck slide | What you show | What you say (key lines) |
 |---|---|---|---|
-| 0:00–0:20 | 2 · Brief about the idea | "Why now" and the four numbers | "AI assistants are starting to shop for people. Checkout through Google's UCP is live in the US and Australia. But agents only read structured catalogs. Platforms are making their own merchants agent-ready; independent chat sellers have no path in." |
-| 0:20–0:40 | 2 · The problem | 95% / 18% (BPS) and 11% (PYMNTS × Visa) | "95% of Indonesian online businesses sell through chat apps; only 18% use marketplaces. Only 11% of small merchants are ready for agents." |
+| 0:00–0:20 | 2 · Brief about the idea | "Why now" and the four numbers | "AI shopping is arriving. Checkout through Google's UCP is live in the US and has started in Australia; in Indonesia only discovery is live so far. Agents only read structured catalogs. Platforms make their own merchants agent-ready; independent chat sellers have no path in." |
+| 0:20–0:40 | 2 · The problem | 95% / 18% (BPS) and 11% (PYMNTS × Visa) | "95% of Indonesian e-commerce businesses use chat apps to sell; only 18% use marketplaces. Only 11% of small merchants are ready for agents, in a global survey." |
 | 0:40–1:05 | 4 · Features, 6 · Wireframe 1 | Seller sends photos and a voice note; summary with readiness score; **Publish** | "Rina just sends what she already has. Gemini turns photos and a voice note into products, variants, prices and weights, and tells her what is missing." |
 | 1:05–1:45 | 5 · Process flow, 6 · Wireframe 2 | Buyer agent: search, shipping quote, checkout, QRIS | "Any agent can now find her products over MCP and check out. Stock is held for 15 minutes while the buyer pays with QRIS." |
 | 1:45–2:05 | 6 · Wireframe 3 | "New paid order" with **Accept**; seller replies "tracking JNE123456" | "Rina never leaves WhatsApp. Buttons never go through the model." |
-| 2:05–2:25 | 4 · Safe agent checkout, 11 · Benchmark | Confirm-first message; the 50-agent race (demo step 8) | "Low or stale stock? She confirms before the buyer pays. 50 agents race for the last unit; exactly one wins. 82 automated tests cover races, payments and webhook abuse." |
-| 2:25–2:45 | 7 · Architecture, 9 · Cost | Architecture slide; unit economics | "She's paid after the courier confirms delivery, minus 4%. Etalase never holds the money. Platform cost is about IDR 2,000–3,500 per order against IDR 6,800 commission, and any OMS or website builder can plug in with one API." |
+| 2:05–2:25 | 4 · Safe agent checkout, 11 · Benchmark | Confirm-first message; the 50-agent race (demo step 8) | "Low or stale stock? She confirms before the buyer pays. 50 agents race for the last unit; exactly one wins. 503 automated tests cover races, payments and webhook abuse." |
+| 2:25–2:45 | 7 · Architecture, 9 · Cost | Architecture slide; unit economics | "She's paid after the courier confirms delivery, minus 4%. The money sits in the seller's sub-account at the payment provider, not in ours. Platform cost per order is about IDR 5,000–7,600 at ten orders per seller, against IDR 6,800 commission, so we are testing a minimum fee. Any OMS or website builder can plug in with one API." |
 | 2:45–3:00 | 12 · Roadmap | Four phases | "Next: a pilot with 50–100 sellers on Firestore and real payment sub-accounts. Etalase: every seller, shoppable by AI." |
 
 ::: warning Say the status out loud once
@@ -70,9 +70,9 @@ For each criterion, have one claim, one thing to show and one place to point to.
 
 | Criterion | Your claim | Show this | Where it lives |
 |---|---|---|---|
-| **Technical Merit & Gen AI (40%)** | Gemini multimodal extraction with structured output; ADK seller agent with tenant-scoped tools; ADK buyer agent over MCP; transactional stock tested under concurrency | `GeminiExtractor` with `response_schema=ExtractedCatalog`; `build_seller_agent` tools; `pytest -q` (82 passed); demo step 8 | [Catalog and stock](/architecture/catalog-and-stock), [Seller agent](/architecture/seller-agent), [Agent gateway](/architecture/agent-gateway), [Testing](/ship/testing); `prototype/etalase/catalog/extractor.py`, `prototype/etalase/agents/seller_agent.py`, `prototype/tests/test_stock.py` |
-| **Problem Alignment & Impact (25%)** | Brings chat-commerce sellers into agent shopping; pay-per-order below marketplace fees; payout after delivery | BPS 95% / 18% with its nuance; Shopee 10% fashion fee; cost table | [The problem](/foundations/problem), [Evidence](/business/evidence), [Business model](/business/business-model); `docs/15-evidence.md` |
-| **Innovation & Creativity (25%)** | Agent-commerce layer for sellers with no store system; WhatsApp as the seller interface; confirm-first for uncertain stock; Connector API so one partner enables many stores | Confirm-first flow; Connector API in `/docs` | [The product](/foundations/product), [Integrations](/architecture/integrations); `prototype/etalase/catalog/service.py` (`sell_mode`), `prototype/etalase/connector/service.py` |
+| **Technical Merit & Gen AI (40%)** | Gemini multimodal extraction with structured output; ADK seller agent with tenant-scoped tools; ADK buyer agent over MCP; transactional stock tested under concurrency | `GeminiExtractor` with `response_schema=ExtractedCatalog`; `build_seller_agent` tools; `pytest -q` (503 passed); demo step 8 | [Catalog and stock](/architecture/catalog-and-stock), [Seller agent](/architecture/seller-agent), [Agent gateway](/architecture/agent-gateway), [Testing](/ship/testing); `prototype/etalase/catalog/extractor.py`, `prototype/etalase/agents/seller_agent.py`, `prototype/tests/test_stock.py` |
+| **Problem Alignment & Impact (25%)** | Brings chat-first sellers into online shopping with a catalog from photos, a QRIS store link and an agent door; pay-per-order below marketplace fees for fee-heavy categories; payout after delivery and the return window | BPS 95% / 18% with its nuance; Shopee 10% fashion fee; cost table with the 20-orders break-even | [The problem](/foundations/problem), [Evidence](/business/evidence), [Business model](/business/business-model); `docs/15-evidence.md` |
+| **Innovation & Creativity (25%)** | Catalog from photos and voice notes plus an agent-readable store for sellers with no store system (we found no competitor page claiming the first part); WhatsApp as the seller interface; confirm-first for uncertain stock; Connector API so one partner enables many stores | Confirm-first flow; Connector API in `/docs` | [The product](/foundations/product), [Integrations](/architecture/integrations); `prototype/etalase/catalog/service.py` (`sell_mode`), `prototype/etalase/connector/service.py` |
 | **UX & Solution Design (10%)** | No new app; buttons for decisions, chat for data; bilingual; honest availability for agents | WhatsApp summary with Publish / Edit; `SELLER_LOCALE=id`; dashboard sign-in | [Seller agent](/architecture/seller-agent), [Hands-on](/run/hands-on); `prototype/etalase/seller/i18n.py`, `prototype/etalase/api/dashboard.html` |
 
 ### Special awards
@@ -80,7 +80,7 @@ For each criterion, have one claim, one thing to show and one place to point to.
 | Award | Why Etalase can compete | What to emphasise |
 |---|---|---|
 | Best use of Google Cloud AI tools | Gemini on Vertex AI (multimodal plus structured output), two ADK agents, Cloud Run, Secret Manager, a Firestore store | Be exact: Pub/Sub, Cloud Tasks, Storage and KMS are roadmap, not used |
-| Most Impactful | Targets the 95% of Indonesian online businesses that sell in chats, at a fee below marketplaces | Use BPS numbers with the multi-channel nuance |
+| Most Impactful | Targets Indonesian businesses that sell in chats (95% of e-commerce businesses use messaging apps to sell, BPS 2023), at a fee below marketplaces for fee-heavy categories | Use BPS numbers with the multi-channel and definition nuance |
 | Social Choice | The ~3-minute public video | Public link (not unlisted), English captions, the split-screen story from `docs/13` |
 | Best UI/UX | The seller UI is WhatsApp itself; buttons for money and stock decisions | Show the bilingual messages and the confirm-first question |
 
@@ -101,19 +101,19 @@ Practice: read the question, answer out loud, then open the model answer. Each a
 **Q1. Is agent commerce actually live in Indonesia?**
 
 ::: details Answer
-No, and we say so. Agent checkout through Google's UCP is live in the US (February 2026) and Australia (June 2026, the first Asia-Pacific market), Google is testing Flipkart checkout in India, and Google has named Indonesia among the next markets ([Evidence](/business/evidence)). Meanwhile our MCP server works with any MCP-capable agent today; the ADK buyer agent in `prototype/etalase/agents/buyer_agent.py` proves that.
+No, and we say so. AI discovery is live in Indonesia, but we found no agent checkout and no report of an agent-initiated purchase. Agent checkout through Google's UCP is live in the US (February 2026) and started with select retailers in Australia (June 2026); Google is testing Flipkart checkout in India; one trade report (not Google) says Indonesia is next, with no date, and Google's UCP takes cards, not QRIS ([Evidence](/business/evidence)). Etalase does not need UCP to work: the seller side and the store link run today, and an MCP or REST agent whose owner connects it to our server can search and reserve. The ADK buyer agent in `prototype/etalase/agents/buyer_agent.py` proves the flow. We treat the agent door as an option, not the revenue plan.
 :::
 
 **Q2. How big is your segment, really?**
 
 ::: details Answer
-BPS reports that 95.33% of Indonesian e-commerce businesses sell through instant messaging apps, 17.80% use marketplaces and 1.77% a website ([Evidence](/business/evidence)). Businesses can use several channels, so it means "use chat", not "only chat". For the region, e-Conomy SEA projects US$185B of e-commerce GMV in 2025. We do not quote a GMV for chat commerce, because no source measures it.
+BPS reports that 95.33% of Indonesian e-commerce businesses use instant messaging apps to sell, 17.80% use marketplaces and 1.77% a website ([Evidence](/business/evidence)). Businesses can use several channels, and the survey counts any business that took orders online, so it means "chat is the default order inbox", not "95% have no store system". For the region, e-Conomy SEA projects US$185B of e-commerce GMV in 2025. We do not quote a GMV for chat commerce, nor the share of product sellers who are chat-first, because no source measures them; the seller interviews are meant to size it.
 :::
 
-**Q3. Your "1 in 2 shoppers" number is from 2019. Isn't that old?**
+**Q3. Isn't your 2019 regional data old?**
 
 ::: details Answer
-Yes. The Facebook × BCG study is the only cross-country Southeast Asia comparison we found, and its Indonesia figure was 29%, lower than Thailand or Vietnam. For Indonesia we lead with BPS 2023 data, published in January 2025, which is newer and official ([Evidence](/business/evidence)).
+Yes, and we no longer lead with it. The Facebook-funded Facebook × BCG study is the only cross-country Southeast Asia comparison we found, and its Indonesia figure was 29%, lower than Thailand or Vietnam. For Indonesia we use BPS 2023 data, published in January 2025, which is newer and official ([Evidence](/business/evidence)).
 :::
 
 **Q4. Chat sellers like talking to buyers and haggling. Do they even want AI agents as buyers?**
@@ -151,13 +151,13 @@ Shopee brings its own listings to AI agents, and checkout continues on Shopee wi
 **Q9. Why won't Meta add this to WhatsApp?**
 
 ::: details Answer
-Meta owns the chat, not the catalog, the stock or the local checkout. The WhatsApp catalog is made for human buyers; agents need structured, stock-aware data and a payment flow on local rails (QRIS) and couriers. We are a WhatsApp Cloud API customer, not a competitor, and if Meta opens agent features we plug in through the `Messenger` adapter.
+It is already moving there. Meta Business Agent answers buyers inside WhatsApp Business for free and recommends products from the seller's catalog; the press reports an Indonesian launch on 11 Aug 2026, though rollout, pricing and payment support in Indonesia are unconfirmed. In Indonesia WhatsApp's own payment feature only copies bank details. On the pages we read, Meta's agent does not build a catalog from photos, run QRIS checkout, reserve stock or open the catalog to third-party agents. If Meta adds payment or catalog intake, what remains for us is catalog quality, reserved stock and the payout hold, and we say so. We are a WhatsApp Cloud API customer, and if Meta opens agent features we plug in through the `Messenger` adapter.
 :::
 
 **Q10. Why won't Google do this itself?**
 
 ::: details Answer
-Google builds the protocol (UCP) and the shopping surfaces (AI Mode, the Gemini app) and relies on merchants and platforms to supply structured catalogs and checkout. Etalase is that merchant-side layer for sellers who have no store system. We publish a UCP-style profile today and plan a Merchant Center feed, so we feed Google rather than compete with it. We have no partnership with Google, and we don't claim one.
+Google builds the protocol (UCP) and the shopping surfaces (AI Mode, the Gemini app) and relies on merchants and platforms to supply structured catalogs and checkout. Etalase is that merchant-side layer for sellers who have no store system. We run a UCP business server today (profile and checkout over REST) and plan a Merchant Center feed, so we feed Google rather than compete with it. We have no partnership with Google, and we don't claim one.
 :::
 
 **Q11. There are already agent-readiness tools like AgentReady, ShopAgentic and Era. How are you different?**
@@ -231,19 +231,19 @@ On purpose: one ADK agent for free-text seller messages, and code for everything
 **Q22. Is your UCP integration real?**
 
 ::: details Answer
-We serve a UCP-style profile at `/.well-known/ucp` that points agents to our MCP and REST endpoints. Its field names are illustrative and marked `"profile_version": "draft"` in `prototype/etalase/gateway/discovery.py`; it must be aligned with the published spec before production. We are not integrated with AI Mode or the Gemini app, and AP2 payments are roadmap.
+Yes, at the protocol level. `/.well-known/ucp` is a valid UCP profile (checked against the official SDK schema) and `/ucp/v1/checkout-sessions` implements Checkout and Fulfillment over REST, spec 2026-04-08. We ran Google's conformance suite: the official sample server passes 76 of 77 tests, Etalase passes 29, fails 22 and skips 26. The 22 are tests that complete with a card or AP2 (we use QRIS, which the buyer finishes on a hosted page), order, discount and consent capabilities we don't advertise, a multi-item test, and the sample server's own test hooks. Each is listed with its reason in `prototype/ucp_conformance/expected_failures.json`. We are not integrated with AI Mode or the Gemini app, there is no UCP certification to claim, and AP2 payments are roadmap. See [UCP checkout](/architecture/ucp).
 :::
 
 **Q23. Exactly what is real in your demo and what is mocked?**
 
 ::: details Answer
-Built: catalog building and readiness score, the MCP server and REST mirror, stock reservations and confirm-first, the WhatsApp inbox, the ADK seller and buyer agents, Instagram import, the Connector API, dashboard OTP sign-in and the startup security checks. Mocked in the demo: QRIS payments, courier rates and delivery, payouts, KYC (the dev seller is created as verified) and the database (`MemoryStore`); Gemini runs only when a key or Vertex AI is configured. Roadmap: Pub/Sub, Cloud Tasks, Cloud Storage, KMS, Google Sheets sync, OMS adapters and AP2.
+Built: catalog building and readiness score, the MCP server and REST mirror, stock reservations and confirm-first, the WhatsApp inbox, the Telegram channel and per-shop addresses (tested with stubs, never against the live Bot API or real DNS), the ADK seller and buyer agents, Instagram import, the Connector API, dashboard OTP sign-in and the startup security checks. Mocked in the demo: QRIS payments, courier rates and delivery, payouts, KYC (the dev seller is created as verified) and the database (`MemoryStore`); Gemini runs only when a key or Vertex AI is configured. Roadmap: Pub/Sub, Cloud Tasks, Cloud Storage, KMS, Google Sheets sync, OMS adapters and AP2.
 :::
 
 **Q24. How do you know it works?**
 
 ::: details Answer
-`cd prototype && pytest -q` runs 82 tests: 100 threads racing for the last unit (exactly one wins), duplicate and late payments, the payment-versus-expiry race, forged webhooks, OTP brute force and input limits. `python scripts/demo.py` runs the whole story offline in ten steps. Not yet tested: `FirestoreStore` against the emulator, Gemini extraction quality and live provider payloads ([Testing](/ship/testing)).
+`cd prototype && pytest -q` runs 503 tests: 100 threads racing for the last unit (exactly one wins), duplicate and late payments, the payment-versus-expiry race, forged webhooks, OTP brute force and input limits. `python scripts/demo.py` runs the whole story offline in ten steps. Not yet tested: `FirestoreStore` against the emulator, Gemini extraction quality and live provider payloads ([Testing](/ship/testing)).
 :::
 
 **Q25. How does this scale on Cloud Run today?**
@@ -263,7 +263,7 @@ Never (ADR 0003, `docs/adr/0003-never-hold-funds.md`). The design puts the payme
 **Q27. How do refunds work?**
 
 ::: details Answer
-Refunds happen before release, so we never claw money back from a seller. Two cases are built: the seller taps **Out of stock** after payment (order becomes `refunded` and stock goes back), and a payment that arrives after the hold expired is refunded automatically. With the mock provider the refund is instant; with Xendit (or if the provider call fails for any reason) it becomes `refund_pending` and an `ops.manual_action` event is published and logged as `MANUAL ACTION REQUIRED`, for a human to finish; for the pilot that log line must page someone. Returns and disputes after delivery are not designed yet.
+Refunds happen before release, so we never claw money back from a seller. Two cases are built: the seller taps **Out of stock** after payment (order becomes `refunded` and stock goes back), and a payment that arrives after the hold expired is refunded automatically. With the mock provider the refund is instant; with Xendit (or if the provider call fails for any reason) it becomes `refund_pending` and an `ops.manual_action` event is published and logged as `MANUAL ACTION REQUIRED`, for a human to finish; for the pilot that log line must page someone. After delivery the buyer has a return window (3 days, 7 for a new seller) and the payout waits for it; a return the seller disputes is decided by an Etalase operator, and a parcel the courier returns or loses refunds the buyer automatically once the courier's own tracking record agrees. The whole rule is published at `/policy/payouts`.
 :::
 
 **Q28. What about fraud?**
@@ -275,13 +275,31 @@ On the buyer side, QRIS is a push payment, so we never see card data; checkouts 
 **Q29. What if the seller ships an empty box, or the buyer says it never arrived?**
 
 ::: details Answer
-The payout waits for courier-confirmed delivery, which covers "never shipped". Disputes after delivery and returned parcels are not handled yet: the `returned` shipping status exists, but no money flow is attached to it. Writing that policy is a pilot task, and we list it as an open problem.
+The payout waits for courier-confirmed delivery, which covers "never shipped", and then for the return window, which covers "not as described". A parcel the courier brings back (`returned`) or loses (`disposed`, our `lost`) refunds the buyer in full once the courier's own tracking record agrees, and never pays the seller; a parcel on its way back (`returning`) moves nothing. A dispute freezes the money until an operator decides. What we have not tested live: real Biteship statuses and real Xendit refunds, and nobody is yet staffed to answer an appeal. Who bears a lost parcel is a policy choice we still have to confirm with sellers.
 :::
 
 **Q30. Who pays the payment fees?**
 
 ::: details Answer
 Since 1 October 2026, Bank Indonesia sets the QRIS MDR at 0% for micro merchants on transactions up to Rp500,000 and for all merchants up to Rp100,000, so most of our sellers pay 0% MDR. Xendit's list price adds a fixed processing fee of IDR 4,000 per transaction; in the pilot it is shown to the buyer as a payment fee while we negotiate volume pricing or compare Midtrans ([Evidence](/business/evidence)).
+:::
+
+**Q52. What about cash on delivery?**
+
+::: details Answer
+Not offered in the pilot, on purpose ([ADR 0009](https://github.com/galihsatriawan/etalase/blob/main/docs/adr/0009-qris-only-no-cod.md)): the seller would pack on a promise, the payout hold and the refund flow assume the money arrived before the parcel left, and the courier collects cash on its own schedule. It may cost us buyers, and we do not know how many. So we measure instead of guess: every order records its door, and the operator report gives the share of checkouts that expired unpaid. If that share is high, COD becomes a decision to reopen with data. An agent that asks for COD gets a clear refusal it can repeat to the buyer.
+:::
+
+**Q53. Where is the hold policy written, and who decides a dispute?**
+
+::: details Answer
+At `/policy/payouts` (and `.json` for agents), linked from the order page, the return policy and the seller dashboard. The numbers on it are read from the live settings, so the page cannot disagree with the code: 3 days after delivery, 7 for a new seller, the seller answers a return within 48 hours (silence counts as approval), and the longest possible wait without a dispute is computed from those settings. An Etalase operator decides a dispute. The page offers an appeal only when a support contact is configured, and we say plainly that nobody is staffed for it yet. It never uses the word "rekber".
+:::
+
+**Q54. Can you show where your orders come from?**
+
+::: details Answer
+Yes, as a coarse label and not as a profile: every order records its channel (store link, MCP, REST or UCP) and a label such as `chatgpt`, `gemini`, `instagram` or `direct` for the store link, or the agent's name for MCP and UCP. A seller can tag their own link (`?src=ig-bio`). It is indicative, not audited, because a visitor can choose their own tag. It is the only agent-demand data we can own; we have none from a real pilot yet.
 :::
 
 ### Stock
@@ -321,7 +339,7 @@ Data is keyed by `seller_id`, and services check ownership before acting (`_sell
 **Q36. What stops someone from forging a webhook or brute-forcing the dashboard?**
 
 ::: details Answer
-WhatsApp webhooks need Meta's `X-Hub-Signature-256`; Xendit needs its callback token; webhooks without a provider signature need our `WEBHOOK_TOKEN`; all compared in constant time. The app refuses to start on a public URL without `DEV_TOKEN`, `WEBHOOK_TOKEN` and a real `SESSION_SECRET`, and `prod` refuses mock adapters (`prototype/etalase/security.py`). Sign-in codes expire in 5 minutes, allow 5 tries, and lock a number after 10 wrong tries per hour.
+WhatsApp webhooks need Meta's `X-Hub-Signature-256`; Telegram needs the secret set with `setWebhook`; Xendit needs its callback token; webhooks without a provider signature need our `WEBHOOK_TOKEN`; all compared in constant time. The app refuses to start on a public URL without `DEV_TOKEN`, `WEBHOOK_TOKEN` and a real `SESSION_SECRET`, and `prod` refuses mock adapters (`prototype/etalase/security.py`). Sign-in codes expire in 5 minutes, allow 5 tries, and lock a number after 10 wrong tries per hour.
 :::
 
 ### Business
@@ -335,7 +353,7 @@ WhatsApp webhooks need Meta's `X-Hub-Signature-256`; Xendit needs its callback t
 **Q38. Walk me through unit economics.**
 
 ::: details Answer
-On an IDR 170,000 order, 4% commission is IDR 6,800. Our estimated platform cost is IDR 2,000–3,500 per order, and WhatsApp messages (about IDR 1,460–1,840) are most of it ([Business model](/business/business-model)). The risk is the gateway's fixed fee: if we absorbed Xendit's IDR 4,000 list fee, the margin would disappear, which is why it is passed to the buyer in the pilot and on our validation list. All of these are estimates to validate.
+On an IDR 170,000 order, 4% commission is IDR 6,800. Since 1 October 2026 Meta charges in-window replies, so WhatsApp is IDR 2,535–4,140 per order (37–61% of the commission), plus AI and cloud IDR 250–860 and Biteship's IDR 149,000 a month. Per seller there may also be a payment-platform account fee (Rp25,000 a month on Xendit's Indonesian page, unconfirmed). So the margin is negative at 4 orders per seller, about break-even at 10, and comfortable only above roughly 20 ([Business model](/business/business-model)). That is why we are testing a minimum fee or a small subscription next to the commission, and why a per-seller message meter is a recommended priority. The gateway's fixed fee (Xendit's global list shows IDR 4,000, unconfirmed for Indonesia) would erase the margin if we absorbed it. All of these are estimates to validate in seller interviews.
 :::
 
 **Q39. How do you handle tax?**
@@ -367,7 +385,7 @@ State held in memory (rate limits, OTP codes, message de-duplication, pending ph
 **Q43. What is your roadmap?**
 
 ::: details Answer
-Four phases (`docs/11-roadmap.md`): the hackathon MVP; an Indonesia pilot with 50–100 sellers on Firestore, Pub/Sub and Cloud Tasks, with KYC and payouts through sub-accounts and approved WhatsApp templates; more channels (OMS adapters, WooCommerce first, marketplace stock sync); then regional country packs and chat adapters for LINE, Zalo and Messenger. Dates after the hackathon depend on pilot results.
+Four phases (`docs/11-roadmap.md`): the hackathon MVP; an Indonesia pilot with 50–100 sellers on Firestore, Pub/Sub and Cloud Tasks, with KYC and payouts through sub-accounts and approved WhatsApp templates; more channels (OMS adapters, WooCommerce first, marketplace stock sync); then regional country packs and more chat adapters. Telegram is already built as the second seller channel; Instagram DMs, LINE, Zalo and Messenger are next. Dates after the hackathon depend on pilot results.
 :::
 
 **Q44. How do you expand to other countries?**
@@ -396,21 +414,50 @@ Fill this in before the pitch. `README.md` and slide 1 still have placeholders, 
 The repository was created fresh for the hackathon (`docs/14-hackathon-alignment.md`). If you used an AI assistant to design or write code, say so plainly, then show that you understand every part: walk through `create_checkout` or the confirm-first rule without notes. That is what this Academy is for.
 :::
 
+### Channels, addresses and cost
+
+**Q48. Can a seller use something other than WhatsApp?**
+
+::: details Answer
+Yes, on the seller side. The `Messenger` interface sits behind a `ChannelRouter`, and Telegram is built as the second channel: the seller links a chat from the dashboard, then order alerts, Confirm/Cancel/Ship buttons, photos and voice notes work there exactly as on WhatsApp. It is a proof that the channel is replaceable, not a claim that Indonesian sellers are leaving WhatsApp: WhatsApp stays the main channel. Sign-in still uses the seller's WhatsApp number. Telegram has only been tested against stubs of the Bot API, not the live service ([Seller agent](/architecture/seller-agent)).
+:::
+
+**Q49. Wouldn't an Instagram DM bot make you stronger? Instagram messaging is said to be free.**
+
+::: details Answer
+It could, but it is roadmap, not built. The buyer side has to be per seller: a buyer talks to the seller's own Instagram account, so each seller would connect their own account and Etalase would answer under it. Nobody buys from an "Etalase" Instagram account. The seller-to-Etalase side can stay central. Meta's app review (Advanced Access) is needed to message accounts we do not own, and we have not confirmed that Instagram DMs are free; sources disagree, so we say "unverified" ([Evidence](/business/evidence)).
+:::
+
+**Q50. Does Click-to-WhatsApp advertising make your WhatsApp costs zero?**
+
+::: details Answer
+No. A chat started from a Click-to-WhatsApp ad opens a longer free window, but Etalase's seller alerts are not replies to such a chat. It helps our own acquisition ads and the sellers' own chats with buyers. The length of the window is also reported differently by different sources, so we have not relied on it. Telegram is the channel where these costs do not exist ([Business model](/business/business-model)).
+:::
+
+**Q51. Can every seller get their own address, like `kopi-tuku.example.com`?**
+
+::: details Answer
+Yes, as an option. Set `STORE_BASE_DOMAIN` and a seller can claim a slug in the dashboard; `slug.<domain>` then shows their shop, and the path link keeps working. Reserved names are refused and an unclaimed name returns 404. What is not done: the wildcard DNS record and wildcard TLS certificate (or a load balancer that does it), because they cannot be set up from the sandbox, and per-shop UCP profiles. Each shop is its own browser origin, so the same-origin checks on forms still hold ([Security](/architecture/security)).
+:::
+
 ## Answers to never give
 
 Each of these sounds better than the truth for about ten seconds. After that, a judge who checks will mark you down on every other claim too.
 
 | Never say | Why it is wrong | Say instead |
 |---|---|---|
-| "AI agents are already buying from Indonesian sellers." | UCP checkout is not live in Indonesia | "Live in the US and Australia, testing in India; Indonesia is named as a next market. Our MCP works with any agent today." |
-| "We're integrated with Google AI Mode / UCP-compliant." | The profile is UCP-style, field names illustrative, `profile_version` "draft" | "We publish a UCP-style profile and an MCP server; aligning with the spec is a pilot task." |
+| "AI agents are already buying from Indonesian sellers." | UCP checkout is not live in Indonesia and no agent purchase has been measured there | "Live in the US, started in Australia, testing in India; one trade report says Indonesia is next, with no date. In Indonesia AI discovery is live. Our MCP works with an agent whose owner connects it." |
+| "Google named Indonesia as a UCP market." | The sentence is InfoQ's narration; Google's pages do not name Indonesia | "One trade report said UCP will expand to Indonesia; Google has given no date." |
+| "We're integrated with Google AI Mode." or "We're UCP certified." | Never tried with Google's surfaces; UCP has a test suite, not a certification | "We implement UCP checkout over REST and pass the applicable part of Google's conformance suite; failures are listed and explained." |
 | "Our extraction is 90%+ accurate." | Not measured; the deck says TBD | "Our target is 90% of fields correct on 50 labelled products; that eval runs with Gemini on Vertex AI." |
 | "Payments are live." | QRIS is mocked in the demo | "The Xendit QRIS adapter is wired; the demo uses a mock provider." |
-| "We hold the money in escrow." | Etalase never holds funds | "The money sits in the seller's sub-account at a licensed provider; we only instruct the release." |
+| "We hold the money in escrow." / "Etalase never holds funds." / "Xendit holds the money for us." | Not a legal conclusion; no Xendit page documents a platform-controlled hold; the classification is open | "Buyer payments go to the seller's sub-account at a licensed provider, not to an Etalase account. We instruct the release after the return window; we are confirming with the provider and counsel that this works and how it is classified." |
 | "Zero overselling, guaranteed." | Proven on the in-memory store only | "Exactly one of 100 concurrent reservations wins in our tests; the Firestore emulator race is next." |
 | "We're PDP-compliant." | Retention policy and DPIA are not done | "Built with the PDP Law in mind; retention policy and DPIA come before the pilot." |
-| "95% of Indonesian sellers sell only on WhatsApp." | BPS counts multiple channels | "95% of Indonesian e-commerce businesses use chat apps; only 18% use marketplaces." |
-| "Half of Indonesians shop through chat." | 2019 study; Indonesia was 29% | "Nearly half of Southeast Asian respondents in 2019; for Indonesia we use BPS 2023." |
+| "95% of Indonesian sellers sell only on WhatsApp." / "95% of sellers have no store system." | BPS counts multiple channels and any business taking orders online | "95% of Indonesian e-commerce businesses use chat apps to sell; only 18% use marketplaces. Chat is the default inbox; the chat-only share is not measured." |
+| "Half of Indonesians shop through chat." | 2019 study; Indonesia was 29% | "For Indonesia we use BPS 2023; the 2019 regional study put Indonesia at 29%." |
+| "Nobody else builds a catalog from photos." / "Competitors can't do this." | Based on marketing pages and a limited search | "We did not find a competitor page that claims it. Meta, Mayar and cshub cover other parts of the flow." |
+| "4% is cheaper than everyone." | Mayar is about 3.7%; Shopee low-fee categories start at 2.5% | "Cheaper than a marketplace for fee-heavy categories like fashion; about the same as Mayar; the value is the catalog and the buyer protection." |
 | "Alibaba did 120 million agent transactions in a week." | It was 120M+ orders in six days of a subsidised campaign | "Alibaba said Qwen handled 120M+ orders in six days during a subsidised campaign." |
 | "Competitors can't do what we do." | They serve merchants who already have structured catalogs | "They start from an existing catalog; we start from photos and chat, and we'll prove extraction with an eval." |
 | "Shopify only serves Shopify merchants." | Its Agentic plan is open to non-Shopify brands since March 2026 | "Shopify serves brands with structured catalogs and card checkout." |
@@ -422,7 +469,7 @@ Each of these sounds better than the truth for about ten seconds. After that, a 
 ## Pitfalls on the day
 
 - **The live demo fails.** Keep a terminal ready with `cd prototype && python scripts/demo.py`. It runs the full ten-step story offline with no credentials, so you can still show everything except Gemini.
-- **WhatsApp's 24-hour window.** Messages that start a conversation need approved templates, and the prototype sends free-form text only. Before recording, send any message from the seller's phone to the Etalase number so the window is open.
+- **WhatsApp's 24-hour window.** Alerts that start a conversation fall back to approved templates (create the four, see [WhatsApp templates](/ship/whatsapp-templates)); sign-in codes do not, so before recording send any message from the seller's phone to the Etalase number to open the window.
 - **Numbers without sources.** If you can't name the source, don't say the number. Open [Evidence](/business/evidence) on a second screen.
 - **Placeholders.** Slide 1, slide 10 (screenshots), slide 13 (links) and the README team section are still placeholders. Judges see them first.
 - **Long answers.** If an answer goes past 30 seconds, stop and ask "Would you like more detail on that?"
@@ -432,7 +479,7 @@ Each of these sounds better than the truth for about ten seconds. After that, a 
 **1. A judge asks "Is your payment integration live?" What do you say?**
 
 ::: details Answer
-"The Xendit QRIS adapter is written and switches on with test-mode keys; the demo runs on a mock provider. Refunds and payouts through Xendit are manual steps until the sub-account setup is confirmed, and Etalase never holds the funds itself." See Q23 and Q26.
+"The Xendit QRIS adapter is written and switches on with test-mode keys; the demo runs on a mock provider. Refunds and payouts through Xendit are manual steps until the sub-account setup is confirmed. Buyer payments go to the seller's sub-account at the provider, not to an Etalase account, and whether Xendit can enforce the payout hold is something we are confirming in writing." See Q23 and Q26.
 :::
 
 **2. Which file proves "buttons never go through the model"?**

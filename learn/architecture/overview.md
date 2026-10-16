@@ -1,10 +1,10 @@
 # Architecture overview
 
-Etalase is one FastAPI process with a small domain core, four ways in (agents, sellers, providers, the dashboard) and an adapter behind every external service, all wired together in one file.
+Etalase is one FastAPI process with a small domain core, five ways in (agents, buyers with a link, sellers, providers, the dashboard) and an adapter behind every external service, all wired together in one file.
 
 ::: tip What you will learn
 - The layers of the codebase and what each package is responsible for
-- The four request paths: agent, seller WhatsApp, provider webhooks and dashboard
+- The five request paths: agent, store link, seller WhatsApp, provider webhooks and dashboard
 - How `container.py` builds the `AppContext` and why some fields are filled in late
 - How adapters and country packs keep the core free of provider code, and where that is still incomplete
 - What runs on Cloud Run today and what is still roadmap
@@ -14,7 +14,7 @@ Etalase is one FastAPI process with a small domain core, four ways in (agents, s
 
 The core owns three things: the **catalog** (what is sold), **stock** (what is available) and **orders** (what was bought). Everything else is a way in or a way out:
 
-- **Ways in:** a buyer's AI agent (MCP or REST), a seller's WhatsApp messages, provider webhooks (payment, courier), the seller dashboard and the Connector API.
+- **Ways in:** a buyer's AI agent (MCP or REST), a person on the public store link, a seller's WhatsApp messages, provider webhooks (payment, courier), the seller dashboard and the Connector API.
 - **Ways out:** WhatsApp messages to the seller, QRIS payments, courier rates and bookings, signed webhooks to partner stores.
 
 Each way out sits behind a small interface with a real and a mock implementation. That is why the [demo runs with zero credentials](/run/run-locally), and why a new market should be "a new adapter, not a change to the core" (`docs/03-architecture.md`).
@@ -29,6 +29,7 @@ flowchart TB
     R3["/auth, /api/me, /"]
     R4["/connector/v1"]
     R5["/dev/*"]
+    R6["/stores, /pay, /checkout"]
   end
   subgraph Facades["Facades"]
     GW[gateway.GatewayTools]
@@ -40,6 +41,7 @@ flowchart TB
   subgraph Domain["Domain services"]
     CAT[catalog.CatalogService]
     CO[checkout.CheckoutService]
+    RT[checkout.ReturnService]
     EV[events.EventBus]
   end
   subgraph Ports["Ports and adapters"]
@@ -56,7 +58,13 @@ flowchart TB
   R4 --> CN
   R5 --> IN
   R5 --> CO
+  R6 --> CO
+  R6 --> RT
+  GW --> RT
+  RT --> CO
+  RT --> EV
   IN --> SAG
+  IN --> RT
   SAG --> CAT
   SAG --> CO
   GW --> CAT
@@ -82,17 +90,17 @@ The arrows show who calls whom. Routes stay thin: they authenticate, validate th
 
 | Path | Responsibility | Status |
 |---|---|---|
-| `etalase/api/main.py` | FastAPI app: routes, webhooks, dev endpoints, request size limit, security headers, expiry loop | <Badge type="tip" text="Built" /> |
-| `etalase/api/dashboard.html` | Single-page seller dashboard served at `/` | <Badge type="tip" text="Built" /> |
-| `etalase/gateway/` | `mcp_server.py` (five MCP tools), `tools.py` (`GatewayTools`, `order_view`, `next_step` hints), `discovery.py` (UCP-style profile, schema.org JSON-LD) | <Badge type="tip" text="Built" /> |
+| `etalase/api/main.py` | FastAPI app: routes, webhooks, dev endpoints, request size limit, security headers, the background loop (`process_due`) | <Badge type="tip" text="Built" /> |
+| `etalase/api/dashboard.html` | Single-page seller dashboard served at `/`, in the same visual language as the store pages | <Badge type="tip" text="Built" /> |
+| `etalase/gateway/` | `mcp_server.py` (seven MCP tools), `tools.py` (`GatewayTools`, `order_view`, `next_step` hints), `discovery.py` (schema.org JSON-LD), `ucp.py` (UCP profile and Checkout over REST, hosted payment page, return policy page), `storefront.py` (the public store link: catalog, buy form, order page, return form), `pages.py` (the one look and the one small script shared by every buyer page), `static/` (the self-hosted display font) | <Badge type="tip" text="Built" /> |
 | `etalase/catalog/` | Extraction (`GeminiExtractor`, `HeuristicExtractor`), normalisation, readiness score, sell mode, search, offline intents | <Badge type="tip" text="Built" /> (Gemini needs a key) |
-| `etalase/checkout/service.py` | Reservation, confirm-first, payment, acceptance, shipping, delivery, payout, expiry | <Badge type="tip" text="Built" /> |
-| `etalase/seller/` | `inbox.py` (every inbound WhatsApp message), `notifications.py` (events to messages), `i18n.py` (en / id) | <Badge type="tip" text="Built" /> |
-| `etalase/agents/` | ADK seller agent (five tenant-scoped tools), ADK buyer agent (`McpToolset`) | <Badge type="tip" text="Built" /> (needs Gemini) |
+| `etalase/checkout/` | `service.py`: reservation, confirm-first, payment, acceptance, shipping, delivery, payout hold, expiry. `returns.py`: the return state machine (request, approve or dispute, refund, timers) | <Badge type="tip" text="Built" /> |
+| `etalase/seller/` | `inbox.py` (every inbound seller message, from WhatsApp or Telegram), `notifications.py` (events to messages), `channels.py` (link a Telegram chat, choose the channel), `slugs.py` (shop addresses), `i18n.py` (en / id) | <Badge type="tip" text="Built" /> |
+| `etalase/agents/` | ADK seller agent (tenant-scoped tools), ADK buyer agent (`McpToolset`) | <Badge type="tip" text="Built" /> (needs Gemini) |
 | `etalase/connector/service.py` | Connector API: API keys, product upsert, stock, order status, signed `order.paid` webhooks | <Badge type="tip" text="Built" /> |
-| `etalase/adapters/` | Payment, shipping, messaging, Instagram | <Badge type="warning" text="Mocked in demo" /> |
+| `etalase/adapters/` | Payment, shipping, messaging (WhatsApp, Telegram, the router), Instagram | <Badge type="warning" text="Mocked in demo" /> |
 | `etalase/store/` | `Store` protocol, `MemoryStore`, `FirestoreStore` | <Badge type="warning" text="Mocked in demo" /> (Firestore not in automated tests) |
-| `etalase/auth.py` | WhatsApp OTP sign-in, signed session tokens | <Badge type="tip" text="Built" /> |
+| `etalase/auth.py` | One-time-code sign-in (sent to the seller's channel), signed session tokens, Telegram link codes | <Badge type="tip" text="Built" /> |
 | `etalase/security.py` | Startup checks, dev and webhook guards, rate limiter, headers | <Badge type="tip" text="Built" /> |
 | `etalase/events.py` | In-process `EventBus` and topic names | <Badge type="tip" text="Built" /> (Pub/Sub is roadmap) |
 | `etalase/models.py` | Pydantic models: `Seller`, `Product`, `Variant`, `Stock`, `Order`, `Reservation`, `Connection` | <Badge type="tip" text="Built" /> |
@@ -134,16 +142,26 @@ sequenceDiagram
 
 Errors come back as `{"error": "..."}` with HTTP 200, not exceptions, because LLM agents cope better with readable results. Details in [Agent gateway](/architecture/agent-gateway).
 
-### 2. A seller on WhatsApp
+### 2. A person on the store link
+
+An Instagram bio, a WhatsApp status or a QR code on a parcel can carry the shop link: `/stores/{seller_id}`, or `https://<slug>.<domain>` when `STORE_BASE_DOMAIN` is set (`gateway/hosts.py` maps the Host header to the shop; `seller/slugs.py` validates and assigns the slug). The pages are server-rendered by `gateway/storefront.py`: the store (`/stores/{id}`), one product (`/stores/{id}/p/{product}`, photos, option chips, a sticky Buy bar), the checkout (`/stores/{id}/buy/{variant}`), the order and pay page (`/pay/{order_id}`) and the return form (`/pay/{order_id}/return`). They call the same `CheckoutService` and `ReturnService` as an agent does, so stock, the per-phone limit, courier quotes, the seller's confirm-first rule and the return terms are identical. The seller is alerted on their channel exactly as for an agent's order. The order id in the URL is the only secret (a capability), so the page shows no phone number or address.
+
+The pages share one look (design system v3, `gateway/pages.py`): Plus Jakarta Sans, white "bands" separated by grey gaps on a phone and rounded cards on a wider screen, one green used for the main action, one icon set, a gradient cover and avatar derived from the shop name, and the same buttons, fields and tokens on the seller dashboard. They also share **one small script, pinned by hash in the Content-Security-Policy** (`pages.SCRIPT`), that makes the site feel smooth: (1) links and forms inside the store, product, checkout and pay pages are fetched and swapped in place with a cross-fade, so there is no white flash, the back button restores the last page and what was typed, store links are fetched when the pointer or a finger reaches them, and a thin progress line shows on a slow server; (2) a second tap on a submit button does nothing and the button says what is happening; (3) a waiting order page asks the server for itself every few seconds and swaps its status in place, with a payment countdown counted from the server's number, not the phone's clock; (4) photos fade in once loaded; (5) the quantity field gets + and - buttons and a live subtotal; (6) the store's search box and sort control filter and reorder the real cards (with a short move animation); (7) the option chips on a product page update the price, the availability, the Buy link and the URL without a reload; (8) share, copy and "save the QR code as an image" buttons. Nothing else can run. Without JavaScript every link and form still works as a normal page and a `<noscript>` meta refresh keeps the order page current. `scripts/browser_check.py` drives all of this in a real browser. More in [Security model](/architecture/security) and [Checkout and orders](/architecture/checkout-and-orders).
+
+### 3. A seller on WhatsApp (or Telegram)
 
 ```mermaid
 flowchart LR
   M[Meta webhook] --> V{signature valid?}
   V -->|no| X[401]
   V -->|yes| P[parse_whatsapp_webhook]
+  TG[Telegram webhook] --> TS{secret header valid?}
+  TS -->|no| X
+  TS -->|yes| TP[parse_telegram_update]
+  TP --> H
   P --> H[SellerInbox.handle]
   H --> U{known seller?}
-  U -->|no| REG[send sign-up link]
+  U -->|no| REG[sign-up link, or /start code links a Telegram chat]
   U -->|yes| K{message kind}
   K -->|button| BTN["handle_button, deterministic"]
   K -->|photo, voice, file| MED[download_media, wait for text]
@@ -155,9 +173,9 @@ flowchart LR
   IP --> SV
 ```
 
-The signature check applies when the real Cloud API is on (or `WHATSAPP_APP_SECRET` is set); in console mode the webhook needs `WEBHOOK_TOKEN` instead, which is open on localhost. Buttons (Publish, Available, Sold out, Accept, Out of stock) never reach the model: accepting an order must be exact. Duplicate deliveries are dropped by message ID, and the webhook always answers `{"ok": true}` even if handling failed, because Meta would otherwise retry the same message for days. Locally, `POST /dev/whatsapp` builds the same `Inbound` object and calls `ctx.inbox.handle` directly. More in [WhatsApp seller agent](/architecture/seller-agent).
+The signature check applies when the real Cloud API is on (or `WHATSAPP_APP_SECRET` is set); in console mode the webhook needs `WEBHOOK_TOKEN` instead, which is open on localhost. The Telegram webhook (`POST /webhooks/telegram`) is checked with the secret set at `setWebhook` (header `X-Telegram-Bot-Api-Secret-Token`); the sender is then `tg:<chat id>` and everything after `SellerInbox.handle` is the same code. Buttons (Publish, Available, Sold out, Accept, Out of stock, Approve return, Dispute, Item received) never reach the model: accepting an order must be exact. Duplicate deliveries are dropped by message ID, and the webhook always answers `{"ok": true}` even if handling failed, because Meta would otherwise retry the same message for days. Replies go back through the channel the seller wrote on; messages Etalase starts go to the channel the seller chose (`Seller.address`). Locally, `POST /dev/whatsapp` builds the same `Inbound` object and calls `ctx.inbox.handle` directly. More in [WhatsApp seller agent](/architecture/seller-agent).
 
-### 3. Provider webhooks
+### 4. Provider webhooks
 
 Payment and courier webhooks enter `CheckoutService` directly; side effects fan out through events:
 
@@ -176,18 +194,21 @@ sequenceDiagram
   E->>K: deliver_order, signed webhook to partner
   B->>C: POST /webhooks/shipping, shipment_update delivered
   C->>B: confirm_delivered
-  C->>C: release_payout, one atomic claim
+  C->>E: order.delivered
+  E->>N: seller told when the payout is due
+  Note over C: return window, 72 h (168 h for a new seller)
+  C->>C: process_due, release_due_payouts if no return is open
   C->>E: payout.released
   E->>N: payout message to seller
 ```
 
 Every status change goes through `Store.update_order(order_id, change)`, an atomic read-modify-write, so a late payment webhook and the expiry job can never both win. See [Checkout and orders](/architecture/checkout-and-orders).
 
-A fourth trigger has no caller at all: the `lifespan` function starts `expiry_loop()`, which runs `ctx.checkout.expire_due()` every 60 seconds. `POST /tasks/expire` (with `WEBHOOK_TOKEN`) does the same, ready for Cloud Scheduler.
+A fifth trigger has no caller at all: the `lifespan` function starts a loop that runs `ctx.process_due()` every 60 seconds. It expires unpaid checkouts, runs the return timers (a silent seller approves after 48 hours, a return that never arrives lapses after 7 days) and releases the payouts whose return window has ended. `POST /tasks/expire` (with `WEBHOOK_TOKEN`) does the same, ready for Cloud Scheduler, and `POST /tasks/resolve-dispute` lets an operator decide a disputed return.
 
-### 4. The seller dashboard
+### 5. The seller dashboard
 
-`GET /` returns `dashboard.html`, a plain page that calls `/auth/otp`, `/auth/verify`, then `/api/me`, `/api/me/products` and `/api/me/orders` with `Authorization: Bearer <token>`. `OtpAuth` sends the code through the same `Messenger` the rest of the app uses, so locally it lands in the outbox. The `current_seller` dependency turns the token into a `seller_id`, and every `/api/me*` query is scoped to it. See [Security model](/architecture/security).
+`GET /` returns `dashboard.html`, a single inline page that calls `/auth/otp`, `/auth/verify`, then `/api/me`, `/api/me/products` and `/api/me/orders` (plus `PUT /api/me/return-policy`, `PUT /api/me/slug`, `POST /api/me/telegram/link` and `PUT /api/me/channel` from its Settings tab) with `Authorization: Bearer <token>`. `OtpAuth` sends the code through the same `Messenger` the rest of the app uses, to the seller's chosen channel, so locally it lands in the outbox. The `current_seller` dependency turns the token into a `seller_id`, and every `/api/me*` query is scoped to it. See [Security model](/architecture/security).
 
 ## Wiring: `container.py`
 
@@ -203,6 +224,9 @@ if s.whatsapp_token and s.whatsapp_phone_number_id:
 else:
     # ...
     messenger = ConsoleMessenger(echo=echo_messages, media_roots=[samples])
+telegram = TelegramMessenger(s.telegram_bot_token, s.telegram_bot_username) if s.telegram_bot_token else None
+if telegram:   # one Messenger for the services; the address ("tg:<chat>" or a number) picks the channel
+    messenger = ChannelRouter(messenger, telegram)
 payment: PaymentProvider = XenditPayment(s.xendit_secret_key, s.xendit_callback_token) if s.xendit_secret_key else MockPayment()
 shipping: ShippingProvider = BiteshipShipping(s.biteship_api_key) if s.biteship_api_key else MockShipping()
 ```
@@ -232,7 +256,7 @@ events.subscribe("ops.manual_action", lambda e: log.error("MANUAL ACTION REQUIRE
 Three things to notice:
 
 1. **Two kinds of fields.** `CatalogService` and `CheckoutService` receive exactly what they need, which keeps them easy to test. The facades (`gateway`, `inbox`, `connector`, `auth`, `seller_agent`) need almost everything, so they receive the whole `ctx` and are attached after it exists. That is why they are typed `object = None` in the `AppContext` dataclass.
-2. **Subscriptions are wiring too.** `notifications.register` subscribes five handlers (`order.awaiting_confirmation`, `order.paid`, `order.accepted`, `order.rejected`, `payout.released`); the connector subscribes to `order.paid`; and a one-line handler logs every `ops.manual_action` (a refund or payout an operator must finish) at ERROR level, so it shows up in Cloud Logging. Other topics, such as `stock.changed` and `order.expired`, are published with no subscriber yet.
+2. **Subscriptions are wiring too.** `notifications.register` subscribes eleven handlers (the order events, `order.delivered`, `order.returned_to_sender`, `payout.released` and the `return.*` events); the connector subscribes to `order.paid`; and a one-line handler logs every `ops.manual_action` (a refund or payout an operator must finish) at ERROR level, so it shows up in Cloud Logging. Other topics, such as `stock.changed` and `order.expired`, are published with no subscriber yet.
 3. **It ends with a security check.** `ctx.modes` records what was picked (that is what `/healthz` shows), then `validate_settings(s, ctx.modes)` raises `InsecureConfig` on a bad configuration. Because `main.py` calls `build_context()` at import time, a bad configuration stops the process before it serves a single request.
 
 ## Adapters and country packs
@@ -243,7 +267,7 @@ Each adapter implements a `Protocol` (structural typing: any class with the righ
 |---|---|---|---|
 | `PaymentProvider` | `adapters/payment.py` | `XenditPayment` (dynamic QRIS, callback token, xenPlatform `for-user-id`) | `MockPayment` |
 | `ShippingProvider` | `adapters/shipping.py` | `BiteshipShipping` (rates, booking, tracking lookup) | `MockShipping` |
-| `Messenger` | `adapters/messaging.py` | `WhatsAppCloudMessenger` | `ConsoleMessenger` |
+| `Messenger` | `adapters/messaging.py`, `adapters/telegram.py` | `WhatsAppCloudMessenger`, `TelegramMessenger` (a `ChannelRouter` sends each call to the one the address belongs to: `tg:<chat id>` or a WhatsApp number) | `ConsoleMessenger` |
 | `CatalogExtractor` | `catalog/extractor.py` | `GeminiExtractor` | `HeuristicExtractor` |
 | `Store` | `store/base.py` | `FirestoreStore` | `MemoryStore` |
 
@@ -300,7 +324,7 @@ Exactly one instance is not a detail. Much of the state lives in process memory:
 ## Pitfalls
 
 - **Import-time wiring.** `ctx` and `mcp` are module globals in `main.py`. Anything that imports the app builds a full context from the environment and `.env`. That is why tests build their own context with `Settings(_env_file=None)`, and why `tests/conftest.py` clears provider and token variables and changes into `tests/` before `test_api.py` imports the app.
-- **Two front doors, one implementation.** `/agent/v1` mirrors all five MCP tools (search, product, shipping options, checkout, status). When you add a tool, add the REST route too, or REST clients fall behind.
+- **Two front doors, one implementation.** `/agent/v1` mirrors all seven MCP tools (search, product, shipping options, checkout, status, request return, return tracking). When you add a tool, add the REST route too, or REST clients fall behind.
 - **Events are synchronous.** A slow partner webhook in `deliver_order` runs inside the payment webhook request (it has a 10-second timeout and failures are only logged).
 - **Firestore is the less-tested path.** Automated tests use `MemoryStore`; `FirestoreStore` is meant to be exercised against the emulator.
 

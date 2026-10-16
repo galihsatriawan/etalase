@@ -14,7 +14,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from ..models import Connection, Order, OutOfStock, Product, Reservation, Seller, StockChange, now
+from ..models import Connection, Order, OrderStatus, OutOfStock, Product, Reservation, Seller, StockChange, now
 
 try:
     from google.cloud import firestore  # type: ignore
@@ -46,6 +46,18 @@ class FirestoreStore:
 
     def find_seller_by_whatsapp(self, number: str) -> Seller | None:
         for snap in self._col("sellers").where("whatsapp", "==", number).limit(1).stream():
+            return Seller.model_validate(snap.to_dict())
+        return None
+
+    def find_seller_by_slug(self, slug: str) -> Seller | None:
+        for snap in self._col("sellers").where("slug", "==", slug).limit(1).stream():
+            return Seller.model_validate(snap.to_dict())
+        return None
+
+    def find_seller_by_address(self, address: str) -> Seller | None:
+        if not address.startswith("tg:"):
+            return self.find_seller_by_whatsapp(address)
+        for snap in self._col("sellers").where("telegram_chat_id", "==", address[3:]).limit(1).stream():
             return Seller.model_validate(snap.to_dict())
         return None
 
@@ -94,6 +106,10 @@ class FirestoreStore:
 
     def list_orders(self, seller_id: str) -> list[Order]:
         q = self._col("orders").where("seller_id", "==", seller_id)
+        return [Order.model_validate(s.to_dict()) for s in q.stream()]
+
+    def orders_in_status(self, statuses) -> list[Order]:
+        q = self._col("orders").where("status", "in", [OrderStatus(x).value for x in statuses])
         return [Order.model_validate(s.to_dict()) for s in q.stream()]
 
     # ---- stock (transactional)
@@ -151,6 +167,39 @@ class FirestoreStore:
 
         txn(self.db.transaction())
         return holder.get("o")
+
+    # ---- protocol documents (one collection per kind)
+    def put_doc(self, kind: str, doc_id: str, data: dict) -> None:
+        self._col(f"doc_{kind}").document(doc_id).set(data)
+
+    def get_doc(self, kind: str, doc_id: str) -> dict | None:
+        snap = self._col(f"doc_{kind}").document(doc_id).get()
+        return snap.to_dict() if snap.exists else None
+
+    def create_doc(self, kind: str, doc_id: str, data: dict) -> bool:
+        from google.api_core.exceptions import AlreadyExists   # a Firestore dependency, so present whenever this store is
+        try:
+            self._col(f"doc_{kind}").document(doc_id).create(data)    # fails if the document exists: one winner
+        except AlreadyExists:
+            return False
+        return True
+
+    def update_doc(self, kind: str, doc_id: str, change) -> dict | None:
+        ref = self._col(f"doc_{kind}").document(doc_id)
+        holder: dict[str, dict] = {}
+
+        @firestore.transactional
+        def txn(transaction):
+            snap = ref.get(transaction=transaction)
+            if not snap.exists:
+                return
+            data = snap.to_dict()
+            if change(data):
+                transaction.set(ref, data)
+            holder["d"] = data
+
+        txn(self.db.transaction())
+        return holder.get("d")
 
     def extend(self, order_id: str, expires_at: datetime) -> None:
         q = self._col("reservations").where("order_id", "==", order_id).where("status", "==", "held")

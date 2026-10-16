@@ -34,6 +34,8 @@ Reply briefly and warmly, in the same language the seller writes in (usually cas
 - Stock or price changes: call update_stock / update_price. If the product or colour is ambiguous, ask first; never guess.
 - A courier tracking number: call submit_tracking.
 - Questions about sales or payouts: call get_sales_summary.
+- Return terms: call set_return_policy. Damaged, wrong and not-as-described items are always returnable; the seller only
+  chooses whether to also accept a change of mind, and may add a short note for buyers.
 - Never change payout bank details or identity data in chat; point the seller to the dashboard.
 - Never invent numbers. Use tool results."""
 
@@ -80,12 +82,18 @@ def build_seller_agent(ctx: "AppContext") -> LlmAgent:
         """Orders, revenue and payouts for this seller."""
         return {"summary": sales_summary(ctx, _seller(tool_context))}
 
+    def set_return_policy(accepts_change_of_mind: bool, tool_context: ToolContext, note: str | None = None) -> dict:
+        """Set whether buyers may return items just because they changed their mind, and an optional short note shown to
+        buyers' agents. Damaged, wrong and not-as-described items stay returnable either way."""
+        policy = ctx.returns.set_policy(_seller(tool_context), accepts_change_of_mind, note)
+        return {"accepts_change_of_mind": policy.accepts_change_of_mind, "note": policy.note}
+
     return LlmAgent(
         name="seller_assistant",
         model=ctx.settings.gemini_model,
         description="Helps a WhatsApp seller manage catalog, stock, orders and shipping.",
         instruction=INSTRUCTION,
-        tools=[build_catalog, update_stock, update_price, submit_tracking, get_sales_summary],
+        tools=[build_catalog, update_stock, update_price, submit_tracking, get_sales_summary, set_return_policy],
     )
 
 

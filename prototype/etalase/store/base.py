@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Callable, Protocol
 
-from ..models import Connection, Order, Product, Reservation, Seller, StockChange
+from ..models import Connection, Order, OrderStatus, Product, Reservation, Seller, StockChange
 
 
 class Store(Protocol):
@@ -13,6 +13,9 @@ class Store(Protocol):
     def put_seller(self, seller: Seller) -> None: ...
     def get_seller(self, seller_id: str) -> Seller | None: ...
     def find_seller_by_whatsapp(self, number: str) -> Seller | None: ...
+    def find_seller_by_slug(self, slug: str) -> Seller | None: ...
+    def find_seller_by_address(self, address: str) -> Seller | None:
+        """Who writes from this channel address: a WhatsApp number, or "tg:<chat id>" for a linked Telegram chat."""
 
     # products. put_product never changes stock of variants that already exist: stock moves only
     # through reserve/commit/release/restock/set_stock, so a stale product copy cannot undo a sale.
@@ -25,6 +28,8 @@ class Store(Protocol):
     def get_order(self, order_id: str) -> Order | None: ...
     def find_order_by_payment_ref(self, reference: str) -> Order | None: ...
     def list_orders(self, seller_id: str) -> list[Order]: ...
+    def orders_in_status(self, statuses: list[OrderStatus]) -> list[Order]:
+        """Every order, across sellers, in one of these statuses. The background job uses it (payouts, return timers)."""
     def update_order(self, order_id: str, change: Callable[[Order], bool]) -> Order | None:
         """Atomic read-modify-write. `change` mutates the order and returns True to save it.
         Used for every status transition, so a webhook and the expiry job cannot both win."""
@@ -36,6 +41,15 @@ class Store(Protocol):
     def set_stock(self, seller_id: str, product_id: str, variant_id: str, on_hand: int | None, source: str) -> StockChange: ...
     def restock(self, order_id: str) -> None: ...
     def extend(self, order_id: str, expires_at: datetime) -> None: ...
+
+    # small JSON documents for protocol state (UCP checkout sessions, idempotency records)
+    def put_doc(self, kind: str, doc_id: str, data: dict) -> None: ...
+    def get_doc(self, kind: str, doc_id: str) -> dict | None: ...
+    def create_doc(self, kind: str, doc_id: str, data: dict) -> bool:
+        """Creates the document only if none exists with this id. Atomic: of two simultaneous calls exactly one returns True.
+        Used where an id must belong to one owner (a shop address, a single-use link code)."""
+    def update_doc(self, kind: str, doc_id: str, change: Callable[[dict], bool]) -> dict | None:
+        """Atomic read-modify-write, same contract as update_order (the callback may run more than once)."""
 
     # connections (OMS, store plugins, Connector API)
     def put_connection(self, connection: Connection) -> None: ...

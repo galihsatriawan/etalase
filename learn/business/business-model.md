@@ -19,8 +19,8 @@ Every figure here comes from `docs/10-business-model.md`, `docs/09-security-priv
 Etalase sells **a sales channel**, not software seats. A seller turns photos and chats into an agent-ready catalog for free; Etalase earns only when an AI agent's buyer completes an order and the courier confirms delivery. Three ideas carry the model:
 
 - **Pay per sale.** No monthly fee, no listing fee. A seller who never sells pays nothing (`docs/10`).
-- **Cheaper than a marketplace, on a channel the seller owns.** The prototype charges 4%; Shopee Indonesia's admin fee for fashion is 10% for non-Mall sellers after the 2026 revision, before other service fees ([Evidence](/business/evidence#competitors)). The pitch line in `docs/10` is "not free but cheaper, pay-per-sale, on a channel the seller owns".
-- **Never hold funds.** Money waits in the seller's sub-account at a licensed payment provider and is split on release (`docs/adr/0003-never-hold-funds.md`).
+- **Cheaper than a marketplace for fee-heavy categories, on a channel the seller owns.** The prototype charges 4%; Shopee Indonesia's admin fee for fashion is 10% plus Rp1,250 per order for non-Mall sellers after the 2026 revision, but its range starts at 2.5% for low-fee categories ([Evidence](/business/evidence#competitors)). Mayar charges about the same as we do (3% + 0.7% QRIS, no monthly fee), so 4% is not a discount against it. The pitch line in `docs/10` is "pay-per-sale, on a channel the seller owns, with a catalog from photos and a buyer-protection hold".
+- **Money stays in the seller's sub-account at a licensed payment provider** and is split on release (`docs/adr/0003-never-hold-funds.md`). Etalase does not receive buyer payments in its own account. Whether the provider can enforce the hold, and the legal classification, are open.
 
 ### Who pays (B2B2C)
 
@@ -67,11 +67,19 @@ flowchart LR
 | Buyer pays | Rp182,000 | Deck wireframe |
 | Etalase commission, 4% of subtotal | Rp6,800 | Deck, `docs/10` |
 | Seller payout | Rp163,200 | Deck wireframe ("Payout Rp163,200 after delivery (4% fee)") |
-| Gateway processing fee | Shown to the buyer as a payment fee in the pilot | `docs/10` (Xendit's list price is IDR 4,000) |
+| Gateway processing fee | Shown to the buyer as a payment fee in the pilot, if it applies | `docs/10` (Xendit's global price list shows IDR 4,000; its Indonesian page shows no fixed fee; unconfirmed) |
 
-**Platform cost per order:** about IDR 2,000–3,500, of which WhatsApp is about IDR 1,460–1,840 and cloud plus Gemini the rest (`docs/10`). That range is simply the pilot's monthly cost (next section) divided by 1,000 orders at US$1 ≈ IDR 16,000.
+**Platform cost per order (revised 16 Oct 2026):** WhatsApp IDR 2,535–4,140 (7–9 charged messages at IDR 357–460, because Meta's newer documentation says service messages and in-window utility replies are charged from 1 Oct 2026), AI IDR 90–380, cloud IDR 160–480, Biteship's subscription IDR 149. Earlier versions of this page said IDR 2,000–3,500; that range assumed in-window replies were free and is now out of date (`docs/10`).
 
-**Contribution per order (our arithmetic):** IDR 6,800 − IDR 2,000–3,500 ≈ IDR 3,300–4,800, before seller onboarding, support and other fixed costs.
+**Per-seller fixed costs:** Xendit's Indonesian page lists xenPlatform at Rp25,000 per active account per month (unconfirmed; its global page shows a far higher schedule), and Biteship's Grow plan costs Rp149,000 per month from 2 Nov 2026. These do not scale with orders, so they depend on **orders per seller per month**:
+
+| Orders per seller per month | Margin per order against the IDR 6,800 commission |
+|---|---|
+| 4 | −IDR 2,384 to −4,599 |
+| 10 (the pilot assumption) | +IDR 1,366 to −849 |
+| 20 | +IDR 2,616 to +401 |
+
+(our arithmetic; excludes the IDR 4,000 gateway fee, refunds, disputes, support and VAT). A pure 4% commission is only comfortable above roughly 20 orders per seller, and we have no data on how many orders a chat-first seller gets.
 
 **Sensitivity (our arithmetic on the same order):**
 
@@ -89,12 +97,13 @@ Assumptions from `docs/10` and the deck: **100 sellers, 3,000 products, 1,000 or
 |---|---|---|
 | Cloud Run, Firestore, Storage, Pub/Sub | Low pilot traffic, mostly within free tiers | US$10–30 |
 | Gemini on Vertex AI | ~3,000 catalog extractions + ~2,000 seller-agent turns (buyers' agents run on their own models) | US$15–60 |
-| WhatsApp Cloud API | ~4 utility messages per order × 1,000 orders at ~IDR 366–460 (free inside an open service window) | ~US$90–115 |
-| Biteship rates API | ~5,000 rate checks at ~IDR 5 | < US$2 |
-| QRIS payments | MDR 0% for micro sellers up to Rp500,000; gateway processing fee shown to the buyer | Pass-through |
-| **Total platform cost** | | **≈ US$120–210** |
+| WhatsApp Cloud API | ~4 utility templates + ~3–5 charged replies per order × 1,000 orders at ~IDR 357–460 (in-window replies charged from 1 Oct 2026 per Meta's newer page; re-check) | ~US$160–260 |
+| Biteship | Grow plan from 2 Nov 2026, Rp149,000 per month, plus prepaid shipping float | ~US$9 |
+| Xendit xenPlatform account fee | Rp25,000 per active seller per month on Xendit's Indonesian page (unconfirmed) | ~US$155 |
+| QRIS payments | MDR 0% only if the seller is classified as micro; gateway fixed fee, if any, shown to the buyer | Pass-through or 0.7% |
+| **Total platform cost (excluding gateway fees and refunds)** | | **≈ US$350–520** |
 
-Check of the WhatsApp line (our arithmetic): 4 × 1,000 × IDR 366 ≈ IDR 1.46 million ≈ US$92; at IDR 460 ≈ US$115.
+Check of the WhatsApp line (our arithmetic): 7–9 × 1,000 × IDR 357–460 ≈ IDR 2.5–4.1 million ≈ US$158–259.
 
 Illustrative revenue (our arithmetic, only if every order were IDR 170,000): 1,000 × IDR 6,800 = IDR 6.8 million ≈ US$425 a month. This is not a forecast; the pilot's real order values are unknown.
 
@@ -115,7 +124,7 @@ Prices per 1M tokens on Vertex AI: Gemini 2.5 Flash US$0.30 input, US$1.00 audio
 
 How the seller-agent figure is built (our arithmetic): 12,000 × 0.30 / 1M = US$0.0036 input, plus 800 × 2.50 / 1M = US$0.0020 output, ≈ US$0.006. At 2027 list prices: 12,000 × 1.50 / 1M + 800 × 7.50 / 1M = US$0.024 ≈ IDR 380, which is about **5.6% of the IDR 6,800 commission**. Even in the expensive case, AI is a small slice; WhatsApp is the big one.
 
-Two nuances from the link check: the 3.8 Flash introductory price is delivered as "50% credits back on net spend", and the pricing page lists those 3.8 Flash prices for the global endpoint, with higher prices on regional endpoints. The prototype defaults to `gemini-2.5-flash`.
+Two nuances from the link check: the 3.8 Flash introductory price is delivered as "50% credits back on net spend", and the pricing page lists those 3.8 Flash prices for the global endpoint, with higher prices on regional endpoints. The prototype defaults to `gemini-3.8-flash`, because Google now limits the 2.5 models to existing users, so a new project cannot count on them. At the introductory 3.8 Flash prices the same arithmetic gives about US$0.006 per extracted product and US$0.012 per seller-agent order (our arithmetic, text rates), still far below the commission.
 
 **Keeping AI cost low** (from `docs/10`): buttons and the offline parser handle common commands without a model call; Flash-Lite for routing and short replies; batch or flex pricing (50% off) for bulk imports; context caching (about 10% of the input price) for the agent's instructions; a free allowance per seller (for example the first 50 products), then a paid plan for very large catalogs.
 
@@ -127,9 +136,15 @@ One exception: the **demo buyer agent** (`prototype/etalase/agents/buyer_agent.p
 
 ## WhatsApp and QRIS fees
 
-**WhatsApp.** Meta charges per message. Utility templates cost about IDR 366 (Qontak's IDR price, which includes Qontak's fee) to about IDR 460 (US$0.0287 on USD rate cards), and utility templates inside an open customer service window are free. Since 1 October 2026 rate cards from resellers list a charge for service messages too, while Meta's page says non-template messages are free; treat that as unresolved and confirm with the provider ([Evidence](/business/evidence#costs-and-prices)). WhatsApp is about half of the cost per order, which is why the design keeps seller messages short, combined and inside the 24-hour window.
+**WhatsApp.** Meta charges per message. Utility templates cost about IDR 357–460 (Qontak's IDR price includes its fee; US$0.0287 on USD rate cards). Meta's older pricing page said replies inside an open window are free, but Meta's newer documentation page says that from 1 October 2026 service messages are charged at the utility rate and utility messages sent as in-window replies are charged too; resellers list a service price of about IDR 357 and some report a 1,000-message free quota that we could not find in Meta's text. We read these pages through a summarising tool, so re-open Meta's page before quoting ([Evidence](/business/evidence#costs-and-prices)). WhatsApp is the largest cost per order (37–61% of the commission in our estimate), which is why the design keeps seller messages short and combined, and why a per-seller message meter is a recommended priority (not built).
 
-**QRIS.** Since 1 October 2026 Bank Indonesia sets the merchant discount rate at 0% for micro merchants on transactions up to Rp500,000 and for all merchants up to Rp100,000; above that 0.3% (micro) or 0.7% (others). Most Etalase sellers are micro merchants with orders below Rp500,000, so the MDR is usually 0%. Gateways may add a fixed fee: Xendit's list shows IDR 4,000 per transaction, which is more than Etalase's whole platform cost per order. Midtrans states 0.7% for regular merchants. Xendit documents QRIS settlement at T+2 business days.
+**Click-to-WhatsApp (CTWA) ads.** Resellers describe a free window for a chat that starts from such an ad (72 hours to 7 days, depending on who you read), and Meta's own page was not confirmed. It does not make Etalase's alerts free: they go to a seller on events (a paid order) that no ad opens. It can make a seller's first chat with Etalase free if Etalase runs the ad, and it makes the buyer chats of sellers who run CTWA ads free to those sellers.
+
+**A second channel with no per-message fee: Telegram (built).** A seller can link a Telegram chat in the dashboard and receive orders, stock checks and payouts there. A Telegram bot can message a user at any time once the user has started it: no 24-hour window, no templates, and the Bot API pages describe no price. It shows that cost can be moved by changing a channel; it is not a claim that Indonesian sellers use Telegram. WhatsApp stays the default and the sign-in identity.
+
+**Instagram and Facebook.** Meta's pages describe a 24-hour window for both and no price; "Instagram DMs are free" came from a vendor table we could not confirm. So Instagram is used as an input (importing posts as drafts) and as a door (the store link in the bio), not as the channel for order alerts. A buyer-side Instagram DM bot would have to run per seller, on each seller's own account, and is roadmap only ([Pitch and Q&A](/business/pitch-and-qa), Q49).
+
+**QRIS.** Since 1 October 2026 Bank Indonesia sets the merchant discount rate at 0% for micro merchants on transactions up to Rp500,000 and for all merchants up to Rp100,000; above that 0.3% (micro) or 0.7% (others) (Bank Indonesia press release 28/159/DKom). The release does not say who classifies a sub-merchant behind a gateway, so on a typical Rp170,000 order the MDR is 0% only if the seller is classified as micro; otherwise it is 0.7% (Rp1,190). Mayar's and Midtrans' pages still show 0.7%. Xendit's global price list shows a fixed IDR 4,000 processing fee, which is large against a Rp6,800 commission; its Indonesian page shows none, and whether it applies to an Indonesian contract is unknown. Xendit's pages give two QRIS settlement times (T+1 and T+2) and three versions of the refund rules.
 
 ## Tax
 
@@ -178,7 +193,7 @@ Commission is charged only on delivered orders. `release_payout` runs after the 
 
 2. A judge says "AI must be your biggest cost". What do you answer?
 ::: details Answer
-No. On Gemini 2.5 Flash the seller agent costs about IDR 90 per order and extraction about IDR 65 per product; even at 2027 Gemini 3.8 Flash list prices it is about IDR 380 per order, about 5.6% of the IDR 6,800 commission. WhatsApp messages (about IDR 1,460–1,840 per order) and the gateway's fixed fee are bigger.
+No. On Gemini 2.5 Flash the seller agent costs about IDR 90 per order and extraction about IDR 65 per product; even at 2027 Gemini 3.8 Flash list prices it is about IDR 380 per order, about 5.6% of the IDR 6,800 commission. WhatsApp messages (IDR 2,535–4,140 per order since 1 October 2026), per-seller account and subscription fees, and the gateway's fixed fee are bigger.
 :::
 
 3. Who pays for the buyer's AI agent, and what is the one exception?
@@ -186,9 +201,9 @@ No. On Gemini 2.5 Flash the seller agent costs about IDR 90 per order and extrac
 The buyer's AI platform runs and pays for its own model; Etalase serves database-backed MCP tools. The exception is the demo buyer agent, which runs on Etalase's Gemini credentials.
 :::
 
-4. Why is QRIS MDR usually 0% for Etalase sellers, and why is payment cost still a risk?
+4. When is QRIS MDR 0% for an Etalase seller, and why is payment cost still a risk?
 ::: details Answer
-Since 1 October 2026 micro merchants pay 0% MDR up to Rp500,000 per transaction, and typical orders are below that. But gateways can add a fixed processing fee (Xendit lists IDR 4,000), which would wipe out the margin if Etalase absorbed it.
+Since 1 October 2026 the MDR is 0% for every merchant up to Rp100,000 and for micro merchants up to Rp500,000. A typical Rp170,000 order is above the first threshold, so 0% applies only if the gateway classifies the seller as micro (not defined in the BI release); otherwise it is 0.7%. Gateways can also add a fixed processing fee (Xendit's global list shows IDR 4,000; unconfirmed for Indonesia), which would wipe out the margin if Etalase absorbed it.
 :::
 
 5. What is the status of marketplace PPh 22 collection under PMK 37/2025?

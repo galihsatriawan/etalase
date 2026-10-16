@@ -19,7 +19,7 @@ Etalase is one Python process: a FastAPI app started by uvicorn (see **`prototyp
 | **Cloud Run** | Runs the container, gives it an HTTPS URL, scales instances. Etalase's API, MCP server, webhooks and dashboard all live in this one service. |
 | **Cloud Build** | Builds the image from source when you pass `--source .` to `gcloud run deploy`. Because `prototype/Dockerfile` exists, it builds with that Dockerfile (not buildpacks). |
 | **Artifact Registry** | Stores the built image. A source deploy creates a repository called `cloud-run-source-deploy` in the region if it does not exist. |
-| **Secret Manager** | Holds `SESSION_SECRET`, `DEV_TOKEN`, `WEBHOOK_TOKEN` and, if you create them, the WhatsApp, Xendit, Biteship and Instagram secrets. Cloud Run injects them as environment variables. |
+| **Secret Manager** | Holds `SESSION_SECRET`, `DEV_TOKEN`, `WEBHOOK_TOKEN`, `OPERATOR_TOKEN` and, if you create them, the WhatsApp, Xendit, Biteship and Instagram secrets. Cloud Run injects them as environment variables. |
 | **IAM** | The script creates a dedicated service account, `etalase-run`, that the service runs as, with only the roles it needs. |
 | **Vertex AI** | Runs Gemini. The script sets `GOOGLE_GENAI_USE_VERTEXAI=true`, so the deployed build uses Gemini, not the offline parsers. |
 | **Firestore** | Optional. The script deploys with `STORE_BACKEND=memory` unless you set `STORE_BACKEND=firestore` in your shell; Firestore is for the pilot. |
@@ -146,7 +146,7 @@ ensure_secret() {  # create a random secret once; never print it
 ensure_secret etalase-session-secret
 ensure_secret etalase-dev-token
 ensure_secret etalase-webhook-token
-SECRETS="SESSION_SECRET=etalase-session-secret:latest,DEV_TOKEN=etalase-dev-token:latest,WEBHOOK_TOKEN=etalase-webhook-token:latest"
+SECRETS="SESSION_SECRET=etalase-session-secret:latest,DEV_TOKEN=etalase-dev-token:latest,WEBHOOK_TOKEN=etalase-webhook-token:latest,OPERATOR_TOKEN=etalase-operator-token:latest"
 ```
 
 - Creates each secret **only if it does not exist**, so re-running the script never rotates them.
@@ -193,7 +193,7 @@ URL="https://${SERVICE}-${PROJECT_NUMBER}.${REGION}.run.app"
 
 ENV_VARS="ETALASE_ENV=${ENV_MODE},PUBLIC_BASE_URL=${URL},STORE_BACKEND=${STORE_BACKEND:-memory}"
 ENV_VARS="${ENV_VARS},GOOGLE_GENAI_USE_VERTEXAI=true,GOOGLE_CLOUD_PROJECT=${PROJECT_ID},GOOGLE_CLOUD_LOCATION=${GOOGLE_CLOUD_LOCATION:-asia-southeast1}"
-ENV_VARS="${ENV_VARS},GEMINI_MODEL=${GEMINI_MODEL:-gemini-2.5-flash},SELLER_LOCALE=${SELLER_LOCALE:-en}"
+ENV_VARS="${ENV_VARS},GEMINI_MODEL=${GEMINI_MODEL:-gemini-3.8-flash},SELLER_LOCALE=${SELLER_LOCALE:-en}"
 [[ -n "${WHATSAPP_PHONE_NUMBER_ID:-}" ]] && ENV_VARS="${ENV_VARS},WHATSAPP_PHONE_NUMBER_ID=${WHATSAPP_PHONE_NUMBER_ID}"
 [[ -n "${INSTAGRAM_APP_ID:-}" ]] && ENV_VARS="${ENV_VARS},INSTAGRAM_APP_ID=${INSTAGRAM_APP_ID}"
 ```
@@ -290,7 +290,7 @@ flowchart TD
 ## Region choice
 
 - **Cloud Run in `asia-southeast2` (Jakarta):** closest to Indonesian sellers, buyers and providers, and keeps the order data in Indonesia.
-- **Gemini in `asia-southeast1` (Singapore):** the Vertex AI locations list we checked has no Jakarta column, which is why the script points Gemini elsewhere. Model availability per region changes; if `gemini-2.5-flash` is not found in Singapore, deploy with `GOOGLE_CLOUD_LOCATION=global` (Vertex AI has a global endpoint) and re-check the data-location implications in `docs/09`.
+- **Gemini in `asia-southeast1` (Singapore):** the Vertex AI locations list we checked has no Jakarta column, which is why the script points Gemini elsewhere. Model availability per region changes; if `gemini-3.8-flash` is not found in Singapore, deploy with `GOOGLE_CLOUD_LOCATION=global` (Vertex AI has a global endpoint) and re-check the data-location implications in `docs/09`.
 - Prices differ by endpoint for some models; the [business model page](/business/business-model) uses list prices.
 
 ## Register webhook URLs
@@ -301,6 +301,7 @@ flowchart TD
 | Xendit | `https://YOUR-URL/webhooks/payment` (no token) | `x-callback-token` header = `XENDIT_CALLBACK_TOKEN` |
 | Biteship | `https://YOUR-URL/webhooks/shipping?token=WEBHOOK_TOKEN` | Our `WEBHOOK_TOKEN` (`?token=` or `X-Etalase-Webhook-Token` header) |
 | Expiry job (optional) | `POST https://YOUR-URL/tasks/expire?token=WEBHOOK_TOKEN` | Our `WEBHOOK_TOKEN` |
+| Operator console (disputes) | `GET /tasks/disputes`, `POST /tasks/resolve-dispute`, header `X-Etalase-Operator-Token` | Our `OPERATOR_TOKEN`; never in a URL, because `WEBHOOK_TOKEN` is and URLs reach access logs |
 
 The script prints exactly these URLs at the end. With `--no-cpu-throttling` the in-process loop already runs every 60 seconds, so a Cloud Scheduler job on `/tasks/expire` is a belt-and-braces option, not a requirement. Read the token with:
 
@@ -315,7 +316,7 @@ URL="$(gcloud run services describe etalase --region asia-southeast2 --format 'v
 DEV="$(gcloud secrets versions access latest --secret etalase-dev-token)"
 HOOK="$(gcloud secrets versions access latest --secret etalase-webhook-token)"
 
-curl -s "$URL/healthz"                       # {"ok":true,"modes":{...,"ai":"gemini (gemini-2.5-flash)"}}
+curl -s "$URL/healthz"                       # {"ok":true,"modes":{...,"ai":"gemini (gemini-3.8-flash)"}}
 curl -s "$URL/.well-known/ucp" | head -c 300
 
 # Security checks: these must fail

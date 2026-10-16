@@ -1,5 +1,6 @@
 import os
 import sys
+from datetime import timedelta
 from pathlib import Path
 
 import pytest
@@ -7,16 +8,32 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 os.environ.setdefault("ETALASE_ENV", "dev")
 # Tests must not depend on the developer's shell or .env file.
-for var in ("GOOGLE_API_KEY", "GOOGLE_GENAI_USE_VERTEXAI", "WHATSAPP_TOKEN", "WHATSAPP_PHONE_NUMBER_ID",
+for var in ("GOOGLE_API_KEY", "GEMINI_API_KEY", "GOOGLE_GENAI_USE_VERTEXAI", "GOOGLE_GENAI_USE_ENTERPRISE", "GEMINI_MODEL", "WHATSAPP_TOKEN", "WHATSAPP_PHONE_NUMBER_ID",
             "WHATSAPP_APP_SECRET", "WHATSAPP_VERIFY_TOKEN", "XENDIT_SECRET_KEY", "XENDIT_CALLBACK_TOKEN",
             "BITESHIP_API_KEY", "INSTAGRAM_APP_ID", "INSTAGRAM_APP_SECRET", "DEV_TOKEN", "WEBHOOK_TOKEN",
-            "PUBLIC_BASE_URL", "SESSION_SECRET", "STORE_BACKEND", "SELLER_LOCALE"):
+            "PUBLIC_BASE_URL", "SESSION_SECRET", "STORE_BACKEND", "SELLER_LOCALE", "TELEGRAM_BOT_TOKEN",
+            "TELEGRAM_WEBHOOK_SECRET", "TELEGRAM_BOT_USERNAME", "STORE_BASE_DOMAIN"):
     os.environ.pop(var, None)
 os.chdir(Path(__file__).resolve().parents[1] / "tests")  # no prototype/.env is picked up from here
 
 from etalase.config import Settings  # noqa: E402
 from etalase.container import build_context  # noqa: E402
-from etalase.models import Address, Seller  # noqa: E402
+from etalase.models import Address, Seller, now  # noqa: E402
+
+GOOGLE_ENV = ("GOOGLE_API_KEY", "GOOGLE_GENAI_USE_VERTEXAI", "GOOGLE_CLOUD_PROJECT", "GOOGLE_CLOUD_LOCATION")
+
+
+@pytest.fixture(autouse=True)
+def isolate_google_env():
+    """export_google_env() writes to os.environ for the Google SDKs; a test must not leak that into the next one."""
+    saved = {k: os.environ.get(k) for k in GOOGLE_ENV}
+    yield
+    for k, v in saved.items():
+        if v is None:
+            os.environ.pop(k, None)
+        else:
+            os.environ[k] = v
+
 
 BUYER = Address(name="Dewi", phone="6285700001111", line1="Jl. Dago 10", city="Bandung", postal_code="40135")
 
@@ -24,6 +41,11 @@ BUYER = Address(name="Dewi", phone="6285700001111", line1="Jl. Dago 10", city="B
 @pytest.fixture
 def ctx():
     return build_context(Settings(etalase_env="dev", _env_file=None))
+
+
+def after_window(ctx, days=30):
+    """Let the clock run past every hold and timer (return window, seller answer, lapse), then run the background job."""
+    return ctx.process_due(now() + timedelta(days=days))
 
 
 def make_seller(ctx, name="Toko Rina", wa="6281234567890", kyc="verified"):

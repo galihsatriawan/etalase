@@ -445,7 +445,7 @@ Add a second product with Navy, for example `{"sender":"6281234567890","text":"P
 
 | Endpoint | Auth |
 |---|---|
-| `/agent/v1/*`, `/mcp/`, `/.well-known/ucp`, `/stores/{id}/products.jsonld` | None (REST search, shipping options and checkout are rate limited per IP) |
+| `/agent/v1/*`, `/mcp/`, `/.well-known/ucp`, `/ucp/v1/*`, `/checkout/{id}`, `/stores/{id}/products.jsonld` | None (REST search, shipping options and checkout are rate limited per IP; UCP calls need a `UCP-Agent` header) |
 | `/dev/*` | None locally; `X-Dev-Token` once `DEV_TOKEN` is set; 404 when `ETALASE_ENV=prod` |
 | `/webhooks/shipping`, `/tasks/expire`, mock `/webhooks/payment`, console `/webhooks/whatsapp` | None locally; `?token=` or `X-Etalase-Webhook-Token` once `WEBHOOK_TOKEN` is set |
 | `/webhooks/whatsapp` with the real Cloud API | `X-Hub-Signature-256` from Meta |

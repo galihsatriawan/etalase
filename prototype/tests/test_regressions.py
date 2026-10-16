@@ -3,7 +3,7 @@
 from etalase.models import OrderStatus, StockOwner
 from etalase.seller.inbox import SellerInbox
 
-from .conftest import BUYER, make_product, make_seller, variant
+from .conftest import BUYER, after_window, make_product, make_seller, variant
 
 
 class RetryingStore:
@@ -105,7 +105,9 @@ def test_shipment_status_never_goes_backwards(ctx, seller):
     ctx.checkout.shipment_update(shipped.shipment.waybill, "delivered")
     after = ctx.checkout.shipment_update(shipped.shipment.waybill, "in_transit")
     assert after.shipment.status == "delivered"
-    assert after.status == OrderStatus.PAID_OUT
+    assert after.status == OrderStatus.DELIVERED     # still inside the return window
+    after_window(ctx)
+    assert ctx.store.get_order(order.id).status == OrderStatus.PAID_OUT
 
 
 def test_unknown_courier_is_an_error_not_a_silent_fallback(ctx, seller):

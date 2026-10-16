@@ -9,6 +9,10 @@ Every number and outside claim in the deck and docs, with the exact quote, the y
 - How to cite numbers in the pitch, and which tempting numbers we deliberately do not claim
 :::
 
+::: warning Second pass, 16 October 2026
+After this page was written, a deeper market review re-checked the background, objectives and goals against competitors and the real market. Several cards below changed: the BPS card (a floor effect of a wide definition, not a count of sellers without a store system), the 2019 regional study (Indonesia 29%, funded by Facebook, press summaries differ), "Google named Indonesia" (a trade report's narration, not a Google quote), "AI assistants are completing purchases" (OpenAI scaled back checkout; in Indonesia only discovery is live), the WhatsApp cost cards (Meta's newer page charges in-window replies from 1 Oct 2026), the QRIS card (MDR 0% only if classified as micro), Biteship (subscription from 2 Nov 2026), Xendit (account fee, hold and refund rules undocumented or inconsistent) and the competitor list (Meta Business Agent and Mayar added). The master file `docs/15-evidence.md` is current; where this page and `docs/15` differ, follow `docs/15`.
+:::
+
 ## How to use this page
 
 This page is the Academy version of `docs/15-evidence.md`, the master evidence file. Every primary link below was re-opened on **10 October 2026** for this page; the log is at the bottom. Where a source said something slightly different from `docs/15`, the card says so.
@@ -64,8 +68,8 @@ In Q&A, open this page, find the card, read the quote, then give the "If a judge
 - **Where:** deck slide 2, `docs/01`.
 - **Data year:** 2023 (BPS *E-Commerce Statistics 2023*, catalog 8101004, published 30 Jan 2025). Survey of "40,011 e-commerce businesses spread across 38 provinces and 365 regencies/cities".
 - **Source:** primary [BPS publication page](https://www.bps.go.id/en/publication/2025/01/30/d52af11843aee401403ecfa6/statistik-e-commerce-2023.html) (the page shows only the abstract; the channel table is in the PDF, which we could not open) · quoted by [Databoks, 7 Feb 2025](https://databoks.katadata.co.id/en/technology-telecommunications/statistics/67a5866310206/few-local-e-commerce-players-sell-on-marketplaces) and [GoodStats, 28 Feb 2025](https://goodstats.id/article/mayoritas-usaha-e-commerce-berjualan-lewat-aplikasi-pesan-instan-HmFph)
-- **Nuance:** businesses use several channels (shares add up to well over 100%), so it is "95% *use* chat", not "95% sell *only* through chat". The BPS table number is still an open item in `docs/15`: download the PDF before the pitch and note it.
-- **If a judge asks** "Is this official?": "Yes, it is Statistics Indonesia's 2023 e-commerce survey of about 40,000 businesses. 95% sell through instant messaging; only 18% use marketplaces. Businesses can use several channels."
+- **Nuance:** businesses use several channels (shares add up to 151.5%), so it is "95% *use* chat", not "95% sell *only* through chat". The base is any business that took orders over the internet in 2023, so a food stall on WhatsApp counts: the figure is a floor effect of that definition and shows that chat is the default inbox, **not** that 95% of sellers lack a store system. BPS gives no overlap between chat and marketplace sellers, and nobody has measured chat-first product sellers. The 2024 edition (published 28 Nov 2025, about 4.4 million businesses) exists and its channel table is unread. The BPS table number is still an open item in `docs/15`: download the PDF before the pitch and note it.
+- **If a judge asks** "Is this official?": "Yes, it is Statistics Indonesia's 2023 e-commerce survey of about 40,000 businesses. 95% use instant messaging to sell; only 18% use marketplaces. Businesses can use several channels, and the survey counts any business that took orders online, so we read it as chat being the default order inbox. We have not measured the share of chat-only sellers; that is what our seller interviews are for."
 
 ### 5. About 1 in 2 Southeast Asian shoppers have bought or sold on social or messaging apps <Badge type="warning" text="Nuance" />
 
@@ -74,7 +78,7 @@ In Q&A, open this page, find the card, read the quote, then give the "If a judge
 - **Where:** deck slide 2 ("2019 survey"), `docs/01`.
 - **Data year:** 2019 (Facebook × BCG study, fieldwork May to August 2019, 5,391 respondents in Southeast Asia).
 - **Source:** the original report was not found online; press coverage: [KrASIA, 1 Nov 2019](https://kr-asia.com/shoppers-in-southeast-asia-prefer-to-buy-using-chat-or-voice-applications-according-to-joint-study) · [e27, Oct 2019](https://e27.co/southeast-asia-emerges-as-leader-in-conversational-commerce-thailand-vietnam-most-advanced-in-adoption-20191031/) ("Approximately 47 per cent said they conduct conversational commerce on social media or messaging platforms")
-- **Nuance:** Thailand over 40%, Vietnam 36%, **Indonesia 29%**, US 5% (e27 and KrASIA). Never say "half of Indonesians".
+- **Nuance:** Thailand over 40%, Vietnam 36%, **Indonesia 29%**, US 5% (e27 and KrASIA). Never say "half of Indonesians". The study was funded by Facebook. e27 gives 47% social media or chat, 44% e-commerce platforms and 9% brand sites (8,864 respondents), which suggests a split of channels rather than "47% of all shoppers" (our inference); KrASIA's wording is "close to half". Prefer to drop this card for Indonesia.
 - **If a judge asks** "Isn't 2019 data old?": "Yes. It is the only cross-country Southeast Asia comparison we found, so we use it only for the regional picture. For Indonesia we use BPS 2023, which is newer and official."
 
 ### 6. Discovery on TikTok or Instagram usually ends in a WhatsApp chat <Badge type="warning" text="Nuance" />
@@ -135,7 +139,7 @@ In Q&A, open this page, find the card, read the quote, then give the "If a judge
 - **Where:** `docs/01`, README. **Data year:** 2026.
 - **Source:** [Google blog](https://blog.google/products/ads-commerce/agentic-commerce-ai-tools-protocol-retailers-platforms/) · [InfoQ](https://infoq.com/news/2026/01/google-agentic-commerce-ucp)
 - **Note:** Google's own post does not name NRF; InfoQ does.
-- **If a judge asks** "What is UCP exactly?": "Google's open standard for agent checkout, launched in January 2026 and co-developed with Shopify, Etsy, Wayfair, Target and Walmart. Etalase exposes a UCP-style profile and an MCP server."
+- **If a judge asks** "What is UCP exactly?": "Google's open standard for agent checkout, launched in January 2026 and co-developed with Shopify, Etsy, Wayfair, Target and Walmart. Etalase answers the UCP checkout over REST and also serves an MCP server."
 
 ### 13. UCP works over REST, A2A and MCP, with AP2 for payments, and a profile at /.well-known/ucp <Badge type="tip" text="Verified" />
 
@@ -146,8 +150,8 @@ In Q&A, open this page, find the card, read the quote, then give the "If a judge
 > "a standard JSON manifest located at /.well-known/ucp"
 
 - **Data year:** 2026. **Source:** [Google Developers Blog, 11 Jan 2026](https://developers.googleblog.com/en/under-the-hood-universal-commerce-protocol-ucp/) · [UCP specification overview](https://ucp.dev/2026-04-08/specification/overview/) (lists REST via OpenAPI, MCP via OpenRPC, A2A via Agent Card, and "supports the AP2 Mandates Extension")
-- **Honesty note:** Etalase's `/.well-known/ucp` is "UCP-style", not a certified UCP implementation, and AP2 is roadmap.
-- **If a judge asks** "Are you UCP compliant?": "Our profile follows UCP's discovery shape and our MCP server is live. Full UCP compliance and Merchant Center are planned for when checkout reaches Indonesia."
+- **Honesty note:** Etalase implements the UCP Checkout and Fulfillment capabilities over REST (spec 2026-04-08) and runs Google's conformance suite against them: 29 of 77 tests pass, and each of the 22 failures is explained ([UCP checkout](/architecture/ucp)). There is no UCP certification, nothing has been tried with Google's own surfaces, and AP2 is roadmap.
+- **If a judge asks** "Are you UCP compliant?": "We implement UCP's checkout and fulfillment over REST and run Google's own conformance suite against it. It passes discovery, idempotency, totals and the fulfillment flow, and fails 22 tests that assume card payment, order or discount capabilities we do not offer, or the sample server's test hooks. Every failure is listed with its reason. We don't claim certification, and we have not tried it with AI Mode."
 
 ### 14. Co-developed with Shopify, Etsy, Wayfair, Target and Walmart <Badge type="tip" text="Verified" />
 
@@ -163,12 +167,13 @@ In Q&A, open this page, find the card, read the quote, then give the "If a judge
 - **Data year:** 2026. **Source:** [Retail Brew, 11 Feb 2026](https://www.retailbrew.com/stories/2026/02/11/google-makes-etsy-and-wayfair-items-shoppable-within-agentic-ai-search)
 - **If a judge asks** "Is anyone actually buying this way?": "Yes, in the US since February 2026 for Etsy and Wayfair items in AI Mode and Gemini."
 
-### 16. Australia is the first Asia-Pacific market (June 2026) <Badge type="tip" text="Verified" />
+### 16. Australia is the first Asia-Pacific market (June 2026) <Badge type="warning" text="Nuance" />
 
 > "Australia is the first market in the Asia-Pacific region to go live with the protocol."
 
 - **Data year:** 2026. **Source:** [Ragtrader, 19 Jun 2026](https://www.ragtrader.com.au/news/the-iconic-kogan-test-google-s-agentic-ai-checkout) · [Shopifreaks, 17 Jun 2026](https://www.shopifreaks.com/google-launches-its-ai-shopping-tool-in-australia-with-retailers-like-kogan-and-bunnings-its-first-such-rollout-in-asia-pacific/)
-- **If a judge asks** "Why does Australia matter to you?": "It shows the rollout has reached Asia-Pacific within six months of launch."
+- **Nuance:** it is a rollout with select retailers (Kogan and others). Google's own 20 May 2026 post says checkout reaches Australia "in the coming months" ([Google blog](https://blog.google/products-and-platforms/products/shopping/shopping-updates-google-marketing-live)), and PPC Land (7 Oct 2026) reports the self-serve Merchant Center hub is US-only with Australia and Canada expected in 2027 ([PPC Land](https://ppc.land/canada-and-australia-face-2027-wait-for-googles-merchant-center-ucp-hub/)). Indonesia is not named in either. Say "started in Australia", never "live in Australia".
+- **If a judge asks** "Why does Australia matter to you?": "It shows the rollout has started in Asia-Pacific, but even Australia is only beginning, which is why we do not depend on it."
 
 ### 17. India: Flipkart checkout in Gemini is a limited test <Badge type="warning" text="Nuance" />
 
@@ -178,14 +183,15 @@ In Q&A, open this page, find the card, read the quote, then give the "If a judge
 
 - **Data year:** 2026. **Source:** [TechCrunch](https://techcrunch.com/?p=3170226) · plan announced in [Storyboard18, 12 Mar 2026](https://storyboard18.com/digital/google-and-flipkart-to-launch-universal-commerce-platform-soon-91935.html)
 - **Nuance:** TechCrunch notes the checkout looks Flipkart-branded, unlike Google-hosted UCP checkout. Say "testing in India", never "live in India".
-- **If a judge asks** "Is UCP live in India?": "Google is testing Flipkart checkout in Gemini with some users; TechCrunch says it is unclear whether UCP powers it. So: live in the US and Australia, testing in India."
+- **If a judge asks** "Is UCP live in India?": "Google is testing Flipkart checkout in Gemini with some users; TechCrunch says it is unclear whether UCP powers it. So: live in the US, started in Australia, testing in India."
 
 ### 18. Indonesia is named among the next markets <Badge type="warning" text="Nuance" />
 
 > "The protocol will expand to markets including India, Indonesia, and Latin America."
 
-- **Data year:** statement from January 2026; no date given for Indonesia. **Source:** [InfoQ, 19 Jan 2026](https://infoq.com/news/2026/01/google-agentic-commerce-ucp)
-- **If a judge asks** "So when does it reach Indonesia?": "No date has been announced. That timing is one of our four validation items. Meanwhile our MCP server works with any agent today, and the catalog plus QRIS link is useful without agents."
+- **Data year:** January 2026; no date given for Indonesia. **Source:** [InfoQ, 19 Jan 2026](https://infoq.com/news/2026/01/google-agentic-commerce-ucp)
+- **Second pass:** this sentence is InfoQ's own narration, not a quote from a Google speaker. Google's blog post of 11 Jan 2026 names only "eligible U.S. retailers", and Google's May and October 2026 posts do not mention Indonesia. Say "one trade report says", never "Google named Indonesia". Google's UCP payment handler is Google Pay with cards, not QRIS, and onboarding is by Google's selection.
+- **If a judge asks** "So when does it reach Indonesia?": "No date has been announced, and Google's own pages do not name Indonesia. Meanwhile an agent whose owner connects it to our MCP server can search and reserve today, and the catalog plus QRIS link is useful without agents."
 
 ### 19. Google works with APAC partners such as Shopee <Badge type="tip" text="Verified" />
 
@@ -254,8 +260,8 @@ In Q&A, open this page, find the card, read the quote, then give the "If a judge
 > Gallabox USD rate card: "| Indonesia | 0.0473 | 0.0287 | 0.0287 | 0.0287 |"
 
 - **Data year:** rates for October 2026. **Source:** [Qontak](https://help-center.qontak.com/hc/en-us/articles/48430892733465-Latest-WhatsApp-Message-Prices-October-2026) · [SleekFlow](https://help.sleekflow.io/en_US/daftar-harga) (utility US$0.02875) · [Gallabox](https://docs.gallabox.com/pricing-and-billing/whatsapp-pricing/rate-card.md) · [Meta pricing](https://developers.facebook.com/docs/whatsapp/pricing) ("we now charge on a per-message basis"; "Utility templates delivered within an open customer service window are free.")
-- **Nuance:** IDR 366 is a reseller (BSP) price including its fee; USD cards show US$0.0287 ≈ IDR 460 at 16,000. Meta's page does not list Indonesia rates.
-- **If a judge asks** "What is your biggest cost per order?": "WhatsApp: about four utility messages per order at IDR 366–460 each, about half the platform cost. We keep messages short, combined and inside the free window."
+- **Nuance:** IDR 366 is a reseller (BSP) price including its fee; USD cards show US$0.0287 ≈ IDR 460 at 16,000. Meta's page does not list Indonesia rates. Meta's newer documentation page also says in-window utility replies are charged from 1 October 2026 (claim 28), so "free inside an open window" no longer holds.
+- **If a judge asks** "What is your biggest cost per order?": "WhatsApp: about 7 to 9 charged messages per order at IDR 357–460 each, IDR 2,535–4,140, which is 37 to 61% of the IDR 6,800 commission by our estimate. We keep messages short and combined, and we are adding a per-seller message meter."
 
 ### 28. Are WhatsApp service messages free? <Badge type="warning" text="Nuance" />
 
@@ -263,15 +269,16 @@ In Q&A, open this page, find the card, read the quote, then give the "If a judge
 >
 > Qontak: Service "Rp 356.65", "Price effective October 1, 2026." SleekFlow: Service "Free" until 30 Sep 2026, US$0.0250 from 1 Oct 2026.
 
-- **Status:** sources conflict since 1 Oct 2026. Do not claim "free inside the 24-hour window" for service replies until confirmed with the provider.
-- **If a judge asks**: "Meta's page says non-template messages are free, but resellers list a service-message charge from October 2026. We budget utility rates and will confirm with our provider."
+- **Status (second pass):** Meta's newer documentation page says "Effective October 1, 2026, Meta will charge for service messages", at the utility rate, and charges utility messages sent as in-window replies. Meta's older pricing page and the WhatsApp Business marketing pages still say they are free. A free quota of 1,000 service messages a month is reported by resellers only. Re-open Meta's page in a browser before quoting. Do not claim "free inside the 24-hour window".
+- **If a judge asks**: "Meta's newer documentation says service messages and in-window utility replies are charged from October 2026. We budget 7 to 9 charged messages per order and will confirm with our provider."
 
 ### 29. Biteship: about IDR 5 per rate check, 30+ couriers <Badge type="tip" text="Verified" />
 
 > "Starting from Rp5,- per 1 API request" · "Integrated with more than 30 carriers" · Order API "Starting from FREE*" ("*depending on shipping rates")
 
 - **Data year:** current price page (Oct 2026). **Source:** [Biteship API](https://biteship.com/en/product/api)
-- **If a judge asks** "Why an aggregator?": "One integration covers more than 30 couriers, and a rate check costs about five rupiah."
+- **Second pass:** from 2 Nov 2026 Biteship has subscription plans: Starter Rp0 (100 shipments, no API quota, Rates Rp5 per request), Grow Rp149,000 a month (2,000 shipments, 10,000 rate checks), Scale Rp999,000. Shipping fees are paid from prepaid Bitepoints or a monthly invoice that needs a business entity ([Biteship pricing](https://biteship.com/en/pricing)). A 1,000-order pilot needs Grow, about Rp149 per order.
+- **If a judge asks** "Why an aggregator?": "One integration covers more than 30 couriers, and the pilot plan is about Rp149,000 a month."
 
 ### 30. QRIS MDR: 0% up to Rp500,000 for micro merchants, from 1 October 2026 <Badge type="warning" text="Nuance" />
 
@@ -281,23 +288,25 @@ In Q&A, open this page, find the card, read the quote, then give the "If a judge
 
 - **Data year:** rule effective 1 Oct 2026 (announced by Bank Indonesia 17 Aug 2026 per Infobank).
 - **Source:** [Kontan, 1 Oct 2026](https://keuangan.kontan.co.id/news/kebijakan-mdr-qris-0-berlaku-mulai-1-oktober-2026-btn-sesuaikan-tarif-merchant) · [Infobank, 17 Aug 2026](https://infobanknews.com/bi-bebaskan-tarif-mdr-qris-transaksi-rp100-ribu-mulai-1-oktober-2026) ("Kebijakan ini berlaku mulai 1 Oktober 2026.")
-- **Nuance:** news sources, not Bank Indonesia's own release (not reached). **Changed on re-check:** an earlier `docs/15` said Kontan quotes BI's Deputy Governor; the Kontan article we opened quotes no one and attributes the rules to BTN's website. `docs/15` now says so too: cite Infobank for the BI statement and Kontan only for the rule's content.
-- **If a judge asks** "Doesn't QRIS cost 0.7%?": "Not for most of our sellers since 1 October 2026: micro merchants pay 0% up to Rp500,000 per transaction. Gateways can add a fixed fee, which we pass to the buyer in the pilot."
+- **Nuance:** the first pass used news sources. On the second pass (16 Oct 2026) Bank Indonesia's own press release No. 28/159/DKom of 17 Aug 2026 was read on BI's page and backs the rule. It does not define "micro" or say who classifies a sub-merchant behind a gateway, so on a Rp170,000 order (above the Rp100,000 threshold) the MDR is 0% **only if** the gateway classifies the seller as micro; otherwise it is 0.7% (Rp1,190). Mayar's and Midtrans' pages still show 0.7%. **Changed on re-check:** an earlier `docs/15` said Kontan quotes BI's Deputy Governor; the Kontan article we opened quotes no one and attributes the rules to BTN's website. `docs/15` now says so too: cite Infobank for the BI statement and Kontan only for the rule's content.
+- **If a judge asks** "Doesn't QRIS cost 0.7%?": "Since 1 October 2026 it is 0% up to Rp100,000 for everyone and up to Rp500,000 for micro merchants. Whether our sellers count as micro behind a gateway is a question we have put to the gateway; if not, it is 0.7%. Gateways can add a fixed fee, which we would pass to the buyer in the pilot."
 
-### 31. Xendit QRIS: 0.70% above IDR 100,000 plus IDR 4,000 processing fee <Badge type="tip" text="Verified" />
+### 31. Xendit QRIS: 0.70% above IDR 100,000 plus IDR 4,000 processing fee <Badge type="warning" text="Nuance" />
 
 > "0.70%" · "Inclusive of VAT, for transactions above IDR 100,000" · "Xendit Processing fee" "IDR 4,000"
 
 - **Data year:** list price, page modified 7 Oct 2026. **Source:** [Xendit pricing](https://xendit.co/en-id/pricing/)
+- **Second pass:** the "Xendit Processing fee IDR 4,000" sentence is on the global price list; the Indonesian page shows QRIS at 0.7% including tax and no fixed fee, and the en-id page shows "Aggregator Rp 4.000 / Switcher Rp 2.000+" without a definition. Whether it applies to an Indonesian contract is unknown. The xenPlatform account fee is also unresolved: Rp25,000 per active account per month on the Indonesian page, US$10,000 setup plus US$7,500 a month plus US$5 per sub-account on the global page. Ask Xendit in writing.
 - **Comparison:** Midtrans: "MDR or fee set by Bank Indonesia for regular-type merchants is 0.7% per successful transaction." ([Midtrans docs](https://docs.midtrans.com/docs/what-is-the-applicable-transaction-fee-for-qris))
 - **If a judge asks** "Doesn't IDR 4,000 kill your margin?": "If we absorbed it, yes, which is why it is shown to the buyer as a payment fee in the pilot while we negotiate volume pricing or compare Midtrans."
 
-### 32. Xendit settles QRIS at T+2 business days <Badge type="tip" text="Verified" />
+### 32. Xendit settles QRIS at T+2 business days <Badge type="warning" text="Nuance" />
 
 > "T+2 BUSINESS DAYS"
 
 - **Source:** [Xendit docs](https://docs.xendit.co/qr-codes/settlements/). The earlier "T+7 unless early settlement" example in ADR 0003 is **not supported** for QRIS and was corrected.
-- **If a judge asks** "When does the seller get paid?": "After courier-confirmed delivery, from the seller's sub-account; the provider settles QRIS at T+2 business days."
+- **Second pass:** Xendit's newest QRIS page says T+1, and its refund rules appear in three versions (T+2/30 days/no partial; T+1/"7*" days/partial except Gopay; help centre 7 days, full or partial). No Xendit page documents a hold or scheduled release controlled by the platform; in Indonesia auto-withdrawal can be changed but not paused. This is the gating question for the payout hold.
+- **If a judge asks** "When does the seller get paid?": "After courier-confirmed delivery and the return window, from the seller's sub-account. Whether the provider can enforce that timing is what we are confirming with Xendit in writing."
 
 ### 33. The "gateway comparison" QRIS fee link <Badge type="danger" text="Not supported" />
 
@@ -368,7 +377,7 @@ These are the facts as reported by the sources on the dates shown. Indonesian ru
 > "$1.4 million Pre-Seed round" · "an agentic commerce platform that helps brands make their product catalogues discoverable, trusted, and purchasable"
 
 - **Source:** [Tech.eu, 24 Feb 2026](https://tech.eu/2026/02/24/the-new-era-of-shopping-raises-14m-pre-seed-to-help-brands-win-in-the-age-of-agentic-commerce/) · [Seedtable](https://seedtable.com/companies/the-new-era-of-shopping/funding-rounds/pre-seed-2026-02)
-- **If a judge asks** "How are you different?": "Era serves brands that already have catalogs; we build the catalog from WhatsApp photos for sellers who have none."
+- **If a judge asks** "How are you different?": "Era serves brands that already have catalogs; we build the catalog from WhatsApp photos for sellers who have none. Era itself said early demand came mainly from tech startups and software companies, not e-commerce brands, which is a reminder that agent-side demand is unproven."
 
 ### 42. ShopAgentic (Germany): €1.9M pre-seed, Jun 2026 <Badge type="tip" text="Verified" />
 
@@ -418,7 +427,8 @@ These are the facts as reported by the sources on the dates shown. Indonesian ru
 >
 > Orderfaz: "an Indonesian fintech startup for social commerce sellers" ([Digital News Asia, 13 Jul 2023](https://digitalnewsasia.com/startups/indonesian-fintech-orderfaz-raises-pre-seed-round-1982-ventures))
 
-- **If a judge asks** "What about local WhatsApp tools?": "They serve human buyers in chat. We make the same sellers buyable by AI agents. They could add it, which is a risk we track."
+- **Second pass:** the closest local players are **Mayar** (storefront, catalog, checkout, QRIS 0.7%, courier pickup, a merchant-side MCP server with 65 tools; Starter 3% platform fee on physical goods; "149,969+ businesses joined" is a vendor claim) and **cshub** (AI orders from chat, payment links, a stock-aware catalog, Biteship, Midtrans QRIS; from Rp300,000 a month). **Meta Business Agent** answers buyers inside WhatsApp Business and recommends products from the seller's catalog (press reports an Indonesian launch on 11 Aug 2026; pricing and payment support unconfirmed). Also: DOKU's MCP server has a QRIS tool; Lincah acquired Orderfaz in Nov 2025; Qontak costs Rp2–3.5 million a month from 5 users (the old "Rp400,000 per user" is withdrawn). On their pages we did not find catalog-from-photos, a public buyer-agent catalog or a payout hold, but that rests on marketing pages, not tested products.
+- **If a judge asks** "What about local WhatsApp tools, Mayar and Meta?": "Meta now gives sellers a free AI agent in the conversation and Mayar already has a storefront, QRIS and an MCP server. We did not find a tool that builds the catalog from photos and voice notes or holds the payout through a return window. If Meta adds payment or catalog intake, our remaining difference is catalog quality, reserved stock and the hold, and we say so."
 
 ### 49. Shopee's fashion admin fee is 10% for non-Mall sellers (2026) <Badge type="warning" text="Nuance" />
 
@@ -427,7 +437,7 @@ These are the facts as reported by the sources on the dates shown. Indonesian ru
 - **Data year:** 2026 revision, article 25 Jan 2026. Applies to Non-Star, Star and Star+ sellers (not Mall).
 - **Source:** [Metro TV News](https://www.metrotvnews.com/read/NxGCP3en-shopee-kerek-biaya-admin-mulai-2026-segini-nominalnya) · [Bisnis.com, 21 May 2026](https://teknologi.bisnis.com/read/20260521/266/1975364/biaya-wajib-seller-tiktok-shop-vs-shopee-siapa-paling-banyak) (Shopee admin fees overall "Berkisar antara 2,5% hingga 11,7%")
 - **Nuance:** news sources; Shopee's Seller Centre page was not reached.
-- **If a judge asks** "Why would sellers pay 4%?": "It is below the 10% Shopee admin fee for fashion, charged only on delivered orders, with no monthly fee. Willingness to pay is our first pilot test."
+- **If a judge asks** "Why would sellers pay 4%?": "It is below Shopee's 10% plus Rp1,250 for fashion, about the same as Mayar's 3% plus QRIS, and charged only on delivered orders with no monthly fee. It is not lower for low-fee categories, and a pure commission only covers fixed per-seller costs above roughly 20 orders a month. Willingness to pay is our first pilot test."
 
 ### 50. Marketplace fees rose in 2026 (Shopee, TikTok Shop) <Badge type="warning" text="Nuance" />
 
@@ -436,6 +446,36 @@ These are the facts as reported by the sources on the dates shown. Indonesian ru
 - **Source:** [Bisnis.com, 21 May 2026](https://teknologi.bisnis.com/read/20260521/266/1975364/biaya-wajib-seller-tiktok-shop-vs-shopee-siapa-paling-banyak)
 - **Changed on re-check:** what started on 18 May 2026 is a higher **cap** on TikTok Shop's dynamic commission (Rp40,000 to Rp650,000), not a new dynamic commission. An earlier `docs/01` also said Tokopedia raised fees; no source backed that, and `docs/01` no longer claims it. `docs/01` and `docs/15` now describe the TikTok Shop change as a higher cap on the dynamic commission. The integrated Tokopedia and TikTok Shop Seller Center is confirmed ("The integrated Tokopedia and TikTok Shop Seller Center was officially launched today", [Tokopedia blog, 11 Jun 2025](https://www.tokopedia.com/blog/tokopedia-and-tiktok-shop-seller-center-officially-launches-)).
 - **If a judge asks**: "Shopee's fashion admin fee is 10% and TikTok Shop's non-Mall commission is mostly 9–10%. That is the price our sellers compare us with."
+
+## Channels and messaging windows
+
+### 51. A Click-to-WhatsApp (CTWA) window is free, but the length is unconfirmed <Badge type="warning" text="Nuance" />
+
+> respond.io (6 Oct 2026): "Windows opened from Click-to-WhatsApp ads last up to 7 days, extended from 72 hours" · Wati (10 Jul 2026): "still get their free 72-hour entry-point window"
+
+- **Source:** [respond.io](https://respond.io/blog/whatsapp-pricing-change-2026), [Wati](https://www.wati.io/en/blog/whatsapp-business-api-pricing-changes-2026-what-august-and-october-actually-cost-you/)
+- **Nuance:** two resellers, and they disagree on the length (7 days vs 72 hours) and on whether service messages keep a free allowance. Meta's own pricing page, as we could read it, still showed the old rules. Do not quote a number.
+- **Our analysis (not a source):** the window frees the business's chat with a person who clicked the ad. Etalase's alerts go to a seller on events that no ad opens, so CTWA does not make them free. It helps Etalase's own acquisition ads and the buyer chats of sellers who run CTWA ads.
+- **If a judge asks** "Why not just use CTWA to make WhatsApp free?": "It frees conversations that start from an ad. Our alerts are not that, so we keep messages few and combined and offer Telegram as a channel with no per-message fee."
+
+### 52. Instagram and Messenger: a 24-hour window, professional accounts, Advanced Access <Badge type="tip" text="Verified" />
+
+> "Your app has 24 hours to respond to any message sent from an Instagram user to your app user" · "Advanced Access if your app serves Instagram professional accounts you don't own or manage"
+
+- **Source:** [Meta: Instagram messaging API](https://developers.facebook.com/docs/instagram-platform/instagram-api-with-instagram-login/messaging-api), [Meta: Send a Message](https://developers.facebook.com/docs/messenger-platform/send-messages) (read 15 and 16 Oct 2026)
+- **Verified for what the pages say.** Neither page states a price. Whether an automatic out-of-window "new paid order" alert is possible on Instagram is not stated; our reading that it is not reliable is unverified.
+- **If a judge asks** "Why not Instagram for seller alerts?": "Meta's pages describe a 24-hour window and no one-time notifications on Instagram, and an app serving accounts it does not own needs Advanced Access. We use Instagram as an input and a door, and keep it on the roadmap as a channel."
+
+### 53. "Instagram DMs are free from Meta, WhatsApp is not" <Badge type="danger" text="Not supported" />
+
+- It came from a vendor cost-comparison table shared with us as a screenshot. We could not find it on Meta's page, and a vendor page we read says nothing about Meta's fees. Do not quote it. Software subscriptions for DM tools are a separate cost.
+- **If a judge asks** "Isn't Instagram free?": "We have not been able to confirm that from Meta's own pages, so we do not rely on it."
+
+### 54. Telegram Bot API facts used by the Telegram channel <Badge type="tip" text="Verified" />
+
+- **Source:** [Bot API](https://core.telegram.org/bots/api), [Bot features: deep linking](https://core.telegram.org/bots/features) (read 16 Oct 2026): `setWebhook` `secret_token` is 1 to 256 characters of `A-Z a-z 0-9 _ -`, sent in the `X-Telegram-Bot-Api-Secret-Token` header; the deep-link start parameter is `A-Z a-z 0-9 _ -`, up to 64 characters, and the bot receives `/start <parameter>`; messages carry `photo`, `voice`, `audio`, `document`, `caption` and `chat.type`.
+- **Not re-read on that date, used defensively:** 4,096 characters per message, 64 bytes of callback data, 20 MB per download.
+- **If a judge asks** "Is the Telegram channel live?": "The code follows the documented Bot API and is tested against stubs; we have not called the live service yet."
 
 ## How to cite in the pitch
 
@@ -459,8 +499,9 @@ These are the facts as reported by the sources on the dates shown. Indonesian ru
 | "QRIS costs 0.7%" for our sellers | 0% MDR for micro merchants up to Rp500,000 since Oct 2026 | Claim 30, plus the gateway fee |
 | "WhatsApp replies are free" | Sources conflict since 1 Oct 2026 | Claim 28 |
 | "Big retailers are agent-ready by default" | PYMNTS: 19% of large merchants | Claim 11 wording |
+| "Instagram DMs are free" or "CTWA makes our alerts free" | Unverified vendor table; CTWA frees ad-started chats, not our alerts | Claims 51 and 53 |
 | Settlement "T+7" | Xendit documents T+2 business days for QRIS | Claim 32 |
-| Catalog accuracy, build time, latency results | Deck lists them as TBD | Only "82 automated tests pass" and the in-memory race result |
+| Catalog accuracy, build time, latency results | Deck lists them as TBD | Only "503 automated tests pass" and the in-memory race result |
 | Number of Indonesian e-commerce businesses | Databoks cites "approximately 3.81 million e-commerce businesses in Indonesia in 2024", but the deck does not use it | If you add it, cite it as a 2024 BPS estimate via Databoks |
 
 ## Link check log (10 October 2026)

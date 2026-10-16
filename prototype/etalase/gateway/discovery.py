@@ -1,40 +1,50 @@
 """Discovery documents for agents and crawlers.
 
-- /.well-known/ucp: a simplified, UCP-style business profile pointing agents at our MCP
-  and REST endpoints. The field names here are illustrative; align them with the published
-  Universal Commerce Protocol specification before production.
+- /.well-known/ucp lives in gateway/ucp.py (the real Universal Commerce Protocol profile).
 - /stores/{seller_id}/products.jsonld: schema.org Product data per store (also the basis
   for a Merchant Center feed).
 """
 
 from __future__ import annotations
 
+import math
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from ..container import AppContext
 
 
-def ucp_profile(ctx: "AppContext") -> dict:
+def return_policy_jsonld(ctx: "AppContext", seller) -> dict:
+    """schema.org MerchantReturnPolicy for a seller (property names checked against schema.org on 2026-10-15)."""
     base = ctx.settings.public_base_url.rstrip("/")
-    return {
-        "name": "Etalase",
-        "description": "Independent Indonesian WhatsApp & Instagram sellers, shoppable by AI agents.",
-        "profile_version": "draft",
-        "services": {
-            "mcp": {"transport": "streamable-http", "endpoint": f"{base}/mcp/"},
-            "rest": {"endpoint": f"{base}/agent/v1"},
-        },
-        "capabilities": ["catalog.search", "catalog.get", "shipping.quote", "checkout.create", "checkout.status"],
-        "markets": [{"country": "ID", "currency": "IDR", "delivery": "domestic"}],
-        "payment_methods": ["qris"],
-        "policies": {"stock": "held for 15 minutes during checkout; some sellers confirm stock first"},
+    policy = ctx.returns.policy_view(seller)
+    if not policy["window_hours"]:
+        return {"@type": "MerchantReturnPolicy", "applicableCountry": "ID",
+                "returnPolicyCategory": "https://schema.org/MerchantReturnNotPermitted"}
+    out = {
+        "@type": "MerchantReturnPolicy", "applicableCountry": "ID",
+        "returnPolicyCategory": "https://schema.org/MerchantReturnFiniteReturnWindow",
+        "merchantReturnDays": math.ceil(policy["window_hours"] / 24),
+        "returnMethod": "https://schema.org/ReturnByMail",
+        # The buyer sends the item back and pays that shipping; Etalase does not reimburse it in this version.
+        "itemDefectReturnFees": "https://schema.org/ReturnShippingFees",
+        "merchantReturnLink": f"{base}/stores/{seller.id}/returns",
+        "description": ("Damaged, wrong or not-as-described items are refunded in full (the shipping fee paid at checkout included)" +
+                        ("; items the buyer no longer wants are refunded the product price only, without the original shipping fee."
+                         if seller.return_policy.accepts_change_of_mind else "; a change of mind is not accepted.")
+                        + " The buyer pays the return shipping."),
     }
+    if seller.return_policy.accepts_change_of_mind:
+        out["customerRemorseReturnFees"] = "https://schema.org/ReturnShippingFees"
+    else:
+        out["refundType"] = "https://schema.org/FullRefund"     # with a change of mind the refund is partial and schema.org has no value for that
+    return out
 
 
 def schema_org_products(ctx: "AppContext", seller_id: str) -> list[dict]:
     base = ctx.settings.public_base_url.rstrip("/")
     seller = ctx.store.get_seller(seller_id)
+    policy = return_policy_jsonld(ctx, seller) if seller else None
     out = []
     for p in ctx.store.list_products(seller_id=seller_id, status="published"):
         for v in p.variants:
@@ -53,6 +63,7 @@ def schema_org_products(ctx: "AppContext", seller_id: str) -> list[dict]:
                     "url": f"{base}/agent/v1/products/{p.id}",
                     "shippingDetails": {"@type": "OfferShippingDetails",
                                         "shippingDestination": {"@type": "DefinedRegion", "addressCountry": "ID"}},
+                    **({"hasMerchantReturnPolicy": policy} if policy else {}),
                 },
             })
     return out

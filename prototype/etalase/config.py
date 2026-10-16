@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 from functools import lru_cache
 
+from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -12,7 +14,7 @@ DEFAULT_SESSION_SECRET = "dev-only-change-me"
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore", populate_by_name=True)
 
     # dev enables /dev simulation endpoints; prod disables them
     etalase_env: str = "dev"
@@ -22,17 +24,27 @@ class Settings(BaseSettings):
 
     # Gemini. With no key and GOOGLE_GENAI_USE_VERTEXAI unset, Etalase falls back to
     # deterministic offline parsers so the whole flow still runs.
-    google_api_key: str | None = None
-    google_genai_use_vertexai: bool = False
+    # Google's docs now say GEMINI_API_KEY (older ones GOOGLE_API_KEY) and GOOGLE_GENAI_USE_ENTERPRISE (older:
+    # GOOGLE_GENAI_USE_VERTEXAI); both spellings of each are accepted.
+    google_api_key: str | None = Field(default=None, validation_alias=AliasChoices("GOOGLE_API_KEY", "GEMINI_API_KEY"))
+    google_genai_use_vertexai: bool = Field(
+        default=False, validation_alias=AliasChoices("GOOGLE_GENAI_USE_VERTEXAI", "GOOGLE_GENAI_USE_ENTERPRISE"))
     google_cloud_project: str | None = None
     google_cloud_location: str = "asia-southeast1"
-    gemini_model: str = "gemini-2.5-flash"
+    # Google limits the 2.5 models to existing users and recommends 3.8 Flash for new projects (ai.google.dev, 2026-10-15)
+    gemini_model: str = "gemini-3.8-flash"
 
     # WhatsApp Business Cloud API (Meta)
     whatsapp_token: str | None = None
     whatsapp_phone_number_id: str | None = None
     whatsapp_verify_token: str = "etalase-dev-verify"
-    whatsapp_api_version: str = "v21.0"
+    whatsapp_api_version: str = "v26.0"
+
+    # Telegram bot (optional second seller channel, adapters/telegram.py). Create the bot with @BotFather; the secret is
+    # any 16+ characters from A-Z a-z 0-9 _ - and is checked on every webhook call.
+    telegram_bot_token: str | None = None
+    telegram_webhook_secret: str | None = None
+    telegram_bot_username: str | None = None     # optional; looked up with getMe when empty
 
     # Instagram API with Instagram Login (catalog import from posts)
     instagram_app_id: str | None = None
@@ -42,6 +54,10 @@ class Settings(BaseSettings):
     xendit_secret_key: str | None = None
     xendit_callback_token: str | None = None
     biteship_api_key: str | None = None
+
+    # Optional per-shop addresses: https://<slug>.<STORE_BASE_DOMAIN>. A host, with a port when local (rina.localhost:8080).
+    # Needs wildcard DNS and certificate, see SETUP.md. Unset = every shop link stays /stores/<id> on the shared host.
+    store_base_domain: str | None = None
 
     # Language of WhatsApp messages to sellers: "en" (default, demo) or "id" (Bahasa Indonesia)
     seller_locale: str = "en"
@@ -53,6 +69,13 @@ class Settings(BaseSettings):
     dev_token: str | None = None
     webhook_token: str | None = None
     whatsapp_app_secret: str | None = None
+    # OPERATOR_TOKEN protects the endpoints that move money by hand (/tasks/disputes, /tasks/resolve-dispute). It is sent only
+    # in the X-Etalase-Operator-Token header and is a different secret from WEBHOOK_TOKEN, which also sits in the Biteship
+    # webhook URL and so can end up in access logs. Unset = those endpoints answer 503 (open only on a local dev run).
+    operator_token: str | None = None
+    # How many proxy addresses sit at the END of X-Forwarded-For after the client's own. Cloud Run alone: 0. Behind an HTTPS
+    # load balancer or Cloudflare: 1. Wrong values make rate limits per proxy instead of per client; see SETUP.md section 7.
+    trusted_proxy_hops: int = 0
 
     # Business rules
     commission_rate: float = 0.04
@@ -62,6 +85,26 @@ class Settings(BaseSettings):
     seller_confirm_timeout_minutes: int = 60
     max_qty_per_order: int = 10
     max_checkouts_per_buyer_per_hour: int = 5
+    # Payout hold. After the courier confirms delivery the seller's money stays at the payment provider for this long.
+    # It is also the buyer's window to ask for a return, so a refund never has to be clawed back from a seller. 0 pays out
+    # at once and switches returns off. Sellers with fewer than NEW_SELLER_ORDERS completed orders wait the longer time.
+    payout_hold_hours: int = 72
+    new_seller_hold_hours: int = 168
+    new_seller_orders: int = 5
+    # A return request the seller does not answer in this many hours counts as approved; an approved return that has not
+    # reached the seller after RETURN_LAPSE_DAYS lapses (or goes to an operator if the buyer gave a tracking number).
+    return_seller_response_hours: int = 48
+    return_lapse_days: int = 7
+    # A courier webhook can be lost, or can arrive before the courier's own tracking agrees and be ignored. A parcel still
+    # marked shipped is asked about again after this many hours, so a delivery, a return or a loss is never missed for good.
+    shipment_recheck_hours: int = 6
+    # Where a buyer or seller writes to ask for a second look at an operator's decision (an email address or a WhatsApp link).
+    # The public payout-policy page (/policy/payouts) offers an appeal only when this is set, so it never promises a way
+    # to appeal that has nowhere to go. DISPUTE_APPEAL_DAYS is how long after a decision the request is accepted.
+    support_contact: str = ""
+    dispute_appeal_days: int = 7
+    # Gemini calls one seller may trigger per hour (free-text turns plus catalog builds). Only counted when Gemini is on.
+    seller_ai_calls_per_hour: int = 60
 
     @property
     def gemini_enabled(self) -> bool:
@@ -100,3 +143,15 @@ COUNTRY_PACKS: dict[str, CountryPack] = {
 @lru_cache
 def get_settings() -> Settings:
     return Settings()
+
+
+def export_google_env(s: Settings) -> None:
+    """Make Gemini credentials from `.env` visible to ADK and google-genai, which read real environment
+    variables. Variables that are already set (Cloud Run, your shell) always win."""
+    if s.google_genai_use_vertexai:
+        os.environ.setdefault("GOOGLE_GENAI_USE_VERTEXAI", "true")
+        if s.google_cloud_project:
+            os.environ.setdefault("GOOGLE_CLOUD_PROJECT", s.google_cloud_project)
+        os.environ.setdefault("GOOGLE_CLOUD_LOCATION", s.google_cloud_location)
+    elif s.google_api_key:
+        os.environ.setdefault("GOOGLE_API_KEY", s.google_api_key)

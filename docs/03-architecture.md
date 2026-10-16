@@ -36,6 +36,9 @@ flowchart LR
   end
 
   AGENT[Buyer's AI agent<br/>Gemini · any MCP/UCP client] --> GW
+  BUYER[Buyer with a phone<br/>Instagram bio · WhatsApp status] --> STORE[Store link<br/>server-rendered pages]
+  STORE --> CO
+  STORE --> CAT
   WA --> IA
   IG --> IA
   GS --> IA
@@ -63,16 +66,19 @@ Dashed boxes are on the roadmap; everything else runs in the prototype.
 
 | Component | Code | Responsibility |
 |---|---|---|
-| Input adapters / seller inbox | `etalase/seller/inbox.py`, `adapters/messaging.py` | Normalise WhatsApp messages; buttons are handled deterministically; media is saved and grouped with the next description |
+| Input adapters / seller inbox | `etalase/seller/inbox.py`, `adapters/messaging.py`, `adapters/telegram.py` | Normalise WhatsApp and Telegram messages (the address says which); buttons are handled deterministically; media is saved and grouped with the next description |
 | Seller agent | `etalase/agents/seller_agent.py` | ADK agent with tools scoped to the verified seller (stock, price, catalog, tracking, sales) |
 | Catalog & stock | `etalase/catalog/` | Extraction (Gemini or offline rules), normalisation, readiness score, sell mode, search |
-| Checkout & orders | `etalase/checkout/service.py` | Reservation, confirm-first, payment, acceptance, shipping, payout, expiry |
-| Agent gateway | `etalase/gateway/` | MCP server, REST mirror, UCP-style profile, schema.org data |
+| Checkout & orders | `etalase/checkout/service.py` | Reservation, confirm-first, payment, acceptance, shipping, payout hold and release, expiry |
+| Returns | `etalase/checkout/returns.py` | Return requests, seller answers, timers (auto-approve, lapse), disputes, refunds, return policy |
+| Agent gateway | `etalase/gateway/` | MCP server, REST mirror, UCP profile and Checkout (`ucp.py`), schema.org data |
+| Public store link | `etalase/gateway/storefront.py`, `gateway/pages.py` | Server-rendered store page, buy form, pay and order status page, return form, return policy page; calls the same checkout and returns services as an agent. `pages.py` is the one shared look (CSS, layout, QR, progress bar) |
 | Instagram import | `etalase/adapters/instagram.py`, `CatalogService.import_instagram` | Optional catalog source: product posts (photo + caption) become drafts via the same extraction |
 | Connector API | `etalase/connector/service.py` | Push catalog and stock from OMSs, plugins and builders; signed order webhooks |
 | Events | `etalase/events.py` | Decouples checkout from notifications and connectors (Pub/Sub in production) |
 | Store | `etalase/store/` | `MemoryStore` (demo, tests) and `FirestoreStore` (transactions) behind one interface |
-| Payment / shipping / messaging adapters | `etalase/adapters/` | Xendit, Biteship, WhatsApp Cloud API, plus mocks for credential-free runs |
+| Payment / shipping / messaging adapters | `etalase/adapters/` | Xendit, Biteship, WhatsApp Cloud API, Telegram Bot API (a `ChannelRouter` picks the channel from the address), plus mocks for credential-free runs |
+| Seller channels and shop addresses | `etalase/seller/channels.py`, `seller/slugs.py`, `gateway/hosts.py` | Link a Telegram chat to a shop, choose the channel, claim a `<slug>.<domain>` address and map the Host header to the shop ([ADR 0008](adr/0008-seller-channels-and-shop-addresses.md)) |
 | Country packs | `etalase/config.py` | Currency, payment, shipping and tax profile per market |
 
 ## End-to-end sequence
@@ -108,6 +114,8 @@ sequenceDiagram
   S->>E: Accept
   S->>E: "tracking JNE123456"
   C->>E: Webhook: delivered
+  E-->>S: Delivered, payout on <date>
+  Note over E: Return window (72 h, 168 h for new sellers)
   E->>P: Release payout to seller sub-account
   E-->>S: Payout released
 ```
@@ -169,7 +177,7 @@ adapter, not a change to the core:
 class PaymentProvider(Protocol):
     def create_payment(self, order, seller_account_id=None) -> PaymentInfo: ...
     def parse_webhook(self, headers, body) -> tuple[str, str] | None: ...
-    def refund(self, order) -> None: ...
+    def refund(self, order, amount=None) -> None: ...  # raises ManualActionRequired when it cannot refund by API
     def release_to_seller(self, order, seller_account_id, amount, commission) -> str: ...
 
 class ShippingProvider(Protocol):
@@ -180,7 +188,9 @@ class ShippingProvider(Protocol):
 class Messenger(Protocol):
     def send_text(self, to, text) -> None: ...
     def send_buttons(self, to, text, buttons) -> None: ...
+    def send_notification(self, to, text, buttons=None, template=None) -> None: ...  # a message Etalase starts
     def download_media(self, media_id, dest_dir) -> str: ...
+# `to` is a channel address: a WhatsApp number, or "tg:<chat id>" for Telegram. ChannelRouter picks the adapter.
 ```
 
 ```python
@@ -199,6 +209,9 @@ See [`adr/`](adr/) for the reasoning behind the main choices:
 4. [One agent plus deterministic handlers](adr/0004-one-agent-deterministic-handlers.md)
 5. [Adapters and country packs](adr/0005-adapters-and-country-packs.md)
 6. [A Connector API with an OpenAPI spec](adr/0006-connector-api.md)
+7. [Hold the payout through a return window, and make returns a first-class flow](adr/0007-payout-hold-and-returns.md)
+8. [Seller channels (WhatsApp, Telegram) behind one interface, and an address for each shop](adr/0008-seller-channels-and-shop-addresses.md)
+9. [QRIS only in the pilot: cash on delivery is a decision, not an omission](adr/0009-qris-only-no-cod.md)
 
 ## Deployment
 

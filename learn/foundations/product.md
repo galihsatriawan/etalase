@@ -6,7 +6,7 @@ This page walks through Etalase end to end, from the seller's first WhatsApp pho
 - The seller journey: WhatsApp photos, voice and text become drafts, a readiness score, then Publish; optional Instagram import; dashboard sign-in by one-time code
 - The buyer-agent journey: search, shipping, checkout, QRIS, status
 - Instant versus confirm-first selling, and the order lifecycle
-- How payouts and the commission work, and why Etalase never holds the money
+- How payouts and the commission work, and why Etalase does not receive buyer payments in its own account
 - Exactly what is Built, Mocked in demo and Roadmap
 :::
 
@@ -186,7 +186,7 @@ Details worth knowing, all in `CheckoutService`:
 
 ## Payouts and commission
 
-Etalase **never holds seller funds** (ADR 0003). The buyer's payment goes to the seller's sub-account at a licensed payment provider (Xendit's xenPlatform in Indonesia). Etalase only tells the provider when to release money and how to split it.
+Etalase does **not receive buyer payments in its own bank account** (ADR 0003). The buyer's payment goes to the seller's sub-account at a licensed payment provider (Xendit's xenPlatform in Indonesia). Etalase tells the provider when to release money and how to split it. Two things are not settled: whether Xendit can enforce the hold (no page we read documents it), and whether instructing the release counts as a regulated payment activity. Do not say "Etalase never holds funds" as a legal conclusion.
 
 The payout happens only after delivery, and a webhook alone is not trusted. `shipment_update` calls `shipping.confirm_delivered(order)`, which asks the courier directly, before moving to `delivered`. Then `release_payout`:
 
@@ -211,7 +211,7 @@ With `MockPayment` the release is simulated. `XenditPayment.release_to_seller` a
 | Offline extraction, readiness score, publish | <Badge type="tip" text="Built" /> | |
 | Gemini extraction and ADK seller agent | <Badge type="warning" text="Mocked in demo" /> | Runs with a key or Vertex AI |
 | Instagram import | <Badge type="tip" text="Built" /> / <Badge type="warning" text="Mocked in demo" /> | Sample posts offline; Graph API needs app credentials |
-| MCP server, REST mirror, UCP-style profile, schema.org | <Badge type="tip" text="Built" /> | Profile is not official-UCP conformant |
+| MCP server, REST mirror, UCP profile and Checkout (REST), schema.org | <Badge type="tip" text="Built" /> | UCP: 29 of 77 official conformance tests pass, the 22 failures are explained ([UCP checkout](/architecture/ucp)); no AP2; untried with Google's surfaces |
 | Reservations, confirm-first, expiry, idempotent webhooks | <Badge type="tip" text="Built" /> | Oversell race tested |
 | QRIS via Xendit | <Badge type="warning" text="Mocked in demo" /> | Creation and webhook written; refunds and settlement manual |
 | Courier rates and booking via Biteship | <Badge type="warning" text="Mocked in demo" /> | `MockShipping` offline |

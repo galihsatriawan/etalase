@@ -1,0 +1,8 @@
+{
+  "ucp_version": "2026-04-08",
+  "required_capabilities": ["dev.ucp.shopping.checkout", "dev.ucp.shopping.fulfillment"],
+  "currency": "IDR",
+  "items": [{"id": "item_1", "title": "Conformance Item", "price": 5000000}],
+  "out_of_stock_item": {"id": "item_out_of_stock", "title": "Sold Out Item"},
+  "non_existent_item": {"id": "does_not_exist", "title": "Non-existent Item"}
+}

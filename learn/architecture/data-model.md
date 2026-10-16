@@ -21,7 +21,7 @@ Three ideas shape the data model.
 | Part | Status |
 |---|---|
 | Models (`models.py`) | <Badge type="tip" text="Built" /> |
-| `MemoryStore` (used by the demo and all 503 tests) | <Badge type="tip" text="Built" /> |
+| `MemoryStore` (used by the demo and all 507 tests) | <Badge type="tip" text="Built" /> |
 | `FirestoreStore` (transactions; exercised manually against the emulator, not in CI) | <Badge type="tip" text="Built" /> <Badge type="warning" text="Mocked in demo" /> |
 | Cloud Storage for media, Firestore emulator in CI | <Badge type="info" text="Roadmap" /> |
 

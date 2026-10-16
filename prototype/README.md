@@ -8,6 +8,8 @@ Python 3.11+, FastAPI, Google ADK, MCP, deployable to Cloud Run.
 make setup     # venv, dependencies, .env, offline checks, tests
 make doctor    # after you fill .env: tests every key against the real service
 make eval      # catalog-extraction accuracy (offline rules, plus Gemini when a key is set)
+make e2e       # the whole story over real HTTP: starts the app, then seller, agent (UCP and MCP), payment, shipping, payout
+make browser   # real-browser check of the buyer pages (needs playwright)
 make deploy    # PROJECT_ID=my-project make deploy: Cloud Run from your .env (make deploy-dry prints the plan only)
 make help      # all targets, including the UCP conformance runner
 ```
@@ -19,7 +21,7 @@ Where every key comes from: [../SETUP.md](../SETUP.md).
 ```bash
 pip install -r requirements-dev.txt
 python scripts/demo.py
-pytest -q
+pytest -q          # 507 tests, no network, no keys
 ```
 
 The demo walks through ten steps: seller onboarding on WhatsApp, an optional Instagram import, an agent buying over MCP, payment,
@@ -40,10 +42,14 @@ uvicorn etalase.api.main:app --reload --port 8080
 | `/.well-known/ucp` | UCP discovery profile (spec 2026-04-08) |
 | `/ucp/v1/checkout-sessions` | UCP Checkout over REST (create, get, update, complete, cancel) |
 | `/checkout/{id}` | Hosted QRIS payment page (the UCP `continue_url`) |
+| `/stores/{seller_id}` | Public store link for buyers without an agent: catalog, product, buy form, order page (`/pay/{order_id}`), return policy (`/stores/{seller_id}/returns`). With `STORE_BASE_DOMAIN` set, a claimed shop also answers on `<shop>.<domain>` |
+| `/policy/payouts`, `/policy/payouts.json` | The payout hold and return rules, generated from the settings the money code uses (for people and for agents) |
 | `/agent/v1/*` | REST mirror of the agent tools |
 | `/connector/v1/*` | Connector API for OMSs, plugins and website builders |
 | `/connect/instagram` | Instagram Login for catalog import (needs `INSTAGRAM_APP_ID` / `INSTAGRAM_APP_SECRET`) |
-| `/webhooks/whatsapp`, `/webhooks/payment`, `/webhooks/shipping` | Provider webhooks |
+| `/webhooks/whatsapp`, `/webhooks/telegram`, `/webhooks/payment`, `/webhooks/shipping` | Provider webhooks |
+| `/tasks/expire` | Runs everything that is due: order expiry, courier rechecks, return timers, payout releases (Cloud Scheduler in production; needs `WEBHOOK_TOKEN`) |
+| `/tasks/disputes`, `/tasks/resolve-dispute`, `/tasks/attribution` | Operator endpoints: open disputes, resolve one (refund or release), and the report of where orders came from. Header `X-Etalase-Operator-Token` |
 | `/dev/*` | Simulation endpoints (only when `ETALASE_ENV=dev`; on a public URL they need the `X-Dev-Token` header) |
 | `/media/<file>` | Product images for agents (file names only) |
 
@@ -69,6 +75,11 @@ Copy `.env.example` to `.env` and fill in what you have. Each part switches inde
 | `WHATSAPP_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_VERIFY_TOKEN`, `WHATSAPP_APP_SECRET` | WhatsApp Business Cloud API |
 | `XENDIT_SECRET_KEY`, `XENDIT_CALLBACK_TOKEN` | QRIS via Xendit (use test-mode keys) |
 | `BITESHIP_API_KEY` | Real courier rates and bookings |
+| `TELEGRAM_BOT_TOKEN`, `TELEGRAM_WEBHOOK_SECRET`, `TELEGRAM_BOT_USERNAME` | Telegram as the seller's channel (a seller links a chat with a one-time code) |
+| `STORE_BASE_DOMAIN` | Shop addresses `<shop>.<domain>` (needs wildcard DNS and a wildcard certificate) |
+| `PAYOUT_HOLD_HOURS`, `NEW_SELLER_HOLD_HOURS`, `NEW_SELLER_ORDERS`, `RETURN_SELLER_RESPONSE_HOURS`, `RETURN_LAPSE_DAYS` | The payout hold and returns (`PAYOUT_HOLD_HOURS=0` pays at once and switches returns off) |
+| `SHIPMENT_RECHECK_HOURS` | How often unconfirmed shipments are asked about again (default 6; each recheck is a billable courier call) |
+| `SUPPORT_CONTACT`, `DISPUTE_APPEAL_DAYS` | Where a seller or buyer writes to appeal a dispute decision, shown on `/policy/payouts`. With no contact set, no appeal is offered |
 | `INSTAGRAM_APP_ID`, `INSTAGRAM_APP_SECRET` | Instagram catalog import via Instagram Login |
 | `STORE_BACKEND=firestore` | Firestore with transactions |
 | `SELLER_LOCALE=id` | Seller messages in Bahasa Indonesia |
@@ -83,7 +94,10 @@ Copy `.env.example` to `.env` and fill in what you have. Each part switches inde
   `?token=<WEBHOOK_TOKEN>`; WhatsApp needs Meta's signature; Telegram needs its secret header; Xendit needs its callback token.
 - The endpoints that move money by hand (`/tasks/disputes`, `/tasks/resolve-dispute`) need `OPERATOR_TOKEN` in the
   `X-Etalase-Operator-Token` header, a different secret from `WEBHOOK_TOKEN` (which sits in the Biteship URL), and answer 503 until it is set.
-- Payouts are released only after the courier confirms delivery, never on a webhook alone.
+- Payouts are released only after the courier confirms delivery, never on a webhook alone. The same holds for a returned or lost
+  parcel: the refund starts only after the courier's own tracking record agrees.
+- Payment is QRIS only. A checkout asking for cash on delivery is refused (`etalase/payment_methods.py`, ADR 0009).
+- The store link keeps one first-party cookie, `etl_src`, holding only a coarse source label for 30 minutes. Mention it in your privacy notice.
 - Details: [docs/09](../docs/09-security-privacy-compliance.md#application-security).
 
 ## Demo buyer agent (needs Gemini)
@@ -109,14 +123,18 @@ Manager. See the comments in the script for one-time setup.
 etalase/
 ├── api/            FastAPI app, webhooks, dashboard
 ├── agents/         ADK seller agent, ADK buyer agent (MCP client)
-├── gateway/        MCP server, agent tools, UCP profile, schema.org data
+├── gateway/        MCP server, agent tools, UCP server and profile, store link pages, shop-address middleware, payout policy page, schema.org data
 ├── catalog/        Gemini / offline extraction, normalisation, readiness, intents, search
-├── checkout/       reservations, confirm-first, payment, shipping, payout, expiry
-├── seller/         WhatsApp inbox, notifications, i18n (en / id)
+├── checkout/       reservations, confirm-first, payment, shipping and parcel outcomes, payout hold, expiry (service.py), returns and disputes (returns.py)
+├── seller/         inbox, notifications, channel choice (WhatsApp or Telegram), shop slugs, i18n (en / id)
 ├── connector/      Connector API service (push integrations, signed webhooks)
-├── adapters/       payment (Xendit, mock), shipping (Biteship, mock), messaging (WhatsApp, console), Instagram import
+├── adapters/       payment (Xendit, mock), shipping (Biteship, mock), messaging (WhatsApp, Telegram, console), Instagram import
 ├── store/          MemoryStore, FirestoreStore
-├── auth.py         WhatsApp one-time-code sign-in
+├── attribution.py  coarse order source labels (channel and referrer), never a URL or an IP
+├── payment_methods.py  the accepted payment methods (QRIS only)
+├── security.py     startup checks, rate limits, request limits
+├── auth.py         one-time-code sign-in
+├── doctor.py       `make doctor`: tests each configured key against the real service
 ├── events.py       event bus (Pub/Sub in production)
 ├── config.py       settings and country packs
 └── container.py    wiring

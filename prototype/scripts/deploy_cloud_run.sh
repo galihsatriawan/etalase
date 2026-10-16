@@ -90,6 +90,7 @@ SYNC="$(python3 scripts/env_to_cloud.py --project "$PROJECT_ID" --env-file "$ENV
   --fixed "ETALASE_ENV=${ENV_MODE}" --fixed "PUBLIC_BASE_URL=${URL}" --fixed "STORE_BACKEND=${STORE_BACKEND:-memory}" \
   --fixed "GOOGLE_CLOUD_PROJECT=${PROJECT_ID}")"
 ENV_VARS="$(printf '%s\n' "$SYNC" | sed -n 's/^ENV_VARS=//p')"
+ENV_DELIM="$(printf '%s\n' "$SYNC" | sed -n 's/^ENV_DELIM=//p')"
 SECRETS="SESSION_SECRET=etalase-session-secret:latest,DEV_TOKEN=etalase-dev-token:latest,WEBHOOK_TOKEN=etalase-webhook-token:latest,OPERATOR_TOKEN=etalase-operator-token:latest"
 EXTRA_SECRETS="$(printf '%s\n' "$SYNC" | sed -n 's/^SECRETS=//p')"
 [[ -n "$EXTRA_SECRETS" ]] && SECRETS="${SECRETS},${EXTRA_SECRETS}"
@@ -107,7 +108,7 @@ run gcloud run deploy "$SERVICE" \
   --min-instances 1 \
   --max-instances 1 \
   --no-cpu-throttling \
-  --update-env-vars "^@^${ENV_VARS}" \
+  --update-env-vars "^${ENV_DELIM}^${ENV_VARS}" \
   --update-secrets "$SECRETS"
 
 if [[ -z "$DRY_RUN" ]]; then

@@ -4,7 +4,7 @@
 
 Etalase turns a small seller's product photos and chats into a storefront that AI shopping agents
 (Gemini or any MCP client; Etalase also answers Google's Universal Commerce Protocol checkout) can find, check stock on and buy from, with every order landing
-back in the seller's WhatsApp.
+back in the seller's chat (WhatsApp, or Telegram if the seller prefers).
 
 Built for the **AI Builder Cup 2026** (Google Cloud, JAPAC), theme **Retail & Commerce: Intelligent
 Customer and Business Experiences**.
@@ -35,9 +35,12 @@ More in [Problem and market](docs/01-problem-and-market.md).
    spreadsheet). Gemini builds products, variants, prices and weights, and scores how agent-ready they
    are. The seller taps **Publish**.
 2. **A buyer asks their AI agent.** The agent calls Etalase's **MCP server**: search, shipping
-   options, checkout. Stock is reserved while the buyer pays with **QRIS**.
+   options, checkout. Stock is reserved while the buyer pays with **QRIS**. QRIS is the only payment method
+   (no cash on delivery, so a seller never ships an order that is not paid; [ADR 0009](docs/adr/0009-qris-only-no-cod.md)).
    A buyer without an agent opens the seller's **store link** (put it in an Instagram bio or a WhatsApp
    status): the same catalog, a short buy form, the QRIS code and an order page, as plain HTML that works on a weak phone connection.
+   Each order records the door it came through (store link, MCP, UCP or REST) and a coarse referrer label such as `chatgpt` or
+   `instagram`, never a URL or an IP address, so we can see which doors buyers really use.
    With a domain of your own, each shop can also have a short address such as `kopi-tuku.example.com`.
 3. **The seller gets the order in WhatsApp** with **Accept** / **Out of stock** buttons and replies
    with a tracking number. A seller can move this to **Telegram** instead (a second channel behind the same
@@ -45,11 +48,17 @@ More in [Problem and market](docs/01-problem-and-market.md).
 4. **Money and returns behave.** The payout is held until delivery plus a return window (72 hours; 168 for a new seller),
    so a buyer can ask for a return (agent tool, or a form on the order page), the seller answers with buttons, and a refund never
    depends on the seller sending money back. The seller's return policy and track record are shown to agents before they buy.
-   After the window the seller is paid, minus a small commission.
+   A parcel the courier brings back or loses is refunded to the buyer in full, and the payout never starts for it.
+   After the window the seller is paid, minus a small commission. The rules are published, generated from the same
+   settings the money code reads: [`/policy/payouts`](docs/05-checkout-payment-payout.md) (people) and `/policy/payouts.json` (agents).
 5. Uncertain stock? **Confirm-first mode** asks the seller before the buyer pays.
 6. OMSs, e-commerce plugins and website builders connect through an **OpenAPI Connector API**.
 
 ![Process flow](docs/assets/process-flow.png)
+
+The running prototype (mock payment and courier, synthetic product photos): the store link, a product page, the QRIS payment page and the seller dashboard.
+
+![Prototype snapshots](docs/assets/snapshots.png)
 
 ## Run the prototype (no credentials needed)
 
@@ -57,7 +66,7 @@ More in [Problem and market](docs/01-problem-and-market.md).
 cd prototype
 pip install -r requirements-dev.txt
 python scripts/demo.py          # full end-to-end story in the terminal
-pytest -q                       # 503 tests: oversell race, payments, webhook security, OTP abuse
+pytest -q                       # 507 tests: oversell race, payments, webhook security, OTP abuse
 uvicorn etalase.api.main:app --port 8080   # API, MCP at /mcp/, dashboard at /, docs at /docs
 ```
 
@@ -110,7 +119,9 @@ It is published to GitHub Pages by `.github/workflows/learn.yml` (Settings → P
 ```
 .
 ├── README.md
-├── docs/                         plan, design and decisions
+├── SETUP.md                      every key and where to get it, step by step
+├── LICENSE
+├── docs/                         plan, design and decisions (index: docs/README.md)
 │   ├── 01-problem-and-market.md
 │   ├── 02-product.md
 │   ├── 03-architecture.md        diagrams: components, sequence, data model
@@ -119,30 +130,41 @@ It is published to GitHub Pages by `.github/workflows/learn.yml` (Settings → P
 │   ├── 06-shipping.md
 │   ├── 07-whatsapp-seller-agent.md
 │   ├── 08-integrations.md        Sheets, OMS, e-commerce, Connector API, marketplaces
-│   ├── 09-security-privacy-compliance.md   PDP Law, payments, tax
+│   ├── 09-security-privacy-compliance.md   PDP Law, payments, tax, known gaps
 │   ├── 10-business-model.md
-│   ├── 11-roadmap.md
+│   ├── 11-roadmap.md            includes the gates to clear before real money moves
 │   ├── 12-benchmark-plan.md
 │   ├── 13-demo-script.md
 │   ├── 14-hackathon-alignment.md
 │   ├── 15-evidence.md            every number with its source and quote
-│   ├── adr/                      architecture decision records
+│   ├── 16-ucp.md                 what we implement of the Universal Commerce Protocol
+│   ├── 17-market-fit-and-direction.md   is the idea still right: verified, partly, unverified
+│   ├── adr/                      nine decision records (0001 to 0009)
 │   └── assets/
 ├── learn/                        Etalase Academy (VitePress learning site)
 ├── prototype/                    Python · FastAPI · ADK · MCP · Cloud Run
-│   ├── etalase/
-│   ├── scripts/                  demo.py, deploy_cloud_run.sh
-│   ├── tests/
+│   ├── etalase/                  the application (code map in prototype/README.md)
+│   ├── scripts/                  demo.py, e2e_http.py, browser_check.py, deploy_cloud_run.sh
+│   ├── tests/                    507 tests
+│   ├── evals/                    labelled messages and the extraction scorer
+│   ├── ucp_conformance/          runner for Google's official UCP conformance suite
 │   └── Dockerfile
 └── submission/                   deck (.pptx and .pdf)
 ```
 
 ## Status
 
-Hackathon prototype. Working end to end locally with mocks; live integrations (Gemini, WhatsApp
-Cloud API, Telegram, Xendit QRIS, Biteship rates) are wired and switch on with credentials. Instagram DM
-selling is roadmap, not built. Known gaps before a
-pilot are listed in [Security, privacy and compliance](docs/09-security-privacy-compliance.md#known-gaps-before-a-pilot).
+Hackathon prototype. It works end to end locally with mocks, and every live integration (Gemini, WhatsApp Cloud API,
+Telegram, Xendit QRIS, Biteship, Firestore) is wired and switches on with credentials. **None of them has been exercised
+with real traffic yet:** they are covered by contract tests written from the providers' documentation, not by live calls.
+
+Not yet known, and said plainly in the docs: whether a payout hold can be enforced at Xendit, how Bank Indonesia would classify
+holding a payout, how accurate Gemini extraction is on real seller messages (49% for the offline baseline, no model measured),
+and whether sellers will pay a 4% commission and wait 72 to 168 hours (no seller has been interviewed). Details and the
+checks to run first are in [Market fit and direction](docs/17-market-fit-and-direction.md) and in
+[Security, privacy and compliance](docs/09-security-privacy-compliance.md#known-gaps-before-a-pilot).
+
+Instagram DM selling is roadmap, not built.
 
 ## Team
 

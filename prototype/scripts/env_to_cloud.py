@@ -8,7 +8,7 @@ What it does
 - Keys that are secrets (API keys, tokens) are written to Secret Manager. The value goes to gcloud on stdin and is
   never printed or put on a command line. A secret whose value did not change gets no new version.
 - Keys that are not secret (phone number id, model name, limits) are passed as plain environment variables.
-- Prints two lines for scripts/deploy_cloud_run.sh:  ENV_VARS=<gcloud flag value>  and  SECRETS=<gcloud flag value>.
+- Prints for scripts/deploy_cloud_run.sh:  ENV_DELIM=<separator>, ENV_VARS=<gcloud flag value> and SECRETS=<gcloud flag value>.
   Names go to stderr; values never do.
 
 Keys the deploy script decides itself are never taken from .env (they arrive through --fixed): ETALASE_ENV,
@@ -45,6 +45,18 @@ PLAIN_KEYS = ["WHATSAPP_PHONE_NUMBER_ID", "INSTAGRAM_APP_ID", "SELLER_LOCALE", "
               "RETURN_SELLER_RESPONSE_HOURS", "RETURN_LAPSE_DAYS", "SELLER_AI_CALLS_PER_HOUR", "TRUSTED_PROXY_HOPS",
               "SHIPMENT_RECHECK_HOURS", "SUPPORT_CONTACT", "DISPUTE_APPEAL_DAYS"]
 PLACEHOLDERS = {"", "change-me-to-a-long-random-string", "etalase-dev-verify"}   # "not filled in"
+
+
+DELIMITERS = "@#|~"
+
+
+def pick_delimiter(plain: dict[str, str]) -> str:
+    """The separator for gcloud's `--update-env-vars ^<delim>^k=v<delim>k=v`: the first candidate that appears in no key or value.
+    '@' is the usual choice, but an e-mail address in SUPPORT_CONTACT contains one. "" when every candidate is taken."""
+    for d in DELIMITERS:
+        if not any(d in k or d in v for k, v in plain.items()):
+            return d
+    return ""
 
 
 def read_env(path: Path) -> dict[str, str]:
@@ -126,11 +138,16 @@ def main(argv: list[str] | None = None) -> int:
     for key in plain:
         print(f"  env var {key}", file=sys.stderr)
 
-    bad = [k for k, v in plain.items() if "@" in v or "\n" in v]
+    bad = [k for k, v in plain.items() if "\n" in v]
     if bad:
-        print(f"Refusing values containing '@' or newlines for: {', '.join(bad)}", file=sys.stderr)
+        print(f"Refusing values containing newlines for: {', '.join(bad)}", file=sys.stderr)
         return 1
-    print("ENV_VARS=" + "@".join(f"{k}={v}" for k, v in plain.items()))      # used with gcloud's ^@^ delimiter
+    delim = pick_delimiter(plain)
+    if not delim:
+        print("Could not find a separator that none of the values contain (tried " + DELIMITERS + ").", file=sys.stderr)
+        return 1
+    print("ENV_DELIM=" + delim)
+    print("ENV_VARS=" + delim.join(f"{k}={v}" for k, v in plain.items()))      # used with gcloud's ^<delim>^ prefix
     print("SECRETS=" + ",".join(f"{k}={v}" for k, v in secrets.items()))
     return 0
 

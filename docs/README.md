@@ -19,6 +19,6 @@
 | 15 | [Evidence and sources](15-evidence.md) | Every statistic with its source, quote and date; likely judge questions |
 | 16 | [UCP](16-ucp.md) | What we implement of the Universal Commerce Protocol, conformance results, gaps |
 | 17 | [Market fit and direction](17-market-fit-and-direction.md) | Is the idea still relevant to the market and competitors; what changed in the product because of it; what is verified |
-| – | [Decision records](adr/) | Why we chose what we chose (8 records, the latest on seller channels and shop addresses) |
+| – | [Decision records](adr/) | Why we chose what we chose (9 records, the latest on QRIS only and no cash on delivery) |
 
 Diagrams render on GitHub (Mermaid). Slide renders are in [`assets/`](assets/).

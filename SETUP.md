@@ -250,6 +250,8 @@ Mention it in your privacy notice.
 | `make test` | the unit-test suite, no network, no keys |
 | `make demo` | the whole flow in the terminal on mock services |
 | `make browser` | real-browser check of the buyer pages (smooth navigation, back button restoring typed values, option chips, sort and search, the QR code, no-JavaScript fallback); needs `pip install playwright` and Chromium, optional |
+| `make judge` | the reviewers' sandbox at `/demo` (`DEMO_MODE`): one shared demo seller, a simulated seller phone, a simulate-payment button. `DEMO=1 PROJECT_ID=... make deploy` puts it on Cloud Run as its own service, taking only the Gemini key from `.env`. See [JUDGES.md](JUDGES.md) |
+| `make e2e-judge`, `make browser-judge` | the reviewers' path through the sandbox, over real HTTP and in a real browser (the second needs Playwright) |
 | `make e2e` | the same story over real HTTP: starts the app, then seller on WhatsApp, an agent over UCP and MCP, the public shop, the same seller on Telegram, payment, shipping, payout |
 | `make run` | API on `http://localhost:8080` (reads `.env`) |
 | `make deploy` / `make deploy-dry` | Cloud Run deploy using `.env` / print the plan only |

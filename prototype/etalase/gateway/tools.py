@@ -8,15 +8,15 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from ..models import Address, CheckoutError, Order, OrderStatus, now
+from ..models import Address, CheckoutError, Order, OrderStatus, SellMode, now
 
 if TYPE_CHECKING:
     from ..container import AppContext
     from .hosts import ShopScope
 
 NEXT_STEP = {
-    OrderStatus.AWAITING_SELLER_CONFIRMATION: "The seller is confirming stock (usually within minutes). Poll get_checkout_status; "
-                                              "a QRIS payment code appears once confirmed.",
+    OrderStatus.AWAITING_SELLER_CONFIRMATION: "The seller is confirming stock. Poll get_checkout_status; a QRIS payment code appears once "
+                                              "they confirm. Nothing is charged before that.",
     OrderStatus.AWAITING_PAYMENT: "Show the QRIS code to the buyer. Stock is held until expires_at.",
     OrderStatus.PAID: "Paid. Waiting for the seller to accept and ship.",
     OrderStatus.ACCEPTED: "Paid and accepted. The seller is preparing the shipment.",
@@ -53,8 +53,20 @@ def _wanted(product_id, cart) -> list:
     return [_item_product_id(i) for i in cart] if cart is not None else [product_id]
 
 
+def _unanswered(order: Order) -> bool:
+    """A stock check the seller never answered: confirm-first, and no payment code was ever issued."""
+    return order.sell_mode == SellMode.CONFIRM_FIRST and order.payment is None and not order.seller_confirmed
+
+
 def next_step(order: Order) -> str:
     ship = order.shipment.status if order.shipment else ""
+    if order.status == OrderStatus.AWAITING_SELLER_CONFIRMATION and order.expires_at:
+        return (f"The seller was asked whether the item is still available and has until {order.expires_at.isoformat(timespec='minutes')} "
+                "to answer. Poll get_checkout_status; a QRIS payment code appears once they confirm. Nothing is charged before that. "
+                "Tell the buyer how long this can take, and do not promise a quick answer.")
+    if order.status == OrderStatus.EXPIRED and _unanswered(order):
+        return ("The seller did not confirm stock in time, so the checkout expired. No payment code was ever issued and nothing was "
+                "charged. Offer the buyer another seller, or create a new checkout later if the buyer still wants this one.")
     if order.status == OrderStatus.SHIPPED and ship == "returning":
         return ("The courier could not deliver the parcel and is bringing it back to the seller. The buyer is refunded in full "
                 "when it arrives. Do not tell the buyer it is on its way.")

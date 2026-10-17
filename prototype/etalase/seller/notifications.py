@@ -6,7 +6,7 @@ import logging
 from typing import TYPE_CHECKING
 
 from ..adapters.messaging import Template
-from ..models import OrderStatus, now
+from ..models import OrderStatus, SellMode, now
 from .format import defang, rupiah
 
 if TYPE_CHECKING:
@@ -41,6 +41,25 @@ def register(ctx: "AppContext") -> None:
                              [(f"confirm:{order.id}", t("btn_available")), (f"oos:{order.id}", t("btn_sold_out"))],
                              Template("stock_check", [items(order), defang(order.buyer.city)],
                                       [f"confirm:{order.id}", f"oos:{order.id}"]))
+
+    def on_stock_check_reminder(p):
+        order, seller = order_and_seller(p)
+        if order.status != OrderStatus.AWAITING_SELLER_CONFIRMATION:
+            return      # answered or expired between the job and now
+        # Out of the 24-hour window it goes as the same approved template as the first stock check.
+        wa.send_notification(seller.address, t("stock_check_reminder", items=items(order), city=defang(order.buyer.city)),
+                             [(f"confirm:{order.id}", t("btn_available")), (f"oos:{order.id}", t("btn_sold_out"))],
+                             Template("stock_check", [items(order), defang(order.buyer.city)],
+                                      [f"confirm:{order.id}", f"oos:{order.id}"]))
+
+    def on_expired(p):
+        if p.get("cause") != "timeout":
+            return      # the buyer's agent cancelled it: nothing to tell the seller
+        order, seller = order_and_seller(p)
+        if order.sell_mode != SellMode.CONFIRM_FIRST or order.payment is not None or order.seller_confirmed:
+            return      # an unpaid checkout that was never a stock check
+        wa.send_notification(seller.address, t("stock_check_expired", items=items(order), city=defang(order.buyer.city)),
+                             template=Template("stock_check_expired", [items(order), defang(order.buyer.city)]))
 
     def on_paid(p):
         order, seller = order_and_seller(p)
@@ -128,6 +147,8 @@ def register(ctx: "AppContext") -> None:
         best_effort(order, seller, "return_refunded", amount=rupiah(order.return_request.refund_amount), restock=restock)
 
     bus.subscribe("order.awaiting_confirmation", on_awaiting_confirmation)
+    bus.subscribe("order.stock_check_reminder", on_stock_check_reminder)
+    bus.subscribe("order.expired", on_expired)
     bus.subscribe("order.paid", on_paid)
     bus.subscribe("order.accepted", on_accepted)
     bus.subscribe("order.rejected", on_rejected)

@@ -3,7 +3,7 @@
 Nineteen graded exercises, from beginner to advanced, that make you read recent fixes, change the Etalase code, add tests and wire Google Cloud services.
 
 ::: tip What you will learn
-- How to extend the offline parsers, the shipping mock and the readiness score without breaking the 618 existing tests
+- How to extend the offline parsers, the shipping mock and the readiness score without breaking the 666 existing tests
 - How to add a country pack, an MCP tool and a chat intent end to end
 - How to read a bug fix and its regression test, and why transaction retries need retry-safe code
 - How to test the Firestore store against the emulator
@@ -20,7 +20,7 @@ Work on a branch, and keep the baseline green:
 ```bash
 cd prototype
 pip install -r requirements-dev.txt
-pytest -q                     # 618 passed before you start
+pytest -q                     # 666 passed before you start
 python scripts/demo.py        # the ten-step story must still run
 ```
 
@@ -782,7 +782,7 @@ Start with `order.paid` (seller alert and connector webhook), because a lost one
 - Media ids carry the same prefix as addresses (`tg:<file id>`), which is why `download_media` routes on the media id.
 - Do not build the real LINE adapter. The point is that the core never has to change.
 
-**Acceptance.** A message to `line:U123` reaches the new fake and nothing else; WhatsApp numbers still reach the default messenger; `tg:555` still reaches Telegram; the 618 tests still pass.
+**Acceptance.** A message to `line:U123` reaches the new fake and nothing else; WhatsApp numbers still reach the default messenger; `tg:555` still reaches Telegram; the 666 tests still pass.
 
 ::: details Solution sketch
 ```python

@@ -46,6 +46,20 @@ def validate_settings(s: Settings, modes: dict) -> None:
                 problems.append(f"prod cannot run with the mock {part} adapter")
         if modes.get("messaging") != "whatsapp":
             problems.append("prod needs the WhatsApp Cloud API (WHATSAPP_TOKEN, WHATSAPP_PHONE_NUMBER_ID)")
+    if s.demo_mode:
+        # The sandbox lets anyone mark an order as paid, so nothing real may sit behind it.
+        if not s.is_dev:
+            problems.append("DEMO_MODE only runs with ETALASE_ENV=dev: it lets visitors simulate payments")
+        for part in ("payment", "shipping"):
+            if modes.get(part) != "mock":
+                problems.append(f"DEMO_MODE needs the mock {part} adapter: remove the real {part} keys")
+        if modes.get("messaging") != "console":
+            problems.append("DEMO_MODE needs the console messenger: remove WHATSAPP_TOKEN, so no real message is ever sent")
+        if modes.get("telegram", "off") != "off":
+            problems.append("DEMO_MODE needs Telegram off: remove TELEGRAM_BOT_TOKEN")
+        if s.signup_enabled:
+            problems.append("DEMO_MODE cannot run with SIGNUP_ENABLED: the mock provider verifies a new shop at once, so anyone could "
+                            "open shops on the public sandbox")
     if s.whatsapp_token and not s.whatsapp_app_secret:
         problems.append("WHATSAPP_APP_SECRET is required to verify WhatsApp webhooks")
     if s.whatsapp_token and s.whatsapp_verify_token == "etalase-dev-verify":

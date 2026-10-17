@@ -501,7 +501,7 @@ These are the facts as reported by the sources on the dates shown. Indonesian ru
 | "Big retailers are agent-ready by default" | PYMNTS: 19% of large merchants | Claim 11 wording |
 | "Instagram DMs are free" or "CTWA makes our alerts free" | Unverified vendor table; CTWA frees ad-started chats, not our alerts | Claims 51 and 53 |
 | Settlement "T+7" | Xendit documents T+2 business days for QRIS | Claim 32 |
-| Catalog accuracy, build time, latency results | Deck lists them as TBD | Only "618 automated tests pass" and the in-memory race result |
+| Catalog accuracy, build time, latency results | Deck lists them as TBD | Only "666 automated tests pass" and the in-memory race result |
 | Number of Indonesian e-commerce businesses | Databoks cites "approximately 3.81 million e-commerce businesses in Indonesia in 2024", but the deck does not use it | If you add it, cite it as a 2024 BPS estimate via Databoks |
 
 ## Link check log (10 October 2026)

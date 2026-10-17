@@ -15,10 +15,12 @@ from fastapi import APIRouter, Depends, FastAPI, Header, HTTPException, Request
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, PlainTextResponse
 from pydantic import BaseModel, Field, model_validator
 
+from .. import demo
 from ..adapters import instagram
 from ..adapters.messaging import Inbound, parse_whatsapp_webhook, whatsapp_failed_statuses
 from ..adapters.telegram import SECRET_HEADER as TELEGRAM_SECRET_HEADER
 from ..adapters.telegram import parse_telegram_update
+from . import demo_console
 from ..connector.service import OrderStatusIn, ProductIn, StockIn
 from ..container import AppContext, build_context
 from ..gateway import discovery, pages, payout_policy, storefront, ucp as ucp_protocol
@@ -35,6 +37,8 @@ log = logging.getLogger("etalase.api")
 
 ctx: AppContext = build_context()   # refuses to start on an insecure configuration (see security.py)
 limits = RateLimiter()
+if ctx.settings.demo_mode:
+    demo.seed(ctx)   # the judge sandbox: one shared demo seller with products (see JUDGES.md)
 mcp = build_mcp(ctx, limits)
 MAX_BODY_BYTES = 2_000_000
 SAMPLES_DIR = Path(__file__).resolve().parents[2] / "samples"
@@ -65,6 +69,8 @@ async def lifespan(app: FastAPI):
             await asyncio.sleep(60)
             try:  # expiry, return timers and due payouts
                 await asyncio.to_thread(ctx.process_due)
+                if ctx.settings.demo_mode:
+                    await asyncio.to_thread(demo.keep_fresh, ctx)
             except Exception:  # one bad order must not stop the job for everyone
                 log.exception("background run failed")
 
@@ -106,6 +112,8 @@ def ucp(request: Request):
 
 
 app.include_router(ucp_protocol.build_router(ctx, limits))   # /ucp/v1/checkout-sessions ... (UCP Checkout, REST)
+if ctx.settings.demo_mode:
+    app.include_router(demo_console.build_router(ctx, limits))   # /demo: the simulated seller phone
 
 
 def other_shop(request: Request, seller_id: str | None) -> bool:
@@ -690,10 +698,29 @@ def instagram_callback(code: str, state: str):
     return "<p>Instagram connected. Check WhatsApp for your imported products.</p>"
 
 
+# Shown on the sign-in card only in the judge sandbox (DEMO_MODE): a shortcut past the WhatsApp code for the shared demo seller.
+DEMO_SIGN_IN = """<div style="margin-top:1.25rem;padding-top:1.25rem;border-top:1px solid var(--line)">
+        <p class="fine" style="margin-top:0"><b>Reviewing this prototype?</b> This is a sandbox: the seller below is shared and made up, so no WhatsApp number is needed.</p>
+        <button class="btn block alt" id="demo-in" type="button">Sign in as the demo seller</button>
+        <p class="fine">The <a href="/demo" target="_blank" rel="noopener">simulated seller phone</a> shows the WhatsApp side. The usual code also works: it appears there.</p>
+      </div>
+      <script>
+      document.getElementById("demo-in").onclick = async function () {
+        var b = this; b.disabled = true;
+        try {
+          var r = await fetch("/demo/api/signin", { method: "POST" }); if (!r.ok) throw 0;
+          var j = await r.json(); try { sessionStorage.setItem("etalase_token", j.token); } catch (e) {}
+          location.reload();
+        } catch (e) { b.disabled = false; b.textContent = "Could not sign in, try again"; }
+      };
+      </script>"""
+
+
 @app.get("/", response_class=HTMLResponse, include_in_schema=False)
 def dashboard():
     """The seller dashboard: one static page that shares the buyer pages' design tokens, buttons, fields and icons."""
     html = (Path(__file__).parent / "dashboard.html").read_text(encoding="utf-8")
+    html = html.replace("<!--@@DEMO@@-->", DEMO_SIGN_IN if ctx.settings.demo_mode else "")
     return html.replace("/*@@BASE_CSS@@*/", pages.BASE_CSS).replace("<!--@@SPRITE@@-->", pages.sprite())
 
 

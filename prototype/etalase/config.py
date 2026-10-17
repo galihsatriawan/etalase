@@ -83,6 +83,8 @@ class Settings(BaseSettings):
     confirm_if_stale_days: int = 3
     confirm_if_available_lte: int = 2
     seller_confirm_timeout_minutes: int = 60
+    # A seller who has not answered a stock check gets one reminder this many minutes after it was sent (0 = no reminder).
+    seller_confirm_reminder_minutes: int = 15
     max_qty_per_order: int = 10
     max_checkouts_per_buyer_per_hour: int = 5
     # Payout hold. After the courier confirms delivery the seller's money stays at the payment provider for this long.
@@ -105,6 +107,11 @@ class Settings(BaseSettings):
     dispute_appeal_days: int = 7
     # Gemini calls one seller may trigger per hour (free-text turns plus catalog builds). Only counted when Gemini is on.
     seller_ai_calls_per_hour: int = 60
+    # DEMO_MODE turns the app into a sandbox a reviewer can try end to end without any account: one shared demo seller with
+    # a few products, a simulated seller phone at /demo, and a "simulate payment" button on the pay page. It is refused
+    # outside dev with mock payment, mock shipping and the console messenger (etalase/security.py), so no real money, courier
+    # or WhatsApp message can ever be involved. See JUDGES.md.
+    demo_mode: bool = False
     # Sign-up in chat (seller/signup.py). Off by default, because turning it on lets anyone who writes to the Etalase number
     # start a shop. SIGNUP_SHOPS_PER_HOUR caps new shops across the whole platform; a shop that is not verified within
     # SIGNUP_HOLD_HOURS gives its address back. A new shop is open to buyers only once it is verified: with the mock payment

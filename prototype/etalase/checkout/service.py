@@ -628,6 +628,38 @@ class CheckoutService:
                 log.exception("payout sweep failed for %s", o.id)
         return released
 
+    def remind_stock_checks(self, when: datetime | None = None) -> list[str]:
+        """Nudge, once, a seller who has not answered a stock check part way through the window. The hold of a confirm-first
+        order lasts the whole window, so a hold that ends within (window - reminder) minutes belongs to a check at least
+        `reminder` minutes old."""
+        wait, window = self.settings.seller_confirm_reminder_minutes, self.settings.seller_confirm_timeout_minutes
+        if wait <= 0 or wait >= window:
+            return []
+        when = when or now()
+        reminded: list[str] = []
+        for res in self.store.held_reservations_expiring_before(when + timedelta(minutes=window - wait)):
+            if res.order_id in reminded:
+                continue
+            won = {}
+
+            def mark(o: Order) -> bool:
+                won.clear()  # Firestore may run a transaction callback more than once
+                if o.status != OrderStatus.AWAITING_SELLER_CONFIRMATION or o.stock_check_reminded:
+                    return False
+                if o.expires_at and o.expires_at <= when:   # about to expire: the expiry job handles it
+                    return False
+                o.stock_check_reminded = True
+                won["yes"] = True
+                return True
+            try:
+                order = self.store.update_order(res.order_id, mark)
+                if won and order is not None:
+                    self.events.publish("order.stock_check_reminder", {"order_id": order.id})
+                    reminded.append(order.id)
+            except Exception:
+                log.exception("stock-check reminder failed for %s", res.order_id)
+        return reminded
+
     def expire_due(self, when: datetime | None = None) -> list[str]:
         """Release reservations that ran out of time. Production: one Cloud Task per order at expires_at."""
         when = when or now()
@@ -653,7 +685,7 @@ class CheckoutService:
                 if order is None or order.status in (OrderStatus.EXPIRED, OrderStatus.REJECTED):
                     self.store.release(res.order_id)  # also cleans up holds left by a crash
                 if won:
-                    self.events.publish("order.expired", {"order_id": order.id})
+                    self.events.publish("order.expired", {"order_id": order.id, "cause": "timeout"})
                     expired.append(order.id)
             except Exception:    # one broken order must not stop the job for everyone else
                 log.exception("expiry failed for %s", res.order_id)
@@ -675,7 +707,7 @@ class CheckoutService:
         if order is not None and order.status == OrderStatus.EXPIRED:
             self.store.release(order_id)
             if won:
-                self.events.publish("order.expired", {"order_id": order.id})
+                self.events.publish("order.expired", {"order_id": order.id, "cause": "cancelled"})
         return order
 
     # ------------------------------------------------------------------ helpers

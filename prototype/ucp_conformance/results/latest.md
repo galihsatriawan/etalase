@@ -28,7 +28,7 @@ Failures and why:
 - `ValidationTest.test_payment_failure`: needs a card payment instrument that can be declined; Etalase has no payment handlers
 - `CheckoutLifecycleTest.test_cannot_cancel_completed_checkout`: same as test_complete_checkout: it cannot reach status completed through the card flow
 - `CheckoutLifecycleTest.test_cannot_update_completed_checkout`: same as test_complete_checkout: it cannot reach status completed through the card flow
-- `CheckoutLifecycleTest.test_complete_checkout`: asserts status completed straight after complete with a card instrument; with QRIS the checkout is complete_in_progress until the buyer pays. The suite's buyer has only an email and it picks a flower-shop shipping option id (std-ship), while Etalase needs the buyer's name and phone number and offers courier options
+- `CheckoutLifecycleTest.test_complete_checkout`: asserts status completed straight after complete with a card instrument; with QRIS Etalase answers requires_escalation with a continue_url, and the checkout becomes completed only after the buyer pays on that page. The suite's buyer has only an email and it picks a flower-shop shipping option id (std-ship), while Etalase needs the buyer's name and phone number and offers courier options
 - `CheckoutLifecycleTest.test_complete_is_idempotent`: same as test_complete_checkout: it cannot reach status completed through the card flow
 - `BusinessLogicTest.test_buyer_consent`: buyer_consent capability not implemented (not advertised); the suite does not skip it
 - `BusinessLogicTest.test_discount_flow`: discount capability not implemented (not advertised); the suite does not skip it

@@ -84,29 +84,73 @@ class CheckoutService:
             raise CheckoutError("courier rates are unavailable right now; try again in a minute") from None
 
     # ------------------------------------------------------------------ checkout
-    def create_checkout(self, product_id: str, variant_id: str, qty: int, buyer: Address,
-                        courier: str | None = None, service: str | None = None, channel: str = "", referrer: str = "",
-                        payment_method: str = "qris") -> Order:
+    def create_checkout(self, product_id: str | None = None, variant_id: str | None = None, qty: int = 1,
+                        buyer: Address | None = None, courier: str | None = None, service: str | None = None,
+                        channel: str = "", referrer: str = "", payment_method: str = "qris",
+                        items: list[tuple[str, str, int] | dict] | None = None) -> Order:
         methods.require(payment_method)      # QRIS only in the pilot; a request for COD gets an answer the agent can repeat
-        if qty <= 0:
-            raise CheckoutError("quantity must be at least 1")
-        if qty > self.settings.max_qty_per_order:
+        if buyer is None:
+            raise CheckoutError("buyer address is required")
+
+        raw_items = items if items is not None else [(product_id, variant_id, qty)]
+        if not raw_items:
+            raise CheckoutError("at least one item required")
+
+        parsed_items: list[tuple[Product, Variant, int]] = []
+        common_seller_id: str | None = None
+        total_units = 0
+
+        for it in raw_items:
+            if isinstance(it, (tuple, list)):
+                if len(it) < 2:
+                    raise CheckoutError("invalid item specification: tuple must contain at least (product_id, variant_id)")
+                p_id, v_id = it[0], it[1]
+                q = it[2] if len(it) > 2 else 1
+            elif isinstance(it, dict):
+                p_id = it.get("product_id")
+                v_id = it.get("variant_id")
+                q = it.get("qty", 1)
+            else:
+                raise CheckoutError("invalid item specification: expected tuple/list or dict")
+            if not p_id or not v_id:
+                raise CheckoutError("product_id and variant_id are required for all items")
+            if not isinstance(q, int) or q <= 0:
+                raise CheckoutError(f"quantity must be at least 1 (got {q})")
+            total_units += q
+            prod = self._published(p_id)
+            if common_seller_id is None:
+                common_seller_id = prod.seller_id
+            elif common_seller_id != prod.seller_id:
+                raise CheckoutError("all items in a checkout must be from the same shop")
+            if buyer.country not in prod.ships_to or buyer.country not in COUNTRY_PACKS:
+                raise CheckoutError(f"shipping to {buyer.country} is not available (domestic delivery only)")
+            try:
+                var = prod.variant(v_id)
+            except KeyError:
+                raise CheckoutError(f"variant '{v_id}' not found for product '{prod.title}'")
+            parsed_items.append((prod, var, q))
+
+        if total_units > self.settings.max_qty_per_order:
             raise CheckoutError(f"at most {self.settings.max_qty_per_order} units per checkout")
-        product = self._published(product_id)
-        seller = self.store.get_seller(product.seller_id)
+
+        seller = self.store.get_seller(common_seller_id)
         if seller is None or seller.kyc_status != "verified":
             raise CheckoutError("this seller is not accepting orders yet")
-        if buyer.country not in product.ships_to or buyer.country not in COUNTRY_PACKS:
-            raise CheckoutError(f"shipping to {buyer.country} is not available (domestic delivery only)")
+
         validate_buyer(buyer)
         phone = buyer.phone.lstrip("+").replace(" ", "").replace("-", "")
         if not self.limits.allow(f"buyer:{phone}", self.settings.max_checkouts_per_buyer_per_hour, 3600):
             raise CheckoutError("too many checkouts for this phone number; try again later")
-        v = product.variant(variant_id)
-        mode = self.catalog.sell_mode(product, v, seller)
+
+        # If any variant requires confirmation, the order is confirm-first
+        modes = [self.catalog.sell_mode(p, v, seller) for p, v, q in parsed_items]
+        mode = SellMode.CONFIRM_FIRST if SellMode.CONFIRM_FIRST in modes else SellMode.INSTANT
+
+        total_weight = sum(max(1, v.weight_gram) * q for p, v, q in parsed_items)
+        subtotal = sum(v.price * q for p, v, q in parsed_items)
 
         rates = self._quote(seller.origin.postal_code if seller.origin else "", buyer.postal_code,
-                            max(1, v.weight_gram) * qty, v.price * qty)
+                            total_weight, subtotal)
         if courier:
             chosen = [r for r in rates if r.courier == courier.lower()]
             if not chosen:
@@ -121,13 +165,17 @@ class CheckoutService:
             raise CheckoutError("no courier serves this route")
         rate = min(rates, key=lambda r: r.price)
 
-        subtotal = v.price * qty
+        order_items = [
+            OrderItem(product_id=p.id, variant_id=v.id, sku=v.sku,
+                      title=f"{p.title} ({v.label})", qty=q, unit_price=v.price,
+                      weight_gram=max(1, v.weight_gram))
+            for p, v, q in parsed_items
+        ]
+
         order = Order(
             seller_id=seller.id, buyer=buyer, sell_mode=mode,
             status=OrderStatus.AWAITING_SELLER_CONFIRMATION if mode == SellMode.CONFIRM_FIRST else OrderStatus.AWAITING_PAYMENT,
-            items=[OrderItem(product_id=product.id, variant_id=v.id, sku=v.sku,
-                             title=f"{product.title} ({v.label})", qty=qty, unit_price=v.price,
-                             weight_gram=max(1, v.weight_gram))],
+            items=order_items,
             currency=COUNTRY_PACKS[buyer.country].currency,
             subtotal=subtotal, shipping_rate=rate, shipping_fee=rate.price, total=subtotal + rate.price,
         )
@@ -141,10 +189,14 @@ class CheckoutService:
         if limit and order.total > limit:
             raise CheckoutError(f"orders above Rp{limit:,} cannot be paid by QRIS; reduce the quantity".replace(",", "."))
         order.expires_at = now() + timedelta(minutes=ttl)
-        try:
-            self.store.reserve(order.id, product.id, v.id, qty, order.expires_at)
-        except OutOfStock as e:
-            raise CheckoutError(f"not enough stock: {e}") from e
+        for p, v, q in parsed_items:
+            try:
+                self.store.reserve(order.id, p.id, v.id, q, order.expires_at)
+            except OutOfStock as e:
+                self.store.release(order.id)
+                if len(parsed_items) > 1:
+                    raise CheckoutError(f"not enough stock for '{p.title} ({v.label})': requested {q}, {e}") from e
+                raise CheckoutError(f"not enough stock: {e}") from e
         order.log(f"created in {mode.value} mode, stock reserved" + (f" ({order.channel}, {order.referrer or 'no referrer'})" if order.channel else ""))
 
         if mode == SellMode.INSTANT:
@@ -509,27 +561,35 @@ class CheckoutService:
     def release_payout(self, order_id: str, when: datetime | None = None) -> Order:
         when = when or now()
         order = self.store.get_order(order_id)
-        if order.status != OrderStatus.DELIVERED or order.payout is not None:
+        if order.status != OrderStatus.DELIVERED:
+            return order
+        if order.payout is not None and order.payout.status != "releasing":
             return order
         if order.payout_due_at and order.payout_due_at > when:
             return order   # still inside the return window
         seller = self.store.get_seller(order.seller_id)
         rate = seller.commission_rate if seller.commission_rate is not None else self.settings.commission_rate
-        commission = round(order.subtotal * rate)
-        seller_amount = order.subtotal - commission  # the shipping fee goes to the courier
 
-        def claim(o: Order) -> bool:  # exactly one caller may release money
-            if o.status != OrderStatus.DELIVERED or o.payout is not None:
-                return False
-            if o.payout_due_at and o.payout_due_at > when:
-                return False
-            o.payout = Payout(seller_amount=seller_amount, commission=commission, status="releasing")
-            return True
-        claimed = self.store.update_order(order_id, claim)
-        if claimed.payout is None or claimed.payout.status != "releasing":
-            return claimed
+        if order.payout and order.payout.status == "releasing":
+            # Reconcile stuck in-flight payout from a previous crashed run
+            seller_amount, commission = order.payout.seller_amount, order.payout.commission
+            claimed = order
+        else:
+            commission = round(order.subtotal * rate)
+            seller_amount = order.subtotal - commission  # the shipping fee goes to the courier
+
+            def claim(o: Order) -> bool:  # exactly one caller may release money
+                if o.status != OrderStatus.DELIVERED or o.payout is not None:
+                    return False
+                if o.payout_due_at and o.payout_due_at > when:
+                    return False
+                o.payout = Payout(seller_amount=seller_amount, commission=commission, status="releasing")
+                return True
+            claimed = self.store.update_order(order_id, claim)
+            if claimed is None or claimed.payout is None or claimed.payout.status != "releasing":
+                return claimed or order
         try:
-            self.payment.release_to_seller(claimed, seller.payout_account_id, seller_amount, commission)
+            self.payment.release_to_seller(claimed, seller.payout_account_id if seller else None, seller_amount, commission)
             payout_status, new_status, note = "released", OrderStatus.PAID_OUT, "payout released"
         except Exception as e:  # ManualActionRequired or a provider error: an operator finishes it
             if not isinstance(e, ManualActionRequired):
@@ -547,11 +607,12 @@ class CheckoutService:
         return order
 
     def release_due_payouts(self, when: datetime | None = None) -> list[str]:
-        """Pay out every delivered order whose return window has ended and that has no return open."""
+        """Pay out every delivered order whose return window has ended and that has no return open. Also reconciles
+        any orders stuck in 'releasing' status from a previous server crash."""
         when = when or now()
         released = []
         for o in self.store.orders_in_status([OrderStatus.DELIVERED]):
-            if o.payout is not None or (o.payout_due_at and o.payout_due_at > when):
+            if (o.payout is not None and o.payout.status != "releasing") or (o.payout_due_at and o.payout_due_at > when):
                 continue
             try:
                 if self.release_payout(o.id, when).status == OrderStatus.PAID_OUT:

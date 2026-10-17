@@ -30,6 +30,15 @@ NEXT_STEP = {
 }
 
 
+def _item_product_id(item) -> str | None:
+    """The product a cart item names, whether it is a dict or a (product_id, variant_id[, qty]) tuple."""
+    if isinstance(item, dict):
+        return item.get("product_id")
+    if isinstance(item, (tuple, list)) and item:
+        return item[0]
+    return None
+
+
 def next_step(order: Order) -> str:
     ship = order.shipment.status if order.shipment else ""
     if order.status == OrderStatus.SHIPPED and ship == "returning":
@@ -106,10 +115,10 @@ class GatewayTools:
         seller = self.ctx.store.get_seller(seller_id)
         return {"return_policy": self.ctx.returns.policy_view(seller), "track_record": self.ctx.checkout.track_record(seller_id)}
 
-    def _visible(self, product_id: str, shop: "ShopScope | None"):
+    def _visible(self, product_id: str | None, shop: "ShopScope | None"):
         """The product, if this caller may see it: published, its seller open to buyers, and, on a shop's own address
         (rina.<domain>), one of that shop's products. Anything else is "not found", never "not yours"."""
-        p = self.ctx.store.get_product(product_id)
+        p = self.ctx.store.get_product(product_id) if product_id else None
         if p is None or p.status != "published" or (shop is not None and p.seller_id != shop.seller_id):
             return None
         seller = self.ctx.store.get_seller(p.seller_id)
@@ -151,18 +160,23 @@ class GatewayTools:
         except (CheckoutError, KeyError) as e:
             return {"error": str(e)}
 
-    def create_checkout(self, product_id: str, variant_id: str, quantity: int, buyer_name: str, buyer_phone: str,
-                        address_line: str, city: str, postal_code: str, country: str = "ID",
-                        courier: str | None = None, channel: str = "", referrer: str = "", payment_method: str = "qris",
-                        shop: "ShopScope | None" = None) -> dict:
-        """`channel` and `referrer` are set by the door the call came through (REST, MCP), never taken from the agent's input."""
-        if self._visible(product_id, shop) is None:
+    def create_checkout(self, product_id: str | None = None, variant_id: str | None = None, quantity: int = 1,
+                        buyer_name: str = "", buyer_phone: str = "", address_line: str = "", city: str = "",
+                        postal_code: str = "", country: str = "ID", courier: str | None = None,
+                        channel: str = "", referrer: str = "", payment_method: str = "qris",
+                        items: list[dict] | None = None, shop: "ShopScope | None" = None) -> dict:
+        """`channel` and `referrer` are set by the door the call came through (REST, MCP), never taken from the agent's input.
+        Every product asked for, one or several (`items`), must be visible to the caller: its seller open to buyers and, on a
+        shop's own address, that shop's own."""
+        wanted = [_item_product_id(i) for i in items] if items is not None else [product_id]
+        if any(self._visible(p, shop) is None for p in wanted):
             return {"error": "product not found"}
         buyer = Address(name=buyer_name, phone=buyer_phone, line1=address_line, city=city,
                         postal_code=postal_code, country=country.upper())
         try:
             order = self.ctx.checkout.create_checkout(product_id, variant_id, quantity, buyer, courier,
-                                                      channel=channel, referrer=referrer, payment_method=payment_method)
+                                                      channel=channel, referrer=referrer, payment_method=payment_method,
+                                                      items=items)
         except (CheckoutError, KeyError) as e:
             return {"error": str(e)}
         return order_view(order)

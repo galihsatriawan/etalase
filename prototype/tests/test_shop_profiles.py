@@ -243,3 +243,46 @@ def test_the_order_service_refuses_an_unverified_seller_for_any_caller(ctx):
     buyer = Address(name="Dewi", phone="6285700001111", line1="Jl. Dago 10", city="Bandung", postal_code="40135")
     with pytest.raises(CheckoutError, match="not accepting orders"):
         ctx.checkout.create_checkout(product.id, variant(product, "Black").id, 1, buyer)
+
+
+# ---------------------------------------------------------------- a cart (`items`) is checked item by item
+def cart(shop, items):
+    """GatewayTools.create_checkout with several items. Not reachable from REST, MCP or UCP today; it must not become a way
+    round the shop address or the verification gate the day one of them exposes it."""
+    return app_ctx.gateway.create_checkout(items=items, buyer_name="Dewi", buyer_phone=str(next(_phones)),
+                                           address_line="Jl. Dago 10", city="Bandung", postal_code="40135", shop=shop)
+
+
+def line(product, color, qty=1):
+    return {"product_id": product.id, "variant_id": variant(product, color).id, "qty": qty}
+
+
+def test_a_cart_on_a_shop_address_cannot_hold_another_shops_item(two_shops):
+    (a, pa), (b, pb) = two_shops
+    on_a = ShopScope(a.id, f"http://{a.slug}.{DOMAIN}")
+    assert cart(on_a, [line(pa, "Black"), line(pb, "Pink")]) == {"error": "product not found"}
+    assert cart(on_a, [line(pb, "Pink")]) == {"error": "product not found"}
+    assert cart(on_a, [(pb.id, variant(pb, "Pink").id, 1)]) == {"error": "product not found"}       # a tuple is no way round it
+    order = cart(on_a, [line(pa, "Black"), line(pa, "Navy", 2)])
+    assert order["checkout_id"] and [i["qty"] for i in order["items"]] == [1, 2]
+
+
+def test_a_cart_on_the_platform_address_still_cannot_mix_shops(two_shops):
+    (_, pa), (_, pb) = two_shops
+    assert "same shop" in cart(None, [line(pa, "Black"), line(pb, "Pink")])["error"]
+    assert cart(None, [line(pa, "Black"), line(pa, "Navy")])["checkout_id"]
+
+
+def test_a_cart_cannot_hold_an_item_of_a_shop_that_is_not_open(two_shops, pending):
+    (_, pa), _ = two_shops
+    _, hidden = pending
+    assert cart(None, [line(hidden, "Grey")]) == {"error": "product not found"}
+    assert cart(None, [line(pa, "Black"), line(hidden, "Grey")]) == {"error": "product not found"}
+
+
+def test_a_cart_with_no_items_or_a_malformed_one_is_refused(two_shops):
+    (a, pa), _ = two_shops
+    on_a = ShopScope(a.id, f"http://{a.slug}.{DOMAIN}")
+    assert "at least one item" in cart(on_a, [])["error"]
+    assert cart(on_a, ["not an item"]) == {"error": "product not found"}
+    assert cart(on_a, [{"variant_id": "x"}]) == {"error": "product not found"}

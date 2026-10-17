@@ -21,7 +21,7 @@ Where every key comes from: [../SETUP.md](../SETUP.md).
 ```bash
 pip install -r requirements-dev.txt
 python scripts/demo.py
-pytest -q          # 567 tests, no network, no keys
+pytest -q          # 577 tests, no network, no keys
 ```
 
 The demo walks through ten steps: seller onboarding on WhatsApp, an optional Instagram import, an agent buying over MCP, payment,

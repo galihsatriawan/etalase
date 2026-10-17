@@ -1,6 +1,6 @@
 # Trying Etalase (for reviewers)
 
-You do not need an account, a WhatsApp number or an API key. The sandbox address is in the submission form; it ends in **`/demo`**.
+You do not need an account, a WhatsApp number or an API key. The sandbox address is in the submission form; it ends in **`/demo`**: <https://etalase-demo-2gzn7hbgwa-et.a.run.app/demo> (Cloud Run, deployed 18 Oct 2026).
 
 The sandbox is the real application running with three things simulated, so that you can play the seller, the buyer and an AI agent in one browser: the WhatsApp chat, the QRIS payment and the courier. The table below says exactly what is real and what is not.
 

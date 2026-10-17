@@ -258,6 +258,7 @@ Mention it in your privacy notice.
 | `make ucp-conformance` | Google's official UCP conformance suite against Etalase (needs `git`, `uv`, network) |
 | `make ucp-reference` | the same suite against the official sample server (proves the suite itself runs) |
 | `make ucp-server` | Etalase on `:8190` with fixed demo items, to try UCP requests by hand |
+| `make ucp-shopper` | a simulated AI shopping surface (a UCP client we wrote, not Google AI Mode) buys two products over UCP: discover, session, courier, `requires_escalation`, QRIS, `completed` |
 | `make academy` | build the documentation site |
 
 ## Before you submit

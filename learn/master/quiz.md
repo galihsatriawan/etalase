@@ -137,7 +137,7 @@ Both implement the `CatalogExtractor` protocol and return the same `ExtractedCat
 **19. In confirm-first mode, how long does the hold last before and after the seller taps Available, and why does it change?**
 
 ::: details Answer
-60 minutes while waiting for the seller (`seller_confirm_timeout_minutes`), then 15 minutes from the moment the seller confirms (`reservation_ttl_minutes`), via `store.extend`. The hold must outlive the new QR code, but not keep stock locked for a full hour after payment is possible. See [Checkout and orders](/architecture/checkout-and-orders).
+30 minutes while waiting for the seller (`seller_confirm_timeout_minutes`), then 15 minutes from the moment the seller confirms (`reservation_ttl_minutes`), via `store.extend`. The hold must outlive the new QR code, but not keep stock locked for the whole waiting window after payment is possible. See [Checkout and orders](/architecture/checkout-and-orders).
 :::
 
 **20. In confirm-first mode, what status does an order get when the payment arrives, and why is it different from instant mode?**

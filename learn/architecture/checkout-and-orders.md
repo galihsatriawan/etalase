@@ -66,7 +66,7 @@ stateDiagram-v2
   [*] --> awaiting_payment: create_checkout, instant
   awaiting_seller_confirmation --> awaiting_payment: seller_confirms_stock available
   awaiting_seller_confirmation --> rejected: seller_confirms_stock sold out
-  awaiting_seller_confirmation --> expired: expire_due after 60 min
+  awaiting_seller_confirmation --> expired: expire_due after 30 min
   awaiting_payment --> paid: payment_succeeded, instant
   awaiting_payment --> accepted: payment_succeeded, seller already confirmed
   awaiting_payment --> expired: expire_due after 15 min
@@ -134,7 +134,7 @@ if not rates:
 rate = min(rates, key=lambda r: r.price)
 ```
 
-The cheapest rate wins. If the buyer names a courier that is not offered, checkout fails with an error that lists the couriers that are, for example `courier pigeon is not available; options: jne, jnt, sicepat`. An agent can read that and retry; silently switching couriers would charge the buyer for a service they did not choose (`test_unknown_courier_is_an_error_not_a_silent_fallback`). The order stores `subtotal = price × qty`, `shipping_fee`, and `total = subtotal + shipping_fee`. The hold lasts `reservation_ttl_minutes` (15) for instant orders and `seller_confirm_timeout_minutes` (60) for confirm-first orders.
+The cheapest rate wins. If the buyer names a courier that is not offered, checkout fails with an error that lists the couriers that are, for example `courier pigeon is not available; options: jne, jnt, sicepat`. An agent can read that and retry; silently switching couriers would charge the buyer for a service they did not choose (`test_unknown_courier_is_an_error_not_a_silent_fallback`). The order stores `subtotal = price × qty`, `shipping_fee`, and `total = subtotal + shipping_fee`. The hold lasts `reservation_ttl_minutes` (15) for instant orders and `seller_confirm_timeout_minutes` (30) for confirm-first orders.
 
 ### 3. Reservation and payment creation
 

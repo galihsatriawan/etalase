@@ -148,7 +148,7 @@ So: stock not tracked, stock not confirmed for over 3 days, or 2 or fewer units 
 
 | | Instant | Confirm-first |
 |---|---|---|
-| At checkout | Stock reserved 15 min, QRIS created at once | Stock held up to 60 min, no QRIS yet |
+| At checkout | Stock reserved 15 min, QRIS created at once | Stock held up to 30 min, no QRIS yet |
 | Seller sees | "New paid order" with **Accept** / **Out of stock**, after payment | "Quick stock check... Is it still available?" with **Available** / **Sold out**, before payment |
 | If gone | Seller taps Out of stock after payment: refund | Seller taps Sold out: order rejected, nothing charged |
 | After payment | `paid`, waits for Accept | Goes straight to `accepted` |
@@ -165,7 +165,7 @@ stateDiagram-v2
   [*] --> awaiting_payment: checkout, instant
   awaiting_seller_confirmation --> awaiting_payment: seller taps Available
   awaiting_seller_confirmation --> rejected: seller taps Sold out
-  awaiting_seller_confirmation --> expired: no answer in 60 min
+  awaiting_seller_confirmation --> expired: no answer in 30 min
   awaiting_payment --> paid: paid, instant
   awaiting_payment --> accepted: paid, seller already confirmed
   awaiting_payment --> expired: unpaid after 15 min
@@ -238,7 +238,7 @@ With `MockPayment` the release is simulated. `XenditPayment.release_to_seller` a
 1. A variant has `on_hand = 10`, last confirmed yesterday, 9 already reserved. What does an agent see, and what happens at checkout?
 
 ::: details Answer
-Available is 10 − 9 = 1, which is 2 or fewer, so the sell mode is confirm-first and availability is `confirm_with_seller`. `create_checkout` reserves the unit for up to 60 minutes, returns `awaiting_seller_confirmation` without a QRIS, and the seller gets the Available / Sold out buttons.
+Available is 10 − 9 = 1, which is 2 or fewer, so the sell mode is confirm-first and availability is `confirm_with_seller`. `create_checkout` reserves the unit for up to 30 minutes, returns `awaiting_seller_confirmation` without a QRIS, and the seller gets the Available / Sold out buttons.
 :::
 
 2. An order's subtotal is Rp250.000 and shipping Rp15.000. What is the seller's payout at the default rate, and when is it released?

@@ -303,7 +303,7 @@ The emulator keeps data between tests, so clear it in the fixture (the emulator 
 
 **Live providers.** Put them behind a marker and an environment check, run them by hand or nightly with test-mode keys, never in the default run: `@pytest.mark.skipif(not os.getenv("XENDIT_SECRET_KEY"), reason="needs Xendit test keys")`. Register the marker in `pyproject.toml` and select with `pytest -m live`.
 
-**Gemini evals.** Accuracy is a score, not a pass/fail, so it lives in an evaluation script rather than pytest: `prototype/evals/` holds 43 labelled seller messages (`extraction_cases.jsonl`, Indonesian and English, including hard ones: sold-out lines, several products in one message, "1,2jt" prices, missing prices that must trigger a question) and `run_eval.py`, which scores a case only when every field is right, nothing is invented and the extractor asks when it should. `make eval-baseline` scores the offline rules (49% today, which is why Gemini is in the product); `make eval` adds Gemini when a key is set and writes `evals/results/latest.md`. The scoring itself is unit-tested in `tests/test_evals.py`. **The Gemini number has not been produced yet**: it needs a key, so do not quote one until you have run it. Photo sets (`eval/catalog/` in `docs/12`) and the 100-message intent set are still to do.
+**Gemini evals.** Accuracy is a score, not a pass/fail, so it lives in an evaluation script rather than pytest: `prototype/evals/` holds 43 labelled seller messages (`extraction_cases.jsonl`, Indonesian and English, including hard ones: sold-out lines, several products in one message, "1,2jt" prices, missing prices that must trigger a question) and `run_eval.py`, which scores a case only when every field is right, nothing is invented and the extractor asks when it should. `make eval-baseline` scores the offline rules (49% today, which is why Gemini is in the product); `make eval` adds Gemini when a key is set and writes `evals/results/latest.md`. The scoring itself is unit-tested in `tests/test_evals.py`. The first Gemini run (17 Oct 2026, `gemini-3.8-flash`, text only, one run) scored 36/43 (84%) against the 90% target; `docs/12` lists what failed. Quote only numbers from a report in `evals/results/`. Photo sets (`eval/catalog/` in `docs/12`) and the 100-message intent set are still to do.
 
 ## The benchmark plan
 
@@ -315,7 +315,7 @@ From `docs/12-benchmark-plan.md`:
 | Duplicate and late payments | `test_checkout.py`, `test_security.py` | No double stock change; late payment refunded | Passing |
 | Payment vs expiry race | `test_security.py` | Exactly one wins | Passing |
 | Webhook and sign-in abuse | `test_security.py`, `test_api.py` | Rejected | Passing |
-| Catalog extraction accuracy | 43 labelled messages (`make eval`); photo sets next | 90%+ fields correct | Offline rules 49%; Gemini run needs a key |
+| Catalog extraction accuracy | 43 labelled messages (`make eval`); photo sets next | 90%+ fields correct | Offline rules 49%; Gemini 3.8 Flash 84% (36/43, below target; text only) |
 | Catalog build time | Photos and voice to published product | Under 15 s | To run |
 | Agent tool latency | p95 of `search_products`, `create_checkout` on Cloud Run | Under 2 s | To run |
 | Seller alert speed | Payment webhook to WhatsApp message | Under 5 s | To run |

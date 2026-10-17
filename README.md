@@ -12,7 +12,7 @@ Some also list on a marketplace, so Etalase does not assume they have no shop an
 Built for the **AI Builder Cup 2026** (Google Cloud, JAPAC), theme **Retail & Commerce: Intelligent
 Customer and Business Experiences**.
 
-**Reviewers:** you can try the whole flow without an account in a sandbox where the WhatsApp chat, the payment and the courier are simulated. See [JUDGES.md](JUDGES.md) for the steps and for what is real and what is not.
+**Reviewers:** you can try the whole flow without an account in a sandbox where the WhatsApp chat, the payment and the courier are simulated: <https://etalase-demo-2gzn7hbgwa-et.a.run.app/demo> (the demo shop also answers on its own address, <https://demo.etalase.site/>). See [JUDGES.md](JUDGES.md) for the steps and for what is real and what is not.
 
 ![Architecture](docs/assets/architecture.png)
 
@@ -46,7 +46,7 @@ More in [Problem and market](docs/01-problem-and-market.md).
    status): the same catalog, a cart (several products of one shop in one order, which agents can also send over MCP, REST and UCP), a short buy form, the QRIS code and an order page, as plain HTML that works on a weak phone connection.
    Each order records the door it came through (store link, MCP, UCP or REST) and a coarse referrer label such as `chatgpt` or
    `instagram`, never a URL or an IP address, so we can see which doors buyers really use.
-   With a domain of your own, each shop can also have a short address such as `kopi-tuku.example.com`.
+   With a domain of your own, each shop can also have a short address such as `kopi-tuku.example.com` (one wildcard DNS record and certificate; the sandbox does this on `etalase.site`, so its demo shop is `demo.etalase.site`; steps in [SETUP.md](SETUP.md#7-shop-addresses-optional)). A shop's address also serves its own MCP and UCP endpoints, which see only that shop's products.
 3. **The seller gets the order in WhatsApp** with **Accept** / **Out of stock** buttons and replies
    with a tracking number. A seller can move this to **Telegram** instead (a second channel behind the same
    interface, with no 24-hour window and no per-message fee); WhatsApp stays the default.
@@ -88,9 +88,10 @@ suite against Etalase, and `make e2e` / `make browser` play the whole story over
 
 | Technology | Used for | Status |
 |---|---|---|
-| **Gemini on Vertex AI** | Multimodal catalog extraction (photos + voice + text) with structured output; seller and buyer agents | Built; switches on with Vertex AI or an API key (offline parser otherwise) |
+| **Gemini on Vertex AI** | Multimodal catalog extraction (photos + voice + text) with structured output; seller and buyer agents | Built; switches on with Vertex AI or an API key (offline parser otherwise). On 43 labelled text messages, 36 fully correct (84%) against 49% for the offline parser; photos and voice not measured |
 | **Agent Development Kit (ADK)** | WhatsApp seller agent with tenant-scoped tools; demo buyer agent using `McpToolset` | Built |
 | **Cloud Run** | API, MCP server, webhooks, seller dashboard | Built (deploy script) |
+| **Cloud Load Balancing + Certificate Manager** | Shop addresses: a global HTTPS load balancer with one wildcard certificate in front of Cloud Run (`*.etalase.site`) | Built in the sandbox; steps in [SETUP.md](SETUP.md#7-shop-addresses-optional) |
 | **Secret Manager** | Session secret, dev and webhook tokens, provider keys | Built (deploy script) |
 | **Firestore** | Transactional catalog, stock reservations and orders | Built; demo runs on the in-memory store |
 | **Pub/Sub, Cloud Tasks, Cloud Storage, Cloud KMS** | Events, per-order expiry, media, token encryption | Pilot (in-process equivalents today) |
@@ -164,7 +165,7 @@ Telegram, Xendit QRIS, Biteship, Firestore) is wired and switches on with creden
 with real traffic yet:** they are covered by contract tests written from the providers' documentation, not by live calls.
 
 Not yet known, and said plainly in the docs: whether a payout hold can be enforced at Xendit, how Bank Indonesia would classify
-holding a payout, how accurate Gemini extraction is on real seller messages (49% for the offline baseline, no model measured),
+holding a payout, how accurate Gemini extraction is on real seller messages (84% of 43 labelled text messages fully correct with Gemini, 49% for the offline baseline; photos, voice and real messages not measured),
 and whether sellers will pay a 4% commission and wait 72 to 168 hours (no seller has been interviewed). Details and the
 checks to run first are in [Market fit and direction](docs/17-market-fit-and-direction.md) and in
 [Security, privacy and compliance](docs/09-security-privacy-compliance.md#known-gaps-before-a-pilot).

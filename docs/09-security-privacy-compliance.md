@@ -103,6 +103,33 @@ Implemented in the prototype and covered by `tests/test_security.py` and `tests/
 | Secrets | Secret Manager in Cloud Run (the deploy script creates random secrets once and never prints them); nothing in the repo (`.env.example` only) |
 | Requests | 2 MB body limit, security headers on every response |
 
+## Impersonation and phishing
+
+The attacks that matter happen outside our systems: someone writes to a seller from another number as "Etalase support" and asks for the sign-in code, sends a look-alike
+"verification" link, or clones a pay page on a similar domain. We cannot stop another number from writing to a seller, so the design makes the real thing recognisable and
+keeps money and identity out of the chat. Sign-up in chat (designed, not built, see [doc 02](02-product.md#1-seller-onboarding-about-2-minutes)) makes this matter more,
+because the seller is asked to open a link from a chat.
+
+| Threat | What exists in the prototype | What is missing |
+|---|---|---|
+| A fake "support" asks for the sign-in code | The code message says "Never share this code"; a code lasts 5 minutes and allows 5 tries; relinking a shop to a new chat is announced to the old channel and the WhatsApp number | The message does not say that Etalase will never ask for the code, and there is no first-message notice of what Etalase never asks |
+| A look-alike verification or payment link | Text typed by a stranger is never turned into a clickable link inside our messages (`seller/format.py`); shop addresses that start with `xn--` (punycode look-alikes) are refused | No fixed-domain policy: the hackathon URL is a `*.run.app` address, and no look-alike domains are registered |
+| Another number says it is Etalase | One WhatsApp number sends everything | Meta business verification and display-name approval for the number are not done, and whether a verified badge is open to us is unchecked |
+| A hijacked dashboard session | The dashboard has no route that changes the payout account (bank details live at the provider) | Sensitive changes do not yet ask for a fresh code |
+| A scam shop under a known brand | A reserved list of names; the return policy, track record and payout hold are visible to buyers | No brand-name rules, no report button, no abuse process ([ADR 0008](adr/0008-seller-channels-and-shop-addresses.md)) |
+| A pay page cloned on another domain | Pay pages are served from our host and show the QR there | Same as the domain row |
+
+Design rules to adopt before a pilot (none is built):
+
+1. One official number with a verified business name.
+2. Links only on one domain we own. The verification link is a fixed page of ours that leads to the provider, with no destination parameter, so it cannot become an open
+   redirect.
+3. The first message and the dashboard say, in one fixed sentence, that Etalase never asks for a code, PIN or password in chat and never asks anyone to transfer money. The
+   sign-in code message adds that Etalase will not ask for it.
+4. Bank or payout changes only in the signed-in dashboard, with a fresh code and a notice to the old channel.
+5. A real domain, with the obvious look-alikes registered; buyers pay only on pages of that domain.
+6. A report path (`SUPPORT_CONTACT` already exists as a setting) and a short rule set for shop names and prohibited goods.
+
 ## Known gaps before a pilot
 
 - Rate limits and OTP counters are in memory per instance; move them to Memorystore or Firestore
@@ -117,3 +144,4 @@ Implemented in the prototype and covered by `tests/test_security.py` and `tests/
 - Instagram access tokens should be encrypted with Cloud KMS before storage.
 - Signed URLs and malware scanning for uploaded media; Cloud Storage instead of the local media folder.
 - Formal data retention policy and DPIA.
+- Impersonation and phishing outside our channel: see [Impersonation and phishing](#impersonation-and-phishing); the rules there are designs, none is built.

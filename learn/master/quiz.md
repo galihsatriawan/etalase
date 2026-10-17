@@ -119,7 +119,7 @@ From `tool_context.state["seller_id"]`, set when the session is created for the 
 Both implement the `CatalogExtractor` protocol and return the same `ExtractedCatalog` schema. `GeminiExtractor` (multimodal, `response_schema=ExtractedCatalog`, temperature 0.1) is used when an API key or Vertex AI is configured; `HeuristicExtractor` (text and CSV rules) is used otherwise, including in all tests. See [Catalog and stock](/architecture/catalog-and-stock).
 :::
 
-**17. Multiple choice. The command that runs the 725 automated tests is:**
+**17. Multiple choice. The command that runs the 729 automated tests is:**
 (a) `python scripts/demo.py` (b) `cd prototype && pytest -q` (c) `uvicorn etalase.api.main:app --port 8080` (d) `npm run build`
 
 ::: details Answer
@@ -270,7 +270,7 @@ The QRIS MDR is 0% for all merchants up to Rp100,000 and for micro merchants up 
 **40. Which benchmark results can you claim today, and which are still TBD?**
 
 ::: details Answer
-Claimable: 0 units oversold when 100 concurrent reservations race for the last unit (on the in-memory store), and duplicate and late payments handled (no double stock change, late payment refunded), all in the 725 passing tests. TBD: catalog extraction accuracy, catalog build time, agent tool latency, seller alert speed and stock-update intent accuracy with Gemini. See [Testing](/ship/testing) and [Pitch and Q&A](/business/pitch-and-qa).
+Claimable: 0 units oversold when 100 concurrent reservations race for the last unit (on the in-memory store), and duplicate and late payments handled (no double stock change, late payment refunded), all in the 729 passing tests. TBD: catalog extraction accuracy, catalog build time, agent tool latency, seller alert speed and stock-update intent accuracy with Gemini. See [Testing](/ship/testing) and [Pitch and Q&A](/business/pitch-and-qa).
 :::
 
 **41. How does the same order alert reach a seller on WhatsApp or on Telegram without the core knowing which?**

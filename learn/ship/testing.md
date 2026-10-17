@@ -1,6 +1,6 @@
 # Testing
 
-How Etalase's 729 automated tests are organised, what each file proves, how to run and extend them, and what still has to be measured before a pilot.
+How Etalase's 731 automated tests are organised, what each file proves, how to run and extend them, and what still has to be measured before a pilot.
 
 ::: tip What you will learn
 - The layout of `prototype/tests/`, the fixtures in `conftest.py` and the regression tests for fixed bugs
@@ -19,7 +19,7 @@ All tests run offline in about ten seconds. ADR 0005 (`docs/adr/0005-adapters-an
 ```bash
 cd prototype
 pip install -r requirements-dev.txt
-pytest -q          # 729 passed
+pytest -q          # 731 passed
 ```
 
 ## How the suite is organised

@@ -283,12 +283,15 @@ def console_state(ctx: "AppContext") -> dict:
     base = ctx.settings.public_base_url.rstrip("/")
     seller = ctx.store.get_seller(DEMO_SELLER_ID)
     from .seller import slugs
+    agent_base = slugs.store_origin(ctx.settings, seller) if seller else base
     return {
         "chat": chat,
         "orders": [order_view(ctx, o) for o in orders],
         "photos": list(SAMPLE_PHOTOS),
         "number": DEMO_NUMBER,
         "ai": ctx.modes.get("ai", ""),
+        # The shop is its own business for agents (UCP profile, MCP): on its own address when it has one, else the shared host.
+        # The dashboard is not part of a shop's address and stays on the shared (platform) host.
         "links": {"store": slugs.store_url(ctx.settings, seller) if seller else f"{base}/stores/{DEMO_SELLER_ID}",
-                  "mcp": f"{base}/mcp/", "ucp": f"{base}/.well-known/ucp", "dashboard": f"{base}/"},
+                  "mcp": f"{agent_base}/mcp/", "ucp": f"{agent_base}/.well-known/ucp", "dashboard": f"{base}/"},
     }

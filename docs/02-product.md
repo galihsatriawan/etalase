@@ -62,7 +62,7 @@ Etalase turns a WhatsApp seller's product photos and chats into a storefront tha
 ### 2. Buying through an agent
 1. Buyer asks their assistant for a product.
 2. The agent calls `search_products`, then `get_shipping_options`.
-3. The buyer agrees; the agent calls `create_checkout`. Stock is reserved for 15 minutes.
+3. The buyer agrees; the agent calls `create_checkout`, for one product or for several products of the same shop (`items`: one order, one payment, one parcel; all lines are reserved or none). Stock is reserved for 15 minutes.
 4. The agent shows the QRIS code; the buyer pays.
 5. The seller gets "New paid order" in WhatsApp with **Accept** / **Out of stock** buttons.
 

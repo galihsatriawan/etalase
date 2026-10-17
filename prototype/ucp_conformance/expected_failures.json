@@ -7,7 +7,6 @@
   "CheckoutLifecycleTest.test_complete_is_idempotent": "same as test_complete_checkout: it cannot reach status completed through the card flow",
   "CheckoutLifecycleTest.test_cannot_cancel_completed_checkout": "same as test_complete_checkout: it cannot reach status completed through the card flow",
   "CheckoutLifecycleTest.test_cannot_update_completed_checkout": "same as test_complete_checkout: it cannot reach status completed through the card flow",
-  "BusinessLogicTest.test_buyer_consent": "buyer_consent capability not implemented (not advertised); the suite does not skip it",
   "BusinessLogicTest.test_discount_flow": "discount capability not implemented (not advertised); the suite does not skip it",
   "BusinessLogicTest.test_multiple_discounts_one_rejected": "discount capability not implemented (not advertised); the suite does not skip it",
   "OrderTest.test_order_retrieval": "order capability not implemented (not advertised); also needs an order straight after complete",

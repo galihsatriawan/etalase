@@ -7,6 +7,9 @@ checkout with it. This module implements the business side of:
   describes that shop alone: its endpoint is the shop's origin and its checkout only accepts that shop's items
 - dev.ucp.shopping.checkout   over REST  (create / get / update / complete / cancel)
 - dev.ucp.shopping.fulfillment extension (shipping address + courier choice)
+- dev.ucp.shopping.buyer_consent extension (`buyer.consent`: analytics, preferences, marketing, sale_of_data). Recorded on the
+  session as the platform sends it and returned on every response; a request that sends consent replaces it (so it can be
+  withdrawn), one that leaves it out keeps it. Etalase sends no marketing and sells no data, so nothing acts on it yet.
 
 How Etalase maps onto it
 - item.id is a variant id (what /agent/v1 and the MCP tools return). A session holds up to MAX_LINES line items, all
@@ -57,6 +60,9 @@ SUPPORTED_VERSIONS = {UCP_VERSION}
 SERVICE = "dev.ucp.shopping"
 CHECKOUT = "dev.ucp.shopping.checkout"
 FULFILLMENT = "dev.ucp.shopping.fulfillment"
+BUYER_CONSENT = "dev.ucp.shopping.buyer_consent"
+# The four consent states the extension defines. Etalase records what the platform sends and nothing more: it sends no marketing and sells no data.
+CONSENT_KEYS = ("analytics", "preferences", "marketing", "sale_of_data")
 SPEC = f"https://ucp.dev/{UCP_VERSION}"
 MINOR_UNITS = {"IDR": 100}          # ISO 4217 exponent; anything not listed is treated as 2 decimals
 SESSION_TTL = timedelta(minutes=30)
@@ -97,6 +103,8 @@ def ucp_profile(ctx: "AppContext", shop: ShopScope | None = None) -> dict:
                         "schema": f"{SPEC}/schemas/shopping/checkout.json"}],
             FULFILLMENT: [{"version": UCP_VERSION, "spec": f"{SPEC}/specification/fulfillment",
                            "schema": f"{SPEC}/schemas/shopping/fulfillment.json", "extends": CHECKOUT}],
+            BUYER_CONSENT: [{"version": UCP_VERSION, "spec": f"{SPEC}/specification/buyer-consent",
+                             "schema": f"{SPEC}/schemas/shopping/buyer_consent.json", "extends": CHECKOUT}],
         },
         "payment_handlers": {},   # QRIS is finished by the buyer on continue_url, not through an instrument handler
     }}
@@ -111,7 +119,8 @@ class UcpError(Exception):
 def envelope(status: str = "success", with_capabilities: bool = True) -> dict:
     out: dict[str, Any] = {"version": UCP_VERSION, "status": status}
     if with_capabilities:
-        out["capabilities"] = {CHECKOUT: [{"version": UCP_VERSION}], FULFILLMENT: [{"version": UCP_VERSION}]}
+        out["capabilities"] = {CHECKOUT: [{"version": UCP_VERSION}], FULFILLMENT: [{"version": UCP_VERSION}],
+                               BUYER_CONSENT: [{"version": UCP_VERSION}]}
         out["payment_handlers"] = {}
     return out
 
@@ -247,7 +256,11 @@ class UcpCheckout:
     @staticmethod
     def _buyer_in(raw: dict | None) -> dict:
         raw = raw or {}
-        return {k: _text(raw.get(k), 80 if k != "email" else 120) for k in ("first_name", "last_name", "email", "phone_number")}
+        out: dict[str, Any] = {k: _text(raw.get(k), 80 if k != "email" else 120) for k in ("first_name", "last_name", "email", "phone_number")}
+        consent = raw.get("consent")
+        if isinstance(consent, dict):       # only the four known states, and only true or false: anything else is dropped, not guessed
+            out["consent"] = {k: consent[k] for k in CONSENT_KEYS if isinstance(consent.get(k), bool)}
+        return out
 
     @staticmethod
     def _destination_in(fulfillment: dict | None) -> dict | None:
@@ -307,7 +320,10 @@ class UcpCheckout:
     def _apply(self, s: dict, body: CheckoutIn, replace: bool) -> None:
         """Copy what the request says into the session. Fields the request leaves out stay as they were."""
         if body.buyer is not None:
-            s["buyer"] = self._buyer_in(body.buyer)
+            buyer = self._buyer_in(body.buyer)
+            if "consent" not in buyer and s["buyer"].get("consent"):
+                buyer["consent"] = s["buyer"]["consent"]    # an update that does not mention consent keeps it; one that does replaces it, so it can be withdrawn
+            s["buyer"] = buyer
         changed_route = False
         if body.fulfillment is not None:
             dest = self._destination_in(body.fulfillment)

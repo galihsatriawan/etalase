@@ -79,8 +79,9 @@ def test_profile_is_a_valid_ucp_business_profile(client):
     service = profile["ucp"]["services"]["dev.ucp.shopping"][0]
     assert service["transport"] == "rest" and service["endpoint"].endswith(API)
     caps = profile["ucp"]["capabilities"]
-    assert set(caps) == {"dev.ucp.shopping.checkout", "dev.ucp.shopping.fulfillment"}
+    assert set(caps) == {"dev.ucp.shopping.checkout", "dev.ucp.shopping.fulfillment", "dev.ucp.shopping.buyer_consent"}
     assert caps["dev.ucp.shopping.fulfillment"][0]["extends"] == "dev.ucp.shopping.checkout"
+    assert caps["dev.ucp.shopping.buyer_consent"][0]["extends"] == "dev.ucp.shopping.checkout"
 
 
 # ------------------------------------------------------------------ the whole journey
@@ -441,3 +442,58 @@ def test_a_session_from_before_carts_still_loads_and_can_be_updated(client, cart
     updated = valid(client.put(f"{API}/checkout-sessions/{s['id']}", headers=HEADERS, json={"buyer": fresh_buyer()}))
     assert updated["line_items"][0]["quantity"] == 2
     assert "lines" in ctx.store.get_doc(ucp_protocol.SESSION_KIND, s["id"])
+
+
+# ------------------------------------------------------------------ buyer consent
+CONSENT = {"marketing": True, "analytics": False, "sale_of_data": False}
+
+
+def test_consent_sent_on_create_comes_back_on_create_and_get(client, item):
+    _, v = item
+    r = post(client, "/checkout-sessions", {"line_items": [{"item": {"id": v.id}, "quantity": 1}],
+                                            "buyer": {"first_name": "Consent", "last_name": "Tester", "consent": CONSENT}})
+    assert r.status_code == 201, r.text
+    created = valid(r)
+    assert created["buyer"]["consent"] == CONSENT                                      # false is kept: it is an answer, not an absence
+    assert "dev.ucp.shopping.buyer_consent" in created["ucp"]["capabilities"]
+    got = valid(client.get(f"{API}/checkout-sessions/{created['id']}", headers=HEADERS))
+    assert got["buyer"]["consent"] == CONSENT
+
+
+def test_an_update_that_leaves_consent_out_keeps_it_and_one_that_sends_it_replaces_it(client, item):
+    _, v = item
+    s = valid(post(client, "/checkout-sessions", {"line_items": [{"item": {"id": v.id}, "quantity": 1}], "buyer": {"consent": CONSENT}}))
+    kept = valid(client.put(f"{API}/checkout-sessions/{s['id']}", headers=HEADERS, json={"buyer": fresh_buyer()}))
+    assert kept["buyer"]["consent"] == CONSENT and kept["buyer"]["first_name"] == "Dewi"
+    withdrawn = valid(client.put(f"{API}/checkout-sessions/{s['id']}", headers=HEADERS, json={"buyer": {**fresh_buyer(), "consent": {"marketing": False}}}))
+    assert withdrawn["buyer"]["consent"] == {"marketing": False}                       # replaced, so a buyer can withdraw it
+
+
+def test_only_known_consent_states_with_true_or_false_are_kept(client, item):
+    _, v = item
+    s = valid(post(client, "/checkout-sessions", {"line_items": [{"item": {"id": v.id}, "quantity": 1}],
+                                                  "buyer": {"consent": {"marketing": "yes", "analytics": True, "preferences": 1, "telemetry": True,
+                                                                        "sale_of_data": None}}}))
+    assert s["buyer"]["consent"] == {"analytics": True}
+    s = valid(post(client, "/checkout-sessions", {"line_items": [{"item": {"id": v.id}, "quantity": 1}], "buyer": {"consent": "all"}}))
+    assert "consent" not in s.get("buyer", {})                                         # not an object: ignored
+
+
+def test_a_session_without_consent_says_nothing_about_it(client, item):
+    _, v = item
+    s = new_session(client, v)
+    assert "consent" not in s.get("buyer", {})
+    s = ready_session(client, v)
+    assert "consent" not in s["buyer"]
+
+
+def test_consent_survives_the_whole_journey_to_a_paid_order(client, item):
+    product, v = item
+    s = ready_session(client, v)
+    s = valid(client.put(f"{API}/checkout-sessions/{s['id']}", headers=HEADERS, json={"buyer": {**fresh_buyer(), "consent": CONSENT}}))
+    assert s["status"] == "ready_for_complete" and s["buyer"]["consent"] == CONSENT
+    done = valid(post(client, f"/checkout-sessions/{s['id']}/complete", {}))
+    assert done["status"] == "requires_escalation" and done["buyer"]["consent"] == CONSENT
+    order = next(o for o in ctx.store.list_orders(product.seller_id))
+    ctx.checkout.payment_succeeded(order.payment.reference)
+    assert valid(client.get(f"{API}/checkout-sessions/{s['id']}", headers=HEADERS))["buyer"]["consent"] == CONSENT

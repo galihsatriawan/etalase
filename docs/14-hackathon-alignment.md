@@ -29,6 +29,7 @@ covers discovery, conversational shopping and inventory.
 - [ ] Team of 2–4 registered (solo participation is not allowed; registration closes 11 October)
 - [ ] Deck converted to PDF (`submission/`)
 - [ ] Working prototype deployed on Cloud Run, end to end
+- [ ] Reviewer sandbox deployed (`DEMO=1 make deploy`), link in the submission, steps in [JUDGES.md](../JUDGES.md): reviewers can run the flow without an account because WhatsApp, payment and courier are simulated there
 - [ ] Public GitHub repository (this repo, created fresh during the hackathon)
 - [ ] Demo video, about 3 minutes, public YouTube / Vimeo / Drive link
 - [ ] Everything in English (code, docs, deck)

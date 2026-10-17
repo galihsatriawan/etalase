@@ -10,6 +10,9 @@ make doctor    # after you fill .env: tests every key against the real service
 make eval      # catalog-extraction accuracy (offline rules, plus Gemini when a key is set)
 make e2e       # the whole story over real HTTP: starts the app, then seller, agent (UCP and MCP), payment, shipping, payout
 make browser   # real-browser check of the buyer pages (needs playwright)
+make judge     # the reviewers' sandbox at http://localhost:8080/demo (simulated chat, payment and courier; see ../JUDGES.md)
+make e2e-judge       # the reviewers' path through the sandbox over real HTTP
+make browser-judge   # the same path in a real browser, including the demo payment button (needs playwright)
 make deploy    # PROJECT_ID=my-project make deploy: Cloud Run from your .env (make deploy-dry prints the plan only)
 make help      # all targets, including the UCP conformance runner
 ```

@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#ffffff">
+<meta name="robots" content="noindex,nofollow">
+<title>Etalase demo sandbox</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='9' fill='%2308815a'/%3E%3Cpath d='M9.5 7.5h13l3.5 6.5a3.5 3.5 0 0 1-7 0 3.5 3.5 0 0 1-7 0 3.5 3.5 0 0 1-7 0z' fill='%23fff'/%3E%3Crect x='8' y='17.5' width='16' height='7.5' rx='1.6' fill='%23fff' fill-opacity='.92'/%3E%3C/svg%3E">
+<link rel="preload" href="/static/plus-jakarta-sans.woff2" as="font" type="font/woff2" crossorigin>
+<style>
+/*@@BASE_CSS@@*/
+.wrap{width:100%;max-width:64rem;margin:0 auto;padding:0 1rem}
+main.wrap{flex:1;padding-top:1.25rem;padding-bottom:3rem;display:grid;gap:1rem}
+.brand{display:flex;align-items:center;gap:.6rem;font:800 1.125rem/1 var(--sans)}
+.brand svg{width:1.75rem;height:1.75rem;display:block}
+.bar .pill{margin-left:auto}
+.intro h1{margin-bottom:.4rem}
+.intro .steps{margin:.9rem 0 0;padding-left:1.25rem;display:grid;gap:.3rem;color:var(--muted);font-size:.9375rem}
+.intro .steps b{color:var(--ink)}
+.grid{display:grid;gap:1rem;align-items:start}
+@media(min-width:56rem){.grid{grid-template-columns:1.15fr 1fr}}
+.stack{display:grid;gap:1rem}
+.phone{padding:0;overflow:hidden;display:flex;flex-direction:column;min-height:34rem;max-height:44rem}
+.phone .head{display:flex;align-items:center;gap:.7rem;padding:.8rem 1rem;background:var(--deep);color:#fff}
+.phone .head .av{width:2.25rem;height:2.25rem;border-radius:50%;background:#1fb384;display:grid;place-items:center;font-weight:800}
+.phone .head small{display:block;opacity:.75;font-size:.75rem}
+.thread{flex:1;overflow:auto;padding:1rem;background:#efeae2;display:flex;flex-direction:column;gap:.5rem}
+.msg{max-width:88%;padding:.55rem .75rem;border-radius:12px;box-shadow:0 1px 1px rgba(0,0,0,.08);white-space:pre-wrap;overflow-wrap:anywhere;font-size:.9375rem;line-height:1.45}
+.msg.etalase{background:#fff;align-self:flex-start;border-top-left-radius:3px}
+.msg.me{background:#d9fdd3;align-self:flex-end;border-top-right-radius:3px}
+.msg img{display:block;width:9rem;height:9rem;object-fit:cover;border-radius:8px;margin-bottom:.35rem}
+.msg .btns{display:flex;flex-wrap:wrap;gap:.4rem;margin:.6rem -.25rem -.25rem}
+.msg .btns button{flex:1 1 auto;min-height:2.5rem;border:0;border-radius:8px;background:#f0f8f4;color:var(--brand-ink);font:650 .9375rem/1 var(--sans);cursor:pointer;box-shadow:inset 0 0 0 1px var(--line-2)}
+.msg .btns button:active{background:var(--brand-soft)}
+.empty{margin:auto;text-align:center;color:var(--soft);font-size:.9375rem;max-width:20rem}
+.composer{padding:.75rem;background:#f7f7f7;display:grid;gap:.5rem;border-top:1px solid var(--line)}
+.composer .row{display:flex;gap:.5rem}
+.composer input[type=text]{flex:1;min-width:0;min-height:2.75rem;padding:0 .9rem;border:1.5px solid var(--line-2);border-radius:999px;font:inherit;font-size:1rem;background:#fff}
+.photos{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap}
+.photos label{font-size:.8125rem;color:var(--muted);font-weight:650}
+.thumb{width:3rem;height:3rem;padding:0;border:0;border-radius:8px;overflow:hidden;cursor:pointer;box-shadow:0 0 0 1.5px var(--line-2);background:#fff}
+.thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.thumb[aria-pressed=true]{box-shadow:0 0 0 3px var(--brand)}
+.chips{display:flex;gap:.4rem;flex-wrap:wrap}
+.chip{border:0;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1.5px var(--line-2);padding:.4rem .8rem;font:600 .8125rem/1.2 var(--sans);color:var(--ink);cursor:pointer;text-align:left}
+.chip:active{background:var(--brand-soft)}
+.order{border-top:1px solid var(--line);padding:.85rem 0;display:grid;gap:.45rem}
+.order:first-of-type{border-top:0;padding-top:0}
+.order .top{display:flex;justify-content:space-between;gap:.5rem;align-items:center}
+.order .id{font:650 .8125rem/1.2 ui-monospace,Menlo,monospace;color:var(--soft)}
+.order .acts{display:flex;flex-wrap:wrap;gap:.45rem}
+.order .next{font-size:.9375rem;font-weight:600;color:var(--brand-ink)}
+.links{display:grid;gap:.55rem;font-size:.9375rem}
+.links a,.links code{overflow-wrap:anywhere}
+.links code{background:var(--bg);border-radius:6px;padding:.1rem .35rem;font-size:.8125rem}
+.err{display:none;margin-top:.5rem}.err.on{display:flex}
+.btn.sm{min-height:2.5rem}
+</style>
+</head>
+<body>
+<!--@@SPRITE@@-->
+<header class="bar">
+  <div class="wrap in">
+    <span class="brand"><svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="9" fill="#08815a"/><path d="M9.5 7.5h13l3.5 6.5a3.5 3.5 0 0 1-7 0 3.5 3.5 0 0 1-7 0 3.5 3.5 0 0 1-7 0z" fill="#fff"/><rect x="8" y="17.5" width="16" height="7.5" rx="1.6" fill="#fff" fill-opacity=".92"/></svg>Etalase</span>
+    <span class="pill wait"><i></i>Demo sandbox</span>
+  </div>
+</header>
+<main id="main" class="wrap" tabindex="-1">
+  <section class="card intro">
+    <h1>Try the whole story</h1>
+    <p class="note">You are playing a seller. The left side is the WhatsApp chat of a made-up shop, <b id="num"></b>. Nothing here sends a real message, moves real money or books a real courier.</p>
+    <ol class="steps">
+      <li><b>Build the catalog.</b> Pick a sample photo, describe the product, send. Tap <b>Publish</b> in the reply.</li>
+      <li><b>Buy as a person or as an AI agent.</b> Open the shop link, or point an agent at the MCP or UCP address on the right.</li>
+      <li><b>Pay.</b> The checkout shows a QRIS code; the button under it stands in for your banking app.</li>
+      <li><b>Run the order.</b> Tap <b>Accept</b> in the chat, send a tracking number, then use the buttons under Orders for the courier and the return window.</li>
+    </ol>
+    <p class="fine" style="margin-top:.75rem">Catalog AI on this server: <b id="ai"></b>. This sandbox is shared: other visitors see the same chat and shop. Products you publish disappear after an hour. It resets when the server restarts.</p>
+  </section>
+
+  <div class="grid">
+    <section class="card phone" aria-labelledby="phone-title">
+      <div class="head"><span class="av" aria-hidden="true">R</span><div><b id="phone-title">Etalase on WhatsApp</b><small>the seller's phone (simulated)</small></div></div>
+      <div class="thread" id="thread" role="log" aria-live="polite" aria-label="Chat with Etalase"><p class="empty">Nothing yet. Send a photo and a description, or tap a suggestion below.</p></div>
+      <form class="composer" id="composer" autocomplete="off">
+        <div class="chips" id="chips"></div>
+        <div class="photos"><label>Attach a sample photo</label><span id="photos" style="display:flex;gap:.5rem"></span></div>
+        <div class="row"><input type="text" id="text" maxlength="1000" placeholder="Type a message" aria-label="Message"><button class="btn sm" id="send" type="submit">Send</button></div>
+        <div class="alert err" id="err" role="alert"></div>
+      </form>
+    </section>
+
+    <div class="stack">
+      <section class="card" aria-labelledby="orders-title">
+        <h2 class="cap" id="orders-title">Orders</h2>
+        <div id="orders"><p class="fine">No orders yet. Buy something from the shop and it appears here.</p></div>
+      </section>
+      <section class="card" aria-labelledby="links-title">
+        <h2 class="cap" id="links-title">Open and try</h2>
+        <div class="links" id="links"></div>
+      </section>
+    </div>
+  </div>
+</main>
+<script>
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  var photo = "", shown = "", busy = false;
+  var CHIPS = [
+    ["Catalog", "Plain scarf, grey 6, olive 4, price 60k", "pashmina-silk.png"],
+    ["Shop link", "my shop link"],
+    ["Tracking number", "tracking JNE123456"],
+    ["Sales", "sales"],
+    ["Navy sold out", "navy sold out"]
+  ];
+  var money = function (n) { return "Rp" + Number(n).toLocaleString("id-ID"); };
+  var el = function (tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+
+  function linkify(parent, text) {            // http(s) addresses become links; everything else stays plain text
+    var re = /https?:\/\/[^\s<>"')]+/g, last = 0, m;
+    while ((m = re.exec(text))) {
+      parent.appendChild(document.createTextNode(text.slice(last, m.index)));
+      var a = el("a", "", m[0]); a.href = m[0]; a.target = "_blank"; a.rel = "noopener"; parent.appendChild(a);
+      last = m.index + m[0].length;
+    }
+    parent.appendChild(document.createTextNode(text.slice(last)));
+  }
+  function fail(msg) { var e = $("err"); e.textContent = msg || ""; e.classList.toggle("on", !!msg); }
+
+  async function call(path, body) {
+    var res = await fetch(path, { method: body === undefined ? "GET" : "POST", headers: { "content-type": "application/json" }, body: body === undefined ? undefined : JSON.stringify(body) });
+    if (!res.ok) { var d = res.statusText; try { d = (await res.json()).detail || d; } catch (e) {} throw new Error(typeof d === "string" ? d : "Request failed"); }
+    return res.json();
+  }
+
+  function renderThread(chat) {
+    var t = $("thread"), atEnd = t.scrollHeight - t.scrollTop - t.clientHeight < 80;
+    t.textContent = "";
+    if (!chat.length) { t.appendChild(el("p", "empty", "Nothing yet. Send a photo and a description, or tap a suggestion below.")); return; }
+    chat.forEach(function (m) {
+      var b = el("div", "msg " + m.who);
+      if (m.photo) { var i = el("img"); i.src = "/media/" + encodeURIComponent(m.photo); i.alt = "Photo you sent"; b.appendChild(i); }
+      if (m.who === "me" && m.tapped) b.appendChild(el("b", "", "Tapped: "));
+      var body = el("span"); linkify(body, m.text || ""); b.appendChild(body);
+      if (m.buttons && m.buttons.length) {
+        var row = el("div", "btns");
+        m.buttons.forEach(function (x) {
+          var btn = el("button", "", x.title); btn.type = "button";
+          btn.onclick = function () { send({ button_id: x.id, text: x.title }); };
+          row.appendChild(btn);
+        });
+        b.appendChild(row);
+      }
+      t.appendChild(b);
+    });
+    if (atEnd) t.scrollTop = t.scrollHeight;
+  }
+
+  function renderOrders(orders) {
+    var box = $("orders"); box.textContent = "";
+    if (!orders.length) { box.appendChild(el("p", "fine", "No orders yet. Buy something from the shop and it appears here.")); return; }
+    orders.forEach(function (o) {
+      var row = el("div", "order"), top = el("div", "top");
+      top.appendChild(el("span", "id", o.id));
+      var pill = el("span", "pill " + (/paid|delivered|accepted|shipped/.test(o.status) ? "ok" : /rejected|expired|refunded/.test(o.status) ? "bad" : "wait"));
+      pill.appendChild(el("i")); pill.appendChild(document.createTextNode(o.status)); top.appendChild(pill);
+      row.appendChild(top);
+      row.appendChild(el("div", "", o.items + " · " + money(o.total)));
+      row.appendChild(el("div", "fine", "Buyer in " + (o.city || "?") + (o.channel ? " · via " + o.channel : "")));
+      if (o.next) row.appendChild(el("div", "next", o.next));
+      var acts = el("div", "acts");
+      var open = el("a", "btn alt sm", "Open order page"); open.href = o.pay_url; open.target = "_blank"; open.rel = "noopener"; acts.appendChild(open);
+      o.actions.forEach(function (a) {
+        var b = el("button", "btn sm", a.title); b.type = "button";
+        b.onclick = async function () {
+          b.disabled = true; fail("");
+          try { paint(await call("/demo/api/orders/" + encodeURIComponent(o.id) + "/" + a.id, {})); }
+          catch (e) { fail(e.message); b.disabled = false; }
+        };
+        acts.appendChild(b);
+      });
+      row.appendChild(acts); box.appendChild(row);
+    });
+  }
+
+  function renderLinks(l) {
+    var box = $("links"); box.textContent = "";
+    function line(label, href, code) {
+      var d = el("div"); d.appendChild(el("b", "", label + " "));
+      if (href) { var a = el("a", "", href); a.href = href; a.target = "_blank"; a.rel = "noopener"; d.appendChild(a); }
+      else d.appendChild(el("code", "", code));
+      box.appendChild(d);
+    }
+    line("Shop (for people):", l.store);
+    line("Seller dashboard:", l.dashboard);
+    line("MCP address (for AI agents):", null, l.mcp);
+    line("UCP profile:", l.ucp);
+  }
+
+  function setPhoto(name) {
+    photo = name;
+    Array.prototype.forEach.call($("photos").children, function (c) { c.setAttribute("aria-pressed", String(c.dataset.name === name)); });
+  }
+
+  function renderPhotos(names) {
+    var box = $("photos"); if (box.childElementCount) return;
+    names.forEach(function (n) {
+      var b = el("button", "thumb"); b.type = "button"; b.setAttribute("aria-pressed", "false"); b.setAttribute("aria-label", "Sample photo " + n.replace(/\.png$/, "").replace(/-/g, " "));
+      var i = el("img"); i.src = "/media/" + encodeURIComponent(n); i.alt = ""; b.appendChild(i);
+      b.dataset.name = n;
+      b.onclick = function () { setPhoto(photo === n ? "" : n); };
+      box.appendChild(b);
+    });
+  }
+
+  function paint(s) {
+    var key = JSON.stringify(s);
+    $("num").textContent = "+" + s.number;
+    $("ai").textContent = /^gemini/.test(s.ai) ? s.ai : "offline rules (no Gemini key here, so the typed text is parsed by rules and photos are not read)";
+    renderPhotos(s.photos);
+    if (key === shown) return;
+    shown = key; renderThread(s.chat); renderOrders(s.orders); renderLinks(s.links);
+  }
+
+  async function send(payload) {
+    if (busy) return; busy = true; fail("");
+    try { paint(await call("/demo/api/send", payload)); }
+    catch (e) { fail(e.message === "too many requests, slow down" ? "Slow down a little and try again in a minute." : e.message); }
+    busy = false;
+  }
+
+  CHIPS.forEach(function (c) {
+    var b = el("button", "chip", c[0]); b.type = "button"; b.title = c[1];
+    b.onclick = function () { $("text").value = c[1]; if (c[2]) setPhoto(c[2]); $("text").focus(); };
+    $("chips").appendChild(b);
+  });
+  $("composer").onsubmit = async function (e) {
+    e.preventDefault();
+    var text = $("text").value.trim();
+    if (!text && !photo) { fail("Type a message or attach a photo."); return; }
+    $("send").disabled = true;
+    await send({ text: text, photo: photo });
+    $("send").disabled = false; $("text").value = ""; setPhoto("");
+  };
+
+  async function poll() {
+    if (document.hidden || busy) return;
+    try { paint(await call("/demo/api/state")); } catch (e) {}
+  }
+  poll(); setInterval(poll, 3000);
+  document.addEventListener("visibilitychange", poll);
+})();
+</script>
+</body>
+</html>

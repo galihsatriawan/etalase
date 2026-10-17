@@ -19,12 +19,22 @@
 # Gemini: with GOOGLE_API_KEY in .env the service uses that key; otherwise Vertex AI through the service account.
 # Options (environment variables): REGION, SERVICE, ETALASE_ENV (default dev), STORE_BACKEND (default memory),
 #   ENV_FILE (default .env), GEMINI_AUTH (auto|vertex|apikey), SKIP_API_ENABLE=1, SKIP_SMOKE=1.
+#
+# Judge sandbox:  DEMO=1 PROJECT_ID=my-project ./scripts/deploy_cloud_run.sh
+#   Deploys a copy that reviewers can try end to end without an account (see JUDGES.md): one shared demo seller, a simulated seller
+#   phone at /demo, a "simulate payment" button. Payment, courier and WhatsApp are simulated, so only the Gemini key is taken from
+#   .env and the service is called etalase-demo (SERVICE=... to change it), leaving a real deployment untouched. Always in-memory.
 set -euo pipefail
 
 PROJECT_ID="${PROJECT_ID:?set PROJECT_ID, for example: PROJECT_ID=my-project ./scripts/deploy_cloud_run.sh}"
 REGION="${REGION:-asia-southeast2}"
-SERVICE="${SERVICE:-etalase}"
+DEMO="${DEMO:-}"
+SERVICE="${SERVICE:-etalase${DEMO:+-demo}}"
 ENV_MODE="${ETALASE_ENV:-dev}"       # "dev" for the demo: mock payment/shipping and /dev endpoints behind DEV_TOKEN
+if [[ -n "$DEMO" ]]; then
+  [[ "$ENV_MODE" == "dev" ]] || { echo "DEMO=1 only runs with ETALASE_ENV=dev: visitors can simulate payments."; exit 1; }
+  [[ -z "${STORE_BACKEND:-}" || "$STORE_BACKEND" == "memory" ]] || { echo "DEMO=1 uses the in-memory store (it resets on restart, on purpose)."; exit 1; }
+fi
 ENV_FILE="${ENV_FILE:-.env}"
 SA_NAME="etalase-run"
 SA="${SA_NAME}@${PROJECT_ID}.iam.gserviceaccount.com"
@@ -85,7 +95,7 @@ URL="https://${SERVICE}-${PROJECT_NUMBER}.${REGION}.run.app"
 # ---------------------------------------------------------------- your keys and settings from .env
 say "Keys and settings from $ENV_FILE (names only; values are never printed)"
 SYNC="$(python3 scripts/env_to_cloud.py --project "$PROJECT_ID" --env-file "$ENV_FILE" --gemini-auth "${GEMINI_AUTH:-auto}" \
-  ${DRY_RUN:+--dry-run} \
+  ${DRY_RUN:+--dry-run} ${DEMO:+--demo --default SELLER_AI_CALLS_PER_HOUR=120 --fixed DEMO_MODE=true} \
   --default SELLER_LOCALE=en --default GEMINI_MODEL=gemini-3.8-flash --default GOOGLE_CLOUD_LOCATION=asia-southeast1 \
   --fixed "ETALASE_ENV=${ENV_MODE}" --fixed "PUBLIC_BASE_URL=${URL}" --fixed "STORE_BACKEND=${STORE_BACKEND:-memory}" \
   --fixed "GOOGLE_CLOUD_PROJECT=${PROJECT_ID}")"
@@ -122,6 +132,7 @@ if [[ -z "$DRY_RUN" ]]; then
     say "Smoke test"
     curl -fsS "${URL}/healthz" && echo
     curl -fsS "${URL}/.well-known/ucp" | python3 -c "import json,sys; d=json.load(sys.stdin)['ucp']; print('UCP profile OK, version', d['version'], '-', ', '.join(d['capabilities']))"
+    [[ -n "$DEMO" ]] && curl -fsS "${URL}/demo/api/state" | python3 -c "import json,sys; d=json.load(sys.stdin); print('Demo sandbox OK:', len(d['photos']), 'sample photos, seller', d['number'])"
   fi
 fi
 
@@ -129,7 +140,8 @@ fi
 cat <<EOF
 
 ${DRY_RUN:+(dry run) }Deployed: ${URL}
-  Health:               curl ${URL}/healthz
+${DEMO:+  Judge sandbox:        ${URL}/demo   (put this link in the submission; JUDGES.md explains what is simulated)
+}  Health:               curl ${URL}/healthz
   MCP for agents:       ${URL}/mcp/
   UCP profile:          ${URL}/.well-known/ucp   (checkout API: ${URL}/ucp/v1)
   WhatsApp webhook:     ${URL}/webhooks/whatsapp   (Meta verify token = WHATSAPP_VERIFY_TOKEN)

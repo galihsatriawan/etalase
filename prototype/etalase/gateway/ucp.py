@@ -39,7 +39,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
-from .. import attribution
+from .. import attribution, demo
 from ..models import Address, CheckoutError, OrderStatus, now
 from ..security import RateLimiter, client_ip
 from . import pages
@@ -523,7 +523,8 @@ class UcpCheckout:
         elif order.status == OrderStatus.AWAITING_PAYMENT and order.payment:
             live = f"{order.status.value}:{order.payment.status}"
             left = max(0, int((order.expires_at - now()).total_seconds())) if order.expires_at else None
-            body = (pages.pay_card(rupiah(total), order.payment.qr_string, left, pages.clock(order.expires_at) if order.expires_at else "") + rows)
+            body = (pages.pay_card(rupiah(total), order.payment.qr_string, left, pages.clock(order.expires_at) if order.expires_at else "") + rows
+                    + demo.pay_link(self.ctx, order, self.base))
         elif order.status in PAID_STATES:
             body = (pages.status("ok", "Paid", "<p>The seller will ship your order.</p>") + rows
                     + f'<p class=links><a href="{escape(self.base)}/stores/{escape(order.seller_id)}/returns">{pages.ico("shield", "sm")}Return policy</a></p>')

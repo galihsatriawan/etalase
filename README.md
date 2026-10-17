@@ -9,6 +9,8 @@ back in the seller's chat (WhatsApp, or Telegram if the seller prefers).
 Built for the **AI Builder Cup 2026** (Google Cloud, JAPAC), theme **Retail & Commerce: Intelligent
 Customer and Business Experiences**.
 
+**Reviewers:** you can try the whole flow without an account in a sandbox where the WhatsApp chat, the payment and the courier are simulated. See [JUDGES.md](JUDGES.md) for the steps and for what is real and what is not.
+
 ![Architecture](docs/assets/architecture.png)
 
 ## Why

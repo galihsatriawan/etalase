@@ -24,6 +24,7 @@ from urllib.parse import parse_qs
 
 from fastapi.responses import HTMLResponse, RedirectResponse
 
+from .. import demo
 from ..models import Address, CheckoutError, Order, OrderStatus, Product, now
 from ..seller import slugs
 from ..seller.format import rupiah
@@ -393,7 +394,8 @@ def buy_form(ctx: "AppContext", seller_id: str, variant_id: str, values: dict | 
             '<button class=btn type=submit data-busy="Placing your order&hellip;">Place order</button></div>')
     alert = (f'<div class=alert id=checkout-error role=alert>{pages.ico("alert")}<div><b>We could not place your order</b>{escape(_sentence(error))}</div></div>'
              if error else "")
-    body = f'<form class=stack method=post data-unit="{variant.price}"><h1 class=sr>Checkout</h1>{alert}{item}{contact}{delivery}{payment}{summary}{dock}</form>'
+    body = (f'<form class=stack method=post data-unit="{variant.price}"><h1 class=sr>Checkout</h1>{alert}{demo.buy_notice(ctx, seller.id)}'
+            f'{item}{contact}{delivery}{payment}{summary}{dock}</form>')
     return _respond(layout(f"Checkout · {product.title}", body, back=(f"/stores/{seller.id}/p/{product.id}?v={variant.id}", "Checkout"),
                            heading=False), status)
 
@@ -451,7 +453,8 @@ def order_page(ctx: "AppContext", order_id: str) -> HTMLResponse:
     elif s == OrderStatus.AWAITING_PAYMENT and order.payment:
         progress, live = pages.track(STEPS, 1), f"{s.value}:{order.payment.status}"
         left = max(0, int((order.expires_at - now()).total_seconds())) if order.expires_at else None
-        extra = pages.pay_card(rupiah(order.total), order.payment.qr_string, left, pages.clock(order.expires_at) if order.expires_at else "")
+        extra = (pages.pay_card(rupiah(order.total), order.payment.qr_string, left, pages.clock(order.expires_at) if order.expires_at else "")
+                 + demo.pay_button(ctx, order))
     elif s in (OrderStatus.PAID, OrderStatus.ACCEPTED):
         progress = pages.track(STEPS, 2)
         msg = pages.status("ok", "Paid", "<p>The seller will pack and ship your order. The tracking number will appear here.</p>")

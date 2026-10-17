@@ -105,6 +105,11 @@ class Settings(BaseSettings):
     dispute_appeal_days: int = 7
     # Gemini calls one seller may trigger per hour (free-text turns plus catalog builds). Only counted when Gemini is on.
     seller_ai_calls_per_hour: int = 60
+    # DEMO_MODE turns the app into a sandbox a reviewer can try end to end without any account: one shared demo seller with
+    # a few products, a simulated seller phone at /demo, and a "simulate payment" button on the pay page. It is refused
+    # outside dev with mock payment, mock shipping and the console messenger (etalase/security.py), so no real money, courier
+    # or WhatsApp message can ever be involved. See JUDGES.md.
+    demo_mode: bool = False
 
     @property
     def gemini_enabled(self) -> bool:

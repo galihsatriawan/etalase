@@ -22,6 +22,7 @@ Record against the deployed Cloud Run URL with Gemini enabled.
 ## Preparation checklist
 
 - [ ] Cloud Run deployed with `GOOGLE_GENAI_USE_VERTEXAI=true` and a working Gemini model
+- [ ] The reviewers' sandbox deployed as its own service (`DEMO=1 PROJECT_ID=... make deploy`) and its `/demo` link put in the submission form; `make e2e-judge` passes against it (`python scripts/e2e_judge.py <url>`)
 - [ ] WhatsApp Cloud API test number connected, Rina's phone registered as a test recipient
 - [ ] Buyer agent running (`python -m etalase.agents.buyer_agent`) against the deployed `/mcp/`
 - [ ] Payment in test mode; delivery triggered through `/dev/deliver/{order_id}`; the return window skipped with `/dev/release/{order_id}` (it moves the due date and runs the timers). To show a return instead, call `request_return` before releasing

@@ -26,7 +26,7 @@ Etalase turns a WhatsApp seller's product photos and chats into a storefront tha
 | **Shipping:** courier rates, booking, delivery status (the payout clock starts only when the courier confirms delivery) | ✅ (mock in demo; Biteship adapter wired) | Pickup scheduling, prepaid return labels |
 | **Payouts:** released to the seller's payment sub-account after delivery **and the return window** (72 h; 168 h for new sellers) | ✅ simulated | Live xenPlatform settlement, confirmed provider-side hold |
 | **Returns:** `request_return` for agents, Approve / Dispute / Item received buttons for sellers, operator queue for disputes, return policy shown to agents ([ADR 0007](adr/0007-payout-hold-and-returns.md)) | ✅ (refund is simulated; Xendit refunds are manual) | Automatic Xendit refunds, prepaid return labels, per-buyer limits |
-| **Public store link** (`/stores/{id}`, or `<shop>.<domain>` when a base domain is set): a catalog page with search and sort, a product page with photos and option chips, a short checkout, a QRIS pay page that can be saved as an image, order status and a return form that a person opens from an Instagram bio, a WhatsApp status or a QR code; the same pages carry schema.org data and pointers to MCP and UCP for agents. Server-rendered HTML that also works with JavaScript off; one small script makes moving between pages smooth and keeps a waiting order page current. Orders land in the seller's chat like any other | ✅ | Share cards per product, an optional cart, id-ID copy for buyers |
+| **Public store link** (`/stores/{id}`, or `<shop>.<domain>` when a base domain is set): a catalog page with search and sort, a product page with photos and option chips, a cart (several products of one shop in one order) and a short checkout, a QRIS pay page that can be saved as an image, order status and a return form that a person opens from an Instagram bio, a WhatsApp status or a QR code; the same pages carry schema.org data and pointers to MCP and UCP for agents. Server-rendered HTML that also works with JavaScript off; one small script makes moving between pages smooth and keeps a waiting order page current. Orders land in the seller's chat like any other | ✅ | Share cards per product, courier choice and an estimate on the cart page, id-ID copy for buyers |
 | **Seller channels:** WhatsApp is the default and the sign-in identity; a seller can link a **Telegram** chat and choose it for orders, stock checks and payouts (no 24-hour window, no message fee). One `Messenger` interface, the address picks the channel ([ADR 0008](adr/0008-seller-channels-and-shop-addresses.md)) | ✅ WhatsApp and Telegram | LINE, Zalo, Instagram or Messenger as seller channels; an Instagram DM bot **for buyers**, run per seller on the seller's own account (roadmap, not built) |
 | **Shop address:** each shop can claim `rina.<domain>` instead of `/stores/<id>`; short enough to say aloud, and each shop is its own browser origin. The address is also the shop's agent surface: `rina.<domain>/.well-known/ucp`, `/ucp/v1`, `/agent/v1` and `/mcp` see only that shop ([ADR 0008](adr/0008-seller-channels-and-shop-addresses.md)) | ✅ optional (`STORE_BASE_DOMAIN`, needs wildcard DNS and certificate; never tried on a real domain) | Custom domain per shop |
 | **Sign-up in chat** with the address chosen first (unique, held 72 hours until verified), limits per hour and per number, lookalike names refused, the shop invisible until verified ([ADR 0010](adr/0010-chat-signup-address-first.md)) | ✅ built, **off by default**, simulated messages only | The payment provider's identity and bank check through a link; abuse reporting; Indonesian wording for refusals |
@@ -62,7 +62,7 @@ Etalase turns a WhatsApp seller's product photos and chats into a storefront tha
 ### 2. Buying through an agent
 1. Buyer asks their assistant for a product.
 2. The agent calls `search_products`, then `get_shipping_options`.
-3. The buyer agrees; the agent calls `create_checkout`. Stock is reserved for 15 minutes.
+3. The buyer agrees; the agent calls `create_checkout`, for one product or for several products of the same shop (`items`: one order, one payment, one parcel; all lines are reserved or none). Stock is reserved for 15 minutes.
 4. The agent shows the QRIS code; the buyer pays.
 5. The seller gets "New paid order" in WhatsApp with **Accept** / **Out of stock** buttons.
 
@@ -74,11 +74,29 @@ Etalase turns a WhatsApp seller's product photos and chats into a storefront tha
 5. The same page shows the tracking number and, after delivery, an **Ask for a return** form (the phone number is the proof, like for an agent).
 6. The seller gets the same alerts on their channel. The seller's number is never on the page.
 
+### 2c. Buying through Google's AI surfaces (UCP): the design, not an integration
+
+> **Status: not integrated.** No Google surface (AI Mode, the Gemini app) calls Etalase today, and UCP agent checkout has no date in Indonesia
+> ([doc 16](16-ucp.md), [doc 17](17-market-fit-and-direction.md)). What follows is the flow the UCP specification describes, played by a test client
+> against our server (our own tests, plus the official conformance suite where it applies). How Google would show each step is Google's decision.
+
+1. The buyer asks the AI for a product. The surface finds the business through its UCP profile, `/.well-known/ucp` (on a shop's own address, that shop's profile).
+2. The surface creates a checkout session with the products, asks the buyer for a name, a phone number and a delivery address (all required: the courier and
+   the seller call the buyer), and shows the courier options Etalase returns as fulfillment options. The buyer, not the seller, picks one; otherwise the cheapest is used.
+3. The buyer agrees and the surface completes the session. Etalase reserves the stock of every line together and creates the QRIS payment.
+4. Etalase answers `requires_escalation` with a `continue_url`. The surface hands the buyer over to Etalase's payment page, because QRIS has to be paid in a
+   banking or e-wallet app, not inside a chat. A surface that only completes with a card or an AP2 mandate cannot use Etalase (8 of the 21 failing conformance tests).
+5. The buyer pays. The session becomes `completed` with the order, and the seller gets "New paid order" in their chat.
+
+Until a surface does this, the same journey is available to any MCP or REST agent (section 2), and to a person through the store link (section 2b).
+
 ### 3. Confirm-first (uncertain stock)
 If stock is untracked, stale (over 3 days) or nearly sold out (2 or fewer), the seller is asked "Is it still available?" **before** the buyer is asked to pay. No refunds needed when stock turns out to be gone.
 
 ### 4. Shipping and payout
 The seller replies "tracking JNE123456". When the courier reports delivery, the order moves to `delivered` and the seller is told the date the money will be paid out. After the return window (72 hours; 168 for a seller with fewer than 5 completed orders) the payout (order value minus commission) is released to the seller's payment sub-account and the seller is notified.
+
+Who picks the courier: the buyer or the buyer's agent (`courier` over REST and MCP, the fulfillment option over UCP); with no choice the cheapest rate is used, and the store pages always use the cheapest. The list of couriers is one list for the whole platform. A seller cannot restrict it or bring their own courier in this version, and the live Biteship rates have never been run.
 
 ### 5. After delivery: returns
 1. The buyer's agent reads the seller's `return_policy` and `track_record` before buying, and `get_checkout_status` tells it until when a return can be requested.

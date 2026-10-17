@@ -49,16 +49,22 @@ flowchart LR
 
 ```python
 # prototype/etalase/gateway/tools.py
-def create_checkout(self, product_id: str, variant_id: str, quantity: int, buyer_name: str, buyer_phone: str,
-                    address_line: str, city: str, postal_code: str, country: str = "ID",
-                    courier: str | None = None, channel: str = "", referrer: str = "",
-                    payment_method: str = "qris") -> dict:
-    """`channel` and `referrer` are set by the door the call came through (REST, MCP), never taken from the agent's input."""
+def create_checkout(self, product_id: str | None = None, variant_id: str | None = None, quantity: int = 1,
+                    buyer_name: str = "", buyer_phone: str = "", address_line: str = "", city: str = "",
+                    postal_code: str = "", country: str = "ID", courier: str | None = None,
+                    channel: str = "", referrer: str = "", payment_method: str = "qris",
+                    items: list[dict] | None = None, shop: "ShopScope | None" = None) -> dict:
+    """`channel` and `referrer` are set by the door the call came through (REST, MCP), never taken from the agent's input.
+    Every product asked for, one or several (`items`), must be visible to the caller."""
+    cart = _cart_items(items)
+    if any(self._visible(p, shop) is None for p in _wanted(product_id, cart)):
+        return {"error": "product not found"}
     buyer = Address(name=buyer_name, phone=buyer_phone, line1=address_line, city=city,
                     postal_code=postal_code, country=country.upper())
     try:
         order = self.ctx.checkout.create_checkout(product_id, variant_id, quantity, buyer, courier,
-                                                  channel=channel, referrer=referrer, payment_method=payment_method)
+                                                  channel=channel, referrer=referrer, payment_method=payment_method,
+                                                  items=cart)
     except (CheckoutError, KeyError) as e:
         return {"error": str(e)}
     return order_view(order)
@@ -116,8 +122,8 @@ What each setting means:
 |---|---|---|
 | `search_products` | `query`, `max_price_idr` (none), `ship_to_country` ("ID"), `limit` (5, clamped to 1 to 10) | `results` (agent views), `count`, `note` |
 | `get_product` | `product_id` | One agent view, or `{"error": "product not found"}` for unknown or unpublished products |
-| `get_shipping_options` | `product_id`, `variant_id`, `quantity`, `postal_code` | `options` sorted by price, `currency` |
-| `create_checkout` | `product_id`, `variant_id`, `quantity`, `buyer_name`, `buyer_phone`, `address_line`, `city`, `postal_code`, `country` ("ID"), `courier` (none), `payment_method` ("qris") | `order_view`, or `{"error": ...}` |
+| `get_shipping_options` | `postal_code`, then `product_id`, `variant_id`, `quantity` for one product, or `items` for a cart (the quote sums the weight and value of every line) | `options` sorted by price, `currency` |
+| `create_checkout` | `product_id`, `variant_id`, `quantity` (one product) or `items` (a cart: 1 to 10 lines of `product_id`, `variant_id`, `quantity`, all from one shop, all reserved or none), `buyer_name`, `buyer_phone`, `address_line`, `city`, `postal_code`, `country` ("ID"), `courier` (none), `payment_method` ("qris") | `order_view`, or `{"error": ...}` |
 | `get_checkout_status` | `checkout_id` | `order_view`, or `{"error": "checkout not found"}` |
 | `request_return` | `checkout_id`, `buyer_phone`, `reason` (`damaged`, `wrong_item`, `not_as_described`, `changed_mind`), `note` (500 characters), `evidence_urls` (up to 5 `https` links) | `order_view` with `return`, or `{"error": ...}`; a wrong phone answers "checkout not found" |
 | `submit_return_tracking` | `checkout_id`, `buyer_phone`, `waybill` | `order_view`, or `{"error": ...}` |
@@ -139,7 +145,8 @@ Not every agent framework speaks MCP, so `api/main.py` exposes the same operatio
 | `GET /agent/v1/search?q=...&max_price_idr=&country=&limit=` | `search_products` | 120 requests per 60 s per IP; query cut to 200 chars |
 | `GET /agent/v1/products/{product_id}` | `get_product` | |
 | `GET /agent/v1/products/{product_id}/shipping-options?variant_id=&quantity=&postal_code=` | `get_shipping_options` | 60 per minute per IP (each call can cost a courier-API request); variant id cut to 40 chars, quantity clamped to 1 to 100, postal code cut to 10 chars |
-| `POST /agent/v1/checkouts` | `create_checkout` | 20 per hour per IP; `CheckoutIn` field limits (name 80, address 5 to 200, phone 8 to 20 chars, quantity 1 to 100) |
+| `POST /agent/v1/shipping-options` | `get_shipping_options` with `items` | The same `shipping` bucket as the route above; body `{items, postal_code}` |
+| `POST /agent/v1/checkouts` | `create_checkout` | 20 per hour per IP; `CheckoutIn` field limits (name 80, address 5 to 200, phone 8 to 20 chars, quantity 1 to 100); either `product_id` and `variant_id`, or `items` (1 to 10), not both |
 | `GET /agent/v1/checkouts/{checkout_id}` | `get_checkout_status` | |
 | `POST /agent/v1/checkouts/{checkout_id}/return` | `request_return` | 10 per hour per IP (shared bucket `return`); body limits (note 500 chars, 5 links) |
 | `POST /agent/v1/checkouts/{checkout_id}/return/tracking` | `submit_return_tracking` | 10 per hour per IP (same bucket) |

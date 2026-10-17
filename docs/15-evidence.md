@@ -71,8 +71,9 @@ sentence aloud. If a judge pushes, use the "Nuance" line. Quotes are copied from
   Primary: [PYMNTS, 22 Sep 2026](https://www.pymnts.com/smbs/2026/visa-says-small-merchants-could-move-faster-on-ai-shopping/).
   Secondary: [Forkast, 23 Sep 2026](https://forkast.news/?p=130650) ("only 15% of merchants possess the structured product data necessary for agents").
 - **Status:** ✅ verified
-- **Nuance:** The 15% is *all merchants*, not SMBs only. It is a global merchant survey, not Indonesia-specific; our
-  sellers (no store system at all) are likely below the SMB average.
+- **Nuance:** The 15% is *all merchants*, not SMBs only. It is a global merchant survey, not Indonesia-specific; we have
+  no figure for Indonesian chat sellers. A seller whose catalog lives in photos and chats probably has no structured product data, so we expect them
+  to sit at or below the SMB average; that is an inference, not a measurement.
 
 ### 5. Morgan Stanley: US$190–385B of US online spending via shopping agents by 2030
 
@@ -314,7 +315,7 @@ the payment platform's per-account fee and the gateway's fixed fee ([Xendit](htt
 **7. Are small merchants really behind?**
 Yes: 11% of SMBs are agent-ready vs 19% of large merchants, and only 15% of merchants have structured product data
 ([PYMNTS × Visa](https://www.pymnts.com/smbs/2026/visa-says-small-merchants-could-move-faster-on-ai-shopping/)).
-Chat sellers without a store system are below that.
+We have no figure for chat sellers; with their catalogs in photos and chats we expect them to be at or below that (an inference, not a measurement).
 
 **8. Isn't Shopify/Stripe already doing this?**
 Shopify serves brands with structured catalogs, including non-Shopify brands through its Agentic plan

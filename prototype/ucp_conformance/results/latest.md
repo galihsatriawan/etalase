@@ -10,7 +10,7 @@ Official suite (github.com/Universal-Commerce-Protocol/conformance), UCP spec 20
 | checkout_lifecycle_test | 7 | 4 | 0 |
 | totals_test | 4 | 0 | 1 |
 | fulfillment_test | 2 | 0 | 8 |
-| fulfillment_structure_test | 1 | 1 | 0 |
+| fulfillment_structure_test | 2 | 0 | 0 |
 | business_logic_test | 3 | 3 | 2 |
 | discount_test | 0 | 0 | 6 |
 | order_test | 0 | 4 | 0 |
@@ -21,7 +21,7 @@ Official suite (github.com/Universal-Commerce-Protocol/conformance), UCP spec 20
 | webhook_structure_test | 0 | 0 | 6 |
 | webhook_test | 0 | 1 | 2 |
 | simulation_url_security_test | 0 | 3 | 0 |
-| **total** | **29** | **22** | **26** |
+| **total** | **30** | **21** | **26** |
 
 Failures and why:
 
@@ -30,7 +30,6 @@ Failures and why:
 - `CheckoutLifecycleTest.test_cannot_update_completed_checkout`: same as test_complete_checkout: it cannot reach status completed through the card flow
 - `CheckoutLifecycleTest.test_complete_checkout`: asserts status completed straight after complete with a card instrument; with QRIS the checkout is complete_in_progress until the buyer pays. The suite's buyer has only an email and it picks a flower-shop shipping option id (std-ship), while Etalase needs the buyer's name and phone number and offers courier options
 - `CheckoutLifecycleTest.test_complete_is_idempotent`: same as test_complete_checkout: it cannot reach status completed through the card flow
-- `FulfillmentStructureTest.test_default_config_single_group_per_method`: sends several line items; Etalase sells one item per checkout session
 - `BusinessLogicTest.test_buyer_consent`: buyer_consent capability not implemented (not advertised); the suite does not skip it
 - `BusinessLogicTest.test_discount_flow`: discount capability not implemented (not advertised); the suite does not skip it
 - `BusinessLogicTest.test_multiple_discounts_one_rejected`: discount capability not implemented (not advertised); the suite does not skip it

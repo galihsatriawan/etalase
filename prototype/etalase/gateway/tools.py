@@ -39,6 +39,20 @@ def _item_product_id(item) -> str | None:
     return None
 
 
+def _cart_items(items):
+    """Cart lines as an agent sends them ({"product_id", "variant_id", "quantity"}) in the form the service takes ("qty").
+    Anything else (a tuple, a line that already says "qty") passes through for the service to check."""
+    if items is None:
+        return None
+    return [{"product_id": i.get("product_id"), "variant_id": i.get("variant_id"), "qty": i.get("qty", i.get("quantity", 1))}
+            if isinstance(i, dict) else i for i in items]
+
+
+def _wanted(product_id, cart) -> list:
+    """Every product id a call names: the one product, or the product of each cart line."""
+    return [_item_product_id(i) for i in cart] if cart is not None else [product_id]
+
+
 def next_step(order: Order) -> str:
     ship = order.shipment.status if order.shipment else ""
     if order.status == OrderStatus.SHIPPED and ship == "returning":
@@ -150,12 +164,14 @@ class GatewayTools:
         view["seller"].update(self.trust(p.seller_id))
         return view
 
-    def get_shipping_options(self, product_id: str, variant_id: str, quantity: int, postal_code: str,
-                             shop: "ShopScope | None" = None) -> dict:
-        if self._visible(product_id, shop) is None:
+    def get_shipping_options(self, product_id: str | None = None, variant_id: str | None = None, quantity: int = 1,
+                             postal_code: str = "", shop: "ShopScope | None" = None, items: list[dict] | None = None) -> dict:
+        """Courier options to a postal code, for one product or for a whole cart (`items`, all from one shop)."""
+        cart = _cart_items(items)
+        if any(self._visible(p, shop) is None for p in _wanted(product_id, cart)):
             return {"error": "product not found"}
         try:
-            return {"options": self.ctx.checkout.shipping_options(product_id, variant_id, quantity, postal_code),
+            return {"options": self.ctx.checkout.shipping_options(product_id, variant_id, quantity, postal_code, items=cart),
                     "currency": "IDR"}
         except (CheckoutError, KeyError) as e:
             return {"error": str(e)}
@@ -168,15 +184,15 @@ class GatewayTools:
         """`channel` and `referrer` are set by the door the call came through (REST, MCP), never taken from the agent's input.
         Every product asked for, one or several (`items`), must be visible to the caller: its seller open to buyers and, on a
         shop's own address, that shop's own."""
-        wanted = [_item_product_id(i) for i in items] if items is not None else [product_id]
-        if any(self._visible(p, shop) is None for p in wanted):
+        cart = _cart_items(items)
+        if any(self._visible(p, shop) is None for p in _wanted(product_id, cart)):
             return {"error": "product not found"}
         buyer = Address(name=buyer_name, phone=buyer_phone, line1=address_line, city=city,
                         postal_code=postal_code, country=country.upper())
         try:
             order = self.ctx.checkout.create_checkout(product_id, variant_id, quantity, buyer, courier,
                                                       channel=channel, referrer=referrer, payment_method=payment_method,
-                                                      items=items)
+                                                      items=cart)
         except (CheckoutError, KeyError) as e:
             return {"error": str(e)}
         return order_view(order)

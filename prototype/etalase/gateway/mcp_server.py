@@ -20,6 +20,7 @@ if TYPE_CHECKING:
 
 INSTRUCTIONS = """Etalase lets you buy from independent Indonesian sellers who sell on WhatsApp.
 Flow: search_products -> get_shipping_options -> create_checkout -> show the QRIS code -> get_checkout_status.
+A buyer can take several products from the same shop in one order: pass items to get_shipping_options and create_checkout.
 Only domestic delivery inside Indonesia is supported. Prices are in IDR. Payment is by QRIS only, before the seller packs the
 order: cash on delivery is not offered, so never promise it to a buyer.
 On the address of a single shop (rina.<domain>/mcp) every tool only sees that shop's products and orders.
@@ -102,24 +103,30 @@ def build_mcp(ctx: "AppContext", limits: RateLimiter | None = None) -> FastMCP:
         return tools.get_product(product_id, shop=shop_for(mcp_ctx))
 
     @mcp.tool()
-    def get_shipping_options(product_id: str, variant_id: str, quantity: int, postal_code: str,
-                             mcp_ctx: Context = None) -> dict:
-        """Courier options and prices to the buyer's postal code."""
+    def get_shipping_options(postal_code: str, product_id: str | None = None, variant_id: str | None = None,
+                             quantity: int = 1, items: list[dict] | None = None, mcp_ctx: Context = None) -> dict:
+        """Courier options and prices to the buyer's postal code. For one product give product_id, variant_id and quantity.
+        For several products from the same shop give items, each {"product_id", "variant_id", "quantity"}: the quote covers
+        the whole cart."""
         if blocked := too_many("get_shipping_options", mcp_ctx):
             return blocked
-        return tools.get_shipping_options(product_id, variant_id, quantity, postal_code, shop=shop_for(mcp_ctx))
+        return tools.get_shipping_options(product_id, variant_id, quantity, postal_code, shop=shop_for(mcp_ctx), items=items)
 
     @mcp.tool()
-    def create_checkout(product_id: str, variant_id: str, quantity: int, buyer_name: str, buyer_phone: str,
-                        address_line: str, city: str, postal_code: str, country: str = "ID",
-                        courier: str | None = None, payment_method: str = "qris", mcp_ctx: Context = None) -> dict:
+    def create_checkout(buyer_name: str, buyer_phone: str, address_line: str, city: str, postal_code: str,
+                        product_id: str | None = None, variant_id: str | None = None, quantity: int = 1,
+                        country: str = "ID", courier: str | None = None, payment_method: str = "qris",
+                        items: list[dict] | None = None, mcp_ctx: Context = None) -> dict:
         """Reserve stock and start checkout. Returns a QRIS payment code, or a pending state while the seller confirms stock.
+        For one product give product_id, variant_id and quantity. For several products from the same shop (one order, one
+        payment, one shipment) give items, each {"product_id", "variant_id", "quantity"}, at most 10 lines; either all of them
+        are reserved or none.
         Only call this after the buyer explicitly agreed to buy. payment_method must be "qris": cash on delivery is not offered."""
         if blocked := too_many("create_checkout", mcp_ctx):
             return blocked
         return tools.create_checkout(product_id, variant_id, quantity, buyer_name, buyer_phone, address_line,
                                      city, postal_code, country, courier, channel="mcp", referrer=caller_of(mcp_ctx),
-                                     payment_method=payment_method, shop=shop_for(mcp_ctx))
+                                     payment_method=payment_method, items=items, shop=shop_for(mcp_ctx))
 
     @mcp.tool()
     def get_checkout_status(checkout_id: str, mcp_ctx: Context = None) -> dict:

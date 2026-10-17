@@ -9,9 +9,12 @@ checkout with it. This module implements the business side of:
 - dev.ucp.shopping.fulfillment extension (shipping address + courier choice)
 
 How Etalase maps onto it
-- item.id is a variant id (what /agent/v1 and the MCP tools return). One line item per session.
+- item.id is a variant id (what /agent/v1 and the MCP tools return). A session holds up to MAX_LINES line items, all
+  from one shop: a cart that mixes shops is refused, because one order belongs to one seller. The same variant sent
+  twice is merged into one line. On a shop's own address only that shop's items exist.
 - A session is just a draft (buyer, address, courier). Stock is only reserved on `complete`, because that is
-  the point where an Etalase checkout (and its QRIS payment) is created.
+  the point where an Etalase checkout (and its QRIS payment) is created. All lines are reserved together or not at all.
+- Courier quotes are for the whole cart (summed weight and value), the same way the order will be priced.
 - Payment is QRIS and must be finished by the buyer in a trusted UI. So once `complete` has reserved the stock and
   created the payment, the session is `requires_escalation` with a `requires_buyer_review` message and a
   `continue_url` to the hosted payment page (the spec obliges the platform to hand the buyer over there). If the
@@ -21,7 +24,7 @@ How Etalase maps onto it
 - Amounts are minor units per ISO 4217. IDR has exponent 2, so Rp 85.000 is sent as 8500000.
 
 Not implemented (and therefore not advertised): AP2 mandates, payment handlers, discounts, cart, catalog and
-order capabilities, message signing, multiple line items, pickup. The platform's own profile (UCP-Agent) is
+order capabilities, message signing, pickup, carts of more than one shop. The platform's own profile (UCP-Agent) is
 not fetched, so capability negotiation is simply "we return what we implement" (fetching an arbitrary URL
 from a request header is an SSRF risk; add an allow-listed fetch before relying on negotiation).
 """
@@ -57,6 +60,7 @@ FULFILLMENT = "dev.ucp.shopping.fulfillment"
 SPEC = f"https://ucp.dev/{UCP_VERSION}"
 MINOR_UNITS = {"IDR": 100}          # ISO 4217 exponent; anything not listed is treated as 2 decimals
 SESSION_TTL = timedelta(minutes=30)
+MAX_LINES = 10                      # line items per session
 API_PREFIX = "/ucp/v1"
 SESSION_KIND, IDEMPOTENCY_KIND = "ucp_session", "ucp_idempotency"
 
@@ -118,6 +122,13 @@ def error_payload(code: str, content: str, severity: str = "unrecoverable", cont
     if continue_url:
         body["continue_url"] = continue_url
     return body
+
+
+class _Refusal(Exception):
+    """A cart the business will not take: a UCP error code and one plain sentence for the platform to show."""
+
+    def __init__(self, code: str, content: str) -> None:
+        self.code, self.content = code, content
 
 
 class _Open(BaseModel):
@@ -191,11 +202,47 @@ class UcpCheckout:
                     return (product, v) if seller is not None and seller.open_for_buyers else (None, None)
         return None, None
 
+    @staticmethod
+    def _upgrade(s: dict) -> dict:
+        """Sessions started before carts existed kept one product, variant and quantity at the top level: read them as one line."""
+        s = dict(s)
+        if "lines" not in s:
+            s["lines"] = [{"product_id": s.pop("product_id"), "variant_id": s.pop("variant_id"), "quantity": s.pop("quantity")}]
+        return s
+
     def _load(self, session_id: str, shop: ShopScope | None = None) -> dict:
         s = self.ctx.store.get_doc(SESSION_KIND, session_id)
         if s is None or (shop is not None and s.get("seller_id") != shop.seller_id):    # another shop's session does not exist here
             raise UcpError(404, "not_found", "checkout session not found")
-        return s
+        return self._upgrade(s)
+
+    def _intake(self, line_items: list[LineItemIn], shop: ShopScope | None, refuse_sold_out: bool) -> tuple[list[dict], str]:
+        """The session's lines for a request's line items, and the one seller they belong to. Raises _Refusal for a cart the
+        business will not take: too many lines, an item that does not exist or is not this shop's, items of two shops, and
+        (when refuse_sold_out) an item with nothing left. The same variant twice becomes one line."""
+        if len(line_items) > MAX_LINES:
+            raise _Refusal("unsupported", f"At most {MAX_LINES} line items per checkout session.")
+        lines: dict[str, dict] = {}
+        seller_id: str | None = None
+        for li in line_items:
+            product, variant = self._find_variant(li.item.id, shop.seller_id if shop else None)
+            if product is None:
+                raise _Refusal("item_unavailable", "That item does not exist or is not for sale.")
+            if seller_id is None:
+                seller_id = product.seller_id
+            elif product.seller_id != seller_id:
+                raise _Refusal("unsupported", "All line items must be from the same shop.")
+            avail = variant.stock.available
+            if refuse_sold_out and avail is not None and avail <= 0:
+                what = "That item" if len(line_items) == 1 else f"{product.title} ({variant.label})"
+                raise _Refusal("out_of_stock", f"{what} is out of stock.")
+            line = lines.setdefault(variant.id, {"product_id": product.id, "variant_id": variant.id, "quantity": 0})
+            line["quantity"] += li.quantity
+        return list(lines.values()), seller_id
+
+    def _resolve(self, s: dict) -> list[tuple[dict, Any, Any]]:
+        """Each line with its product and variant, or (line, None, None) for one that can no longer be bought."""
+        return [(line, *self._find_variant(line["variant_id"], s.get("seller_id"))) for line in s["lines"]]
 
     @staticmethod
     def _buyer_in(raw: dict | None) -> dict:
@@ -230,14 +277,26 @@ class UcpCheckout:
                     return str(group["selected_option_id"])[:80]
         return None
 
+    def _quote_cart(self, s: dict, postal_code: str) -> list[dict]:
+        """Courier rates for the whole cart, cheapest first: summed weight and value, priced the way the order will be."""
+        seller = self.ctx.store.get_seller(s["seller_id"])
+        weight = value = 0
+        for line, product, variant in self._resolve(s):
+            if product is None or variant is None:
+                raise KeyError(line["variant_id"])
+            weight += max(1, variant.weight_gram) * line["quantity"]
+            value += variant.price * line["quantity"]
+        rates = self.ctx.checkout._quote(seller.origin.postal_code if seller and seller.origin else "", postal_code, weight, value)
+        return [r.model_dump() for r in sorted(rates, key=lambda r: r.price)]
+
     def _refresh_options(self, s: dict) -> None:
-        """Courier quotes depend on postal code and quantity; fetch them once per change, not on every GET."""
+        """Courier quotes depend on postal code and the cart; fetch them once per change, not on every GET."""
         dest = s.get("destination")
         s["options"] = []
         if not dest or not re.fullmatch(r"[0-9]{5}", dest.get("postal_code", "")) or dest.get("address_country") != "ID":
             return
         try:
-            rates = self.ctx.checkout.shipping_options(s["product_id"], s["variant_id"], s["quantity"], dest["postal_code"])
+            rates = self._quote_cart(s, dest["postal_code"])
         except (CheckoutError, KeyError):
             return
         s["options"] = [{"id": option_id(r), "courier": r["courier"], "service": r["service"], "price": r["price"],
@@ -262,21 +321,26 @@ class UcpCheckout:
             s["option_id"] = None
 
     # ---- the view of a session
-    def _problems(self, s: dict, product, variant) -> list[dict]:
+    def _problems(self, s: dict, resolved: list[tuple[dict, Any, Any]]) -> list[dict]:
         out: list[dict] = []
 
         def err(code: str, path: str, content: str, severity: str = "recoverable") -> None:
             out.append({"type": "error", "code": code, "path": path, "content": content, "severity": severity})
 
-        settings = self.ctx.settings
-        q = s["quantity"]
-        if q > settings.max_qty_per_order:
-            err("quantity_exceeded", "$.line_items[0].quantity", f"At most {settings.max_qty_per_order} units per checkout.")
-        avail = variant.stock.available
-        if avail is not None and avail < q:
-            err("out_of_stock", "$.line_items[0].quantity",
-                f"Only {avail} left in stock." if avail else "This item is out of stock.",
-                "recoverable" if avail else "unrecoverable")
+        cap = self.ctx.settings.max_qty_per_order
+        units, over = 0, False
+        for i, (line, product, variant) in enumerate(resolved):
+            q = line["quantity"]
+            path = f"$.line_items[{i}].quantity"
+            units += q
+            if units > cap and not over:       # the cap is for the whole cart: say it once, at the line that crosses it
+                over = True
+                err("quantity_exceeded", path, f"At most {cap} units per checkout.")
+            avail = variant.stock.available
+            if avail is not None and avail < q:
+                which = f"{product.title} ({variant.label}): " if len(resolved) > 1 else ""
+                err("out_of_stock", path, which + (f"Only {avail} left in stock." if avail else "This item is out of stock."),
+                    "recoverable" if avail else "unrecoverable")
         buyer, dest = s["buyer"], s.get("destination")
         if not buyer.get("first_name"):
             err("missing", "$.buyer.first_name", "The buyer's name is required for delivery.")
@@ -311,7 +375,7 @@ class UcpCheckout:
 
     def view(self, s: dict) -> dict:
         ctx = self.ctx
-        product, variant = self._find_variant(s["variant_id"])
+        resolved = self._resolve(s)
         order = ctx.store.get_order(s["order_id"]) if s.get("order_id") else None
         currency = order.currency if order else "IDR"
         messages: list[dict] = []
@@ -336,29 +400,35 @@ class UcpCheckout:
                                                 "Stock is held until expires_at."})
         elif s.get("canceled") or expires <= now():
             status = "canceled"
-        elif product is None or variant is None:
+        elif any(product is None or variant is None for _, product, variant in resolved):
             status = "canceled"
             messages.append({"type": "error", "code": "item_unavailable", "severity": "unrecoverable",
-                             "content": "This item is no longer available."})
+                             "content": "This item is no longer available." if len(resolved) == 1
+                             else "An item in this checkout is no longer available."})
         else:
-            blocking = self._problems(s, product, variant)
+            blocking = self._problems(s, resolved)
             messages.extend(blocking)
             status = "incomplete" if any(m["type"] == "error" for m in blocking) else "ready_for_complete"
 
         # content -------------------------------------------------------------------------------
-        title = (f"{product.title} ({variant.label})" if product and variant else "Unavailable item")
-        price = variant.price if variant else 0
-        li_total = to_minor(price * s["quantity"], currency)
-        item: dict[str, Any] = {"id": s["variant_id"], "title": title, "price": to_minor(price, currency)}
-        if product and product.images:
-            item["image_url"] = ctx.catalog.image_url(product.images[0])
-        line_items = [{"id": "li_1", "item": item, "quantity": s["quantity"],
-                       "totals": [{"type": "subtotal", "amount": li_total}, {"type": "total", "amount": li_total}]}]
+        line_items: list[dict] = []
+        cart_total = 0
+        for n, (line, product, variant) in enumerate(resolved, 1):
+            title = (f"{product.title} ({variant.label})" if product and variant else "Unavailable item")
+            price = variant.price if variant else 0
+            li_total = to_minor(price * line["quantity"], currency)
+            cart_total += li_total
+            item: dict[str, Any] = {"id": line["variant_id"], "title": title, "price": to_minor(price, currency)}
+            if product and product.images:
+                item["image_url"] = ctx.catalog.image_url(product.images[0])
+            line_items.append({"id": f"li_{n}", "item": item, "quantity": line["quantity"],
+                               "totals": [{"type": "subtotal", "amount": li_total}, {"type": "total", "amount": li_total}]})
 
-        totals = [{"type": "subtotal", "amount": li_total}]
+        totals = [{"type": "subtotal", "amount": cart_total}]
         chosen = next((o for o in s["options"] if o["id"] == s.get("option_id")), None)
         shipping_amount = order.shipping_fee if order else (chosen["price"] if chosen else None)
-        grand = li_total
+        grand = cart_total
+        product = next((p for _, p, _v in resolved if p is not None), None)
         if shipping_amount is not None:
             fee = to_minor(shipping_amount, currency)
             totals.append({"type": "fulfillment", "display_text": "Shipping", "amount": fee})
@@ -382,21 +452,23 @@ class UcpCheckout:
         return out
 
     def _links(self, product, s: dict) -> list[dict]:
-        """The seller's return policy as a UCP `refund_policy` link (a well-known link type in the checkout spec)."""
+        """The seller's return policy as a UCP `refund_policy` link (a well-known link type in the checkout spec). A cart is one
+        shop's, so any of its products names the seller."""
         if product is None:
             return []
         return [{"type": "refund_policy", "title": "Return policy",
                  "url": f"{self._origin(s)}/stores/{product.seller_id}/returns"}]
 
     def _fulfillment_view(self, s: dict, order, currency: str) -> dict:
-        method: dict[str, Any] = {"id": "shipping_1", "type": "shipping", "line_item_ids": ["li_1"], "destinations": []}
+        ids = [f"li_{n}" for n in range(1, len(s["lines"]) + 1)]
+        method: dict[str, Any] = {"id": "shipping_1", "type": "shipping", "line_item_ids": ids, "destinations": []}
         dest = s.get("destination")
         if dest:
             method["destinations"] = [{**{k: v for k, v in dest.items() if v}, "type": "shipping_address"}]
             method["selected_destination_id"] = dest["id"]
             if s["options"]:
                 method["groups"] = [{
-                    "id": "package_1", "line_item_ids": ["li_1"],
+                    "id": "package_1", "line_item_ids": ids,
                     "selected_option_id": s.get("option_id"),
                     "options": [{"id": o["id"], "title": f"{o['courier'].upper()} {o['service']}".strip(),
                                  "description": {"plain": f"Estimated delivery: {o['etd']}" if o["etd"] else "Courier delivery"},
@@ -411,18 +483,13 @@ class UcpCheckout:
     def create(self, raw: bytes, agent: str = "", shop: ShopScope | None = None) -> tuple[int, dict]:
         home = (shop.origin if shop else self.base) + "/"
         body = parse_body(raw, require_items=True)
-        if len(body.line_items) != 1:
-            return 200, error_payload("unsupported", "This business sells one item per checkout session.", continue_url=home)
-        li = body.line_items[0]
-        product, variant = self._find_variant(li.item.id, shop.seller_id if shop else None)
-        if product is None:
-            return 200, error_payload("item_unavailable", "That item does not exist or is not for sale.", continue_url=home)
-        avail = variant.stock.available
-        if avail is not None and avail <= 0:
-            return 200, error_payload("out_of_stock", "That item is out of stock.", continue_url=home)
-        s = {"id": "chk_" + secrets.token_hex(12), "product_id": product.id, "variant_id": variant.id,
-             "seller_id": product.seller_id, "origin": shop.origin if shop else self.base,
-             "quantity": li.quantity, "buyer": self._buyer_in(None), "destination": None, "option_id": None,
+        try:
+            lines, seller_id = self._intake(body.line_items, shop, refuse_sold_out=True)
+        except _Refusal as r:
+            return 200, error_payload(r.code, r.content, continue_url=home)
+        s = {"id": "chk_" + secrets.token_hex(12), "lines": lines,
+             "seller_id": seller_id, "origin": shop.origin if shop else self.base,
+             "buyer": self._buyer_in(None), "destination": None, "option_id": None,
              "options": [], "order_id": None, "canceled": False, "completing": False, "agent": agent,
              "created_at": now().isoformat(), "expires_at": (now() + SESSION_TTL).isoformat()}
         self._apply(s, body, replace=False)
@@ -443,17 +510,13 @@ class UcpCheckout:
                 {"type": "error", "code": "not_editable", "severity": "recoverable",
                  "content": "This checkout is already being completed, so it cannot be changed."})
             return 200, current
-        if body.line_items:
-            if len(body.line_items) != 1:
-                raise UcpError(422, "unsupported", "This business sells one item per checkout session.")
-            li = body.line_items[0]
-            product, variant = self._find_variant(li.item.id, shop.seller_id if shop else None)
-            if product is None:
-                raise UcpError(422, "item_unavailable", "That item does not exist or is not for sale.")
-            if (variant.id, li.quantity) != (s["variant_id"], s["quantity"]):
-                s.update(product_id=product.id, variant_id=variant.id, quantity=li.quantity)
-                s["option_id"] = None
-                s["options"] = []
+        if body.line_items:      # the request's line items replace the cart
+            try:
+                lines, seller_id = self._intake(body.line_items, shop, refuse_sold_out=False)
+            except _Refusal as r:
+                raise UcpError(422, r.code, r.content) from r
+            if lines != s["lines"]:
+                s.update(lines=lines, seller_id=seller_id, option_id=None, options=[])
                 self._refresh_options(s)
         self._apply(s, body, replace=True)
         self.ctx.store.put_doc(SESSION_KIND, s["id"], s)
@@ -491,9 +554,10 @@ class UcpCheckout:
                           phone=buyer["phone_number"], line1=dest["street_address"], city=dest["address_locality"],
                           postal_code=dest["postal_code"], country=dest["address_country"])
         try:
-            order = self.ctx.checkout.create_checkout(s["product_id"], s["variant_id"], s["quantity"], address,
-                                                      option["courier"], option["service"], channel="ucp",
-                                                      referrer=s.get("agent", ""))
+            cart = [{"product_id": line["product_id"], "variant_id": line["variant_id"], "qty": line["quantity"]}
+                    for line in s["lines"]]
+            order = self.ctx.checkout.create_checkout(buyer=address, courier=option["courier"], service=option["service"],
+                                                      channel="ucp", referrer=s.get("agent", ""), items=cart)
         except (CheckoutError, KeyError) as e:
             self.ctx.store.update_doc(SESSION_KIND, session_id, lambda d: d.update(completing=False) or True)
             text = str(e)
@@ -522,11 +586,16 @@ class UcpCheckout:
             return pages.layout("Checkout not found", pages.status("info", "This checkout link is not valid",
                                                                    "<p>Ask the shopping assistant to start the checkout again.</p>", icon="search"),
                                 heading=False)
+        s = self._upgrade(s)
         v = self.view(s)
         order = self.ctx.store.get_order(s["order_id"]) if s.get("order_id") else None
-        total = next(t["amount"] for t in v["totals"] if t["type"] == "total") // 100
-        item = v["line_items"][0]
-        rows = pages.summary([(f"{item['item']['title']} × {item['quantity']}", rupiah(total))])
+        amount = {t["type"]: t["amount"] // 100 for t in v["totals"]}
+        lines = [(f"{li['item']['title']} × {li['quantity']}",
+                  rupiah(next(t["amount"] for t in li["totals"] if t["type"] == "total") // 100)) for li in v["line_items"]]
+        if "fulfillment" in amount:
+            lines.append(("Shipping", rupiah(amount["fulfillment"])))
+        rows = pages.summary(lines, total=("Total", rupiah(amount["total"])))
+        total = amount["total"]
         live = ""
         if order is None:
             body = (pages.status("info", "Not placed yet", "<p>This checkout is not placed yet. The shopping assistant will finish it for you.</p>")

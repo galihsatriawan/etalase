@@ -6,6 +6,9 @@ Etalase turns a small seller's product photos and chats into a storefront that A
 (Gemini or any MCP client; Etalase also answers Google's Universal Commerce Protocol checkout) can find, check stock on and buy from, with every order landing
 back in the seller's chat (WhatsApp, or Telegram if the seller prefers).
 
+It is for sellers who run on chat: they take orders in WhatsApp (or Telegram) and have no store page or checkout of their own to give a buyer or an agent.
+Some also list on a marketplace, so Etalase does not assume they have no shop anywhere; it gives them one they own.
+
 Built for the **AI Builder Cup 2026** (Google Cloud, JAPAC), theme **Retail & Commerce: Intelligent
 Customer and Business Experiences**.
 
@@ -38,7 +41,7 @@ More in [Problem and market](docs/01-problem-and-market.md).
    options, checkout. Stock is reserved while the buyer pays with **QRIS**. QRIS is the only payment method
    (no cash on delivery, so a seller never ships an order that is not paid; [ADR 0009](docs/adr/0009-qris-only-no-cod.md)).
    A buyer without an agent opens the seller's **store link** (put it in an Instagram bio or a WhatsApp
-   status): the same catalog, a short buy form, the QRIS code and an order page, as plain HTML that works on a weak phone connection.
+   status): the same catalog, a cart (several products of one shop in one order, which agents can also send over MCP, REST and UCP), a short buy form, the QRIS code and an order page, as plain HTML that works on a weak phone connection.
    Each order records the door it came through (store link, MCP, UCP or REST) and a coarse referrer label such as `chatgpt` or
    `instagram`, never a URL or an IP address, so we can see which doors buyers really use.
    With a domain of your own, each shop can also have a short address such as `kopi-tuku.example.com`.
@@ -66,7 +69,7 @@ The running prototype (mock payment and courier, synthetic product photos): the 
 cd prototype
 pip install -r requirements-dev.txt
 python scripts/demo.py          # full end-to-end story in the terminal
-pytest -q                       # 577 tests: oversell race, payments, webhook security, OTP abuse
+pytest -q                       # 618 tests: oversell race, payments, webhook security, OTP abuse
 uvicorn etalase.api.main:app --port 8080   # API, MCP at /mcp/, dashboard at /, docs at /docs
 ```
 
@@ -145,7 +148,7 @@ It is published to GitHub Pages by `.github/workflows/learn.yml` (Settings → P
 ├── prototype/                    Python · FastAPI · ADK · MCP · Cloud Run
 │   ├── etalase/                  the application (code map in prototype/README.md)
 │   ├── scripts/                  demo.py, e2e_http.py, browser_check.py, deploy_cloud_run.sh
-│   ├── tests/                    577 tests
+│   ├── tests/                    618 tests
 │   ├── evals/                    labelled messages and the extraction scorer
 │   ├── ucp_conformance/          runner for Google's official UCP conformance suite
 │   └── Dockerfile

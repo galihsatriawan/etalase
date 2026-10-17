@@ -131,15 +131,18 @@ class GatewayTools:
         except (CheckoutError, KeyError) as e:
             return {"error": str(e)}
 
-    def create_checkout(self, product_id: str, variant_id: str, quantity: int, buyer_name: str, buyer_phone: str,
-                        address_line: str, city: str, postal_code: str, country: str = "ID",
-                        courier: str | None = None, channel: str = "", referrer: str = "", payment_method: str = "qris") -> dict:
+    def create_checkout(self, product_id: str | None = None, variant_id: str | None = None, quantity: int = 1,
+                        buyer_name: str = "", buyer_phone: str = "", address_line: str = "", city: str = "",
+                        postal_code: str = "", country: str = "ID", courier: str | None = None,
+                        channel: str = "", referrer: str = "", payment_method: str = "qris",
+                        items: list[dict] | None = None) -> dict:
         """`channel` and `referrer` are set by the door the call came through (REST, MCP), never taken from the agent's input."""
         buyer = Address(name=buyer_name, phone=buyer_phone, line1=address_line, city=city,
                         postal_code=postal_code, country=country.upper())
         try:
             order = self.ctx.checkout.create_checkout(product_id, variant_id, quantity, buyer, courier,
-                                                      channel=channel, referrer=referrer, payment_method=payment_method)
+                                                      channel=channel, referrer=referrer, payment_method=payment_method,
+                                                      items=items)
         except (CheckoutError, KeyError) as e:
             return {"error": str(e)}
         return order_view(order)

@@ -61,6 +61,13 @@ def test_demo_mode_refuses_anything_real(modes, complaint):
         validate_settings(Settings(etalase_env="dev", demo_mode=True, _env_file=None), modes)
 
 
+def test_the_sandbox_never_runs_with_sign_up_on():
+    """With the mock provider a new shop is verified at once, so sign-up on a public sandbox would let anyone open shops."""
+    with pytest.raises(InsecureConfig, match="SIGNUP_ENABLED"):
+        validate_settings(Settings(etalase_env="dev", demo_mode=True, signup_enabled=True, _env_file=None), SANDBOX_MODES)
+    validate_settings(Settings(etalase_env="dev", signup_enabled=True, _env_file=None), {**SANDBOX_MODES})
+
+
 def test_prod_can_never_be_a_sandbox():
     prod = Settings(etalase_env="prod", demo_mode=True, session_secret="s" * 40, webhook_token="w" * 20, _env_file=None)
     with pytest.raises(InsecureConfig, match="DEMO_MODE only runs with ETALASE_ENV=dev"):
@@ -185,6 +192,11 @@ def test_the_console_shows_where_a_buyer_is_not_who(web, box):
     state = web.get("/demo/api/state").json()
     assert state["orders"][0]["city"] == BUYER.city
     assert BUYER.name not in str(state) and BUYER.phone not in str(state)
+
+
+def test_the_cart_checkout_of_the_demo_shop_asks_for_made_up_details_too(box):
+    page = storefront.cart_form(box, demo.DEMO_SELLER_ID, "var_demo_voal_black:1").body.decode()
+    assert "Demo sandbox." in page and "made-up details" in page
 
 
 def test_the_checkout_of_the_demo_shop_asks_for_made_up_details(box):

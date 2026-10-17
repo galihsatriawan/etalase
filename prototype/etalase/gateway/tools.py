@@ -12,6 +12,7 @@ from ..models import Address, CheckoutError, Order, OrderStatus, now
 
 if TYPE_CHECKING:
     from ..container import AppContext
+    from .hosts import ShopScope
 
 NEXT_STEP = {
     OrderStatus.AWAITING_SELLER_CONFIRMATION: "The seller is confirming stock (usually within minutes). Poll get_checkout_status; "
@@ -27,6 +28,29 @@ NEXT_STEP = {
     OrderStatus.EXPIRED: "The checkout expired unpaid. Create a new checkout if the buyer still wants it.",
     OrderStatus.REFUNDED: "The order ended and the buyer is being refunded: payment.status says whether the refund is done.",
 }
+
+
+def _item_product_id(item) -> str | None:
+    """The product a cart item names, whether it is a dict or a (product_id, variant_id[, qty]) tuple."""
+    if isinstance(item, dict):
+        return item.get("product_id")
+    if isinstance(item, (tuple, list)) and item:
+        return item[0]
+    return None
+
+
+def _cart_items(items):
+    """Cart lines as an agent sends them ({"product_id", "variant_id", "quantity"}) in the form the service takes ("qty").
+    Anything else (a tuple, a line that already says "qty") passes through for the service to check."""
+    if items is None:
+        return None
+    return [{"product_id": i.get("product_id"), "variant_id": i.get("variant_id"), "qty": i.get("qty", i.get("quantity", 1))}
+            if isinstance(i, dict) else i for i in items]
+
+
+def _wanted(product_id, cart) -> list:
+    """Every product id a call names: the one product, or the product of each cart line."""
+    return [_item_product_id(i) for i in cart] if cart is not None else [product_id]
 
 
 def next_step(order: Order) -> str:
@@ -105,10 +129,26 @@ class GatewayTools:
         seller = self.ctx.store.get_seller(seller_id)
         return {"return_policy": self.ctx.returns.policy_view(seller), "track_record": self.ctx.checkout.track_record(seller_id)}
 
+    def _visible(self, product_id: str | None, shop: "ShopScope | None"):
+        """The product, if this caller may see it: published, its seller open to buyers, and, on a shop's own address
+        (rina.<domain>), one of that shop's products. Anything else is "not found", never "not yours"."""
+        p = self.ctx.store.get_product(product_id) if product_id else None
+        if p is None or p.status != "published" or (shop is not None and p.seller_id != shop.seller_id):
+            return None
+        seller = self.ctx.store.get_seller(p.seller_id)
+        return p if seller is not None and seller.open_for_buyers else None
+
+    def _mine(self, checkout_id: str, shop: "ShopScope | None") -> bool:
+        """False for a checkout that belongs to another shop when the call came in on a shop's own address."""
+        if shop is None:
+            return True
+        order = self.ctx.store.get_order(checkout_id)
+        return order is not None and order.seller_id == shop.seller_id
+
     def search_products(self, query: str, max_price_idr: int | None = None, ship_to_country: str = "ID",
-                        limit: int = 5) -> dict:
+                        limit: int = 5, shop: "ShopScope | None" = None) -> dict:
         results = self.ctx.catalog.search(query, max_price=max_price_idr, ship_to_country=ship_to_country,
-                                          limit=min(max(limit, 1), 10))
+                                          limit=min(max(limit, 1), 10), seller_id=shop.seller_id if shop else None)
         seen: dict[str, dict] = {}
         for r in results:
             sid = r["seller"]["id"]
@@ -116,17 +156,22 @@ class GatewayTools:
         return {"results": results, "count": len(results),
                 "note": "Prices in IDR. Availability 'confirm_with_seller' means the seller confirms stock before payment."}
 
-    def get_product(self, product_id: str) -> dict:
-        p = self.ctx.store.get_product(product_id)
-        if p is None or p.status != "published":
+    def get_product(self, product_id: str, shop: "ShopScope | None" = None) -> dict:
+        p = self._visible(product_id, shop)
+        if p is None:
             return {"error": "product not found"}
         view = self.ctx.catalog.agent_view(p, self.ctx.store.get_seller(p.seller_id))
         view["seller"].update(self.trust(p.seller_id))
         return view
 
-    def get_shipping_options(self, product_id: str, variant_id: str, quantity: int, postal_code: str) -> dict:
+    def get_shipping_options(self, product_id: str | None = None, variant_id: str | None = None, quantity: int = 1,
+                             postal_code: str = "", shop: "ShopScope | None" = None, items: list[dict] | None = None) -> dict:
+        """Courier options to a postal code, for one product or for a whole cart (`items`, all from one shop)."""
+        cart = _cart_items(items)
+        if any(self._visible(p, shop) is None for p in _wanted(product_id, cart)):
+            return {"error": "product not found"}
         try:
-            return {"options": self.ctx.checkout.shipping_options(product_id, variant_id, quantity, postal_code),
+            return {"options": self.ctx.checkout.shipping_options(product_id, variant_id, quantity, postal_code, items=cart),
                     "currency": "IDR"}
         except (CheckoutError, KeyError) as e:
             return {"error": str(e)}
@@ -135,30 +180,39 @@ class GatewayTools:
                         buyer_name: str = "", buyer_phone: str = "", address_line: str = "", city: str = "",
                         postal_code: str = "", country: str = "ID", courier: str | None = None,
                         channel: str = "", referrer: str = "", payment_method: str = "qris",
-                        items: list[dict] | None = None) -> dict:
-        """`channel` and `referrer` are set by the door the call came through (REST, MCP), never taken from the agent's input."""
+                        items: list[dict] | None = None, shop: "ShopScope | None" = None) -> dict:
+        """`channel` and `referrer` are set by the door the call came through (REST, MCP), never taken from the agent's input.
+        Every product asked for, one or several (`items`), must be visible to the caller: its seller open to buyers and, on a
+        shop's own address, that shop's own."""
+        cart = _cart_items(items)
+        if any(self._visible(p, shop) is None for p in _wanted(product_id, cart)):
+            return {"error": "product not found"}
         buyer = Address(name=buyer_name, phone=buyer_phone, line1=address_line, city=city,
                         postal_code=postal_code, country=country.upper())
         try:
             order = self.ctx.checkout.create_checkout(product_id, variant_id, quantity, buyer, courier,
                                                       channel=channel, referrer=referrer, payment_method=payment_method,
-                                                      items=items)
+                                                      items=cart)
         except (CheckoutError, KeyError) as e:
             return {"error": str(e)}
         return order_view(order)
 
-    def get_checkout_status(self, checkout_id: str) -> dict:
+    def get_checkout_status(self, checkout_id: str, shop: "ShopScope | None" = None) -> dict:
         order = self.ctx.store.get_order(checkout_id)
-        return order_view(order) if order else {"error": "checkout not found"}
+        return order_view(order) if order and self._mine(checkout_id, shop) else {"error": "checkout not found"}
 
     def request_return(self, checkout_id: str, buyer_phone: str, reason: str, note: str = "",
-                       evidence_urls: list[str] | None = None) -> dict:
+                       evidence_urls: list[str] | None = None, shop: "ShopScope | None" = None) -> dict:
+        if not self._mine(checkout_id, shop):
+            return {"error": "checkout not found"}
         try:
             return order_view(self.ctx.returns.request(checkout_id, buyer_phone, reason, note, evidence_urls))
         except (CheckoutError, KeyError) as e:
             return {"error": str(e)}
 
-    def submit_return_tracking(self, checkout_id: str, buyer_phone: str, waybill: str) -> dict:
+    def submit_return_tracking(self, checkout_id: str, buyer_phone: str, waybill: str, shop: "ShopScope | None" = None) -> dict:
+        if not self._mine(checkout_id, shop):
+            return {"error": "checkout not found"}
         try:
             return order_view(self.ctx.returns.add_return_tracking(checkout_id, buyer_phone, waybill))
         except (CheckoutError, KeyError) as e:

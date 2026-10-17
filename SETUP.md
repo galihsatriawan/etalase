@@ -24,7 +24,8 @@ mock QRIS, mock courier rates, console instead of WhatsApp). What each key buys 
 | [5. Biteship](#5-biteship-couriers) | 1 value + a small balance | mock rates | real courier rates |
 | [3b. Telegram](#3b-telegram-optional-second-seller-channel) | 3 values (a bot from @BotFather) | WhatsApp is the only seller channel | the "same order, another channel" demo; alerts with no 24-hour window |
 | [6. Instagram](#6-instagram-optional) | 2 values | bundled sample posts | importing a seller's real posts |
-| [7. Shop addresses](#7-shop-addresses-optional) | 1 value + wildcard DNS and certificate | every shop link is `/stores/<id>` on one host | `rina.yourdomain` links |
+| [7. Shop addresses](#7-shop-addresses-optional) | 1 value + wildcard DNS and certificate | every shop link is `/stores/<id>` on one host | `rina.yourdomain` links, each with its own UCP profile |
+| [7b. Sign-up in chat](#7b-sign-up-in-chat-optional) | 1 value (`SIGNUP_ENABLED=true`) | sellers exist only through `/dev/sellers` | a stranger builds a shop in the chat and picks its address first |
 
 **Minimum for a convincing submission: sections 1 and 2.** Sections 3 to 6 make the demo more real; add them in order of the
 time you have. Keep Xendit and Biteship in test mode for the competition: no real parcel moves and no customer pays. (Biteship still bills
@@ -199,6 +200,8 @@ Instead of `https://<service>/stores/sel_1a2b3c4d5e`, each shop can have `https:
    set this up from the sandbox: it is the same pattern as any wildcard SaaS domain, not verified against your account.
 4. `make doctor` resolves a random label under the domain and warns if the wildcard record is missing.
 5. Shops get an address from their name when created; a seller changes it in the dashboard (**Settings → Your shop address**). The old address stops working, so the dashboard says so.
+6. Each address is also that shop's agent surface: `https://rina.etalase.id/.well-known/ucp` is Rina's UCP profile (its endpoint is her address), and `/ucp/v1`, `/agent/v1` and `/mcp` on it see
+   only her products and orders. Check it with `curl -s https://rina.etalase.id/.well-known/ucp`. The platform host still serves every shop.
 
 Local try: `STORE_BASE_DOMAIN=localhost:8080 PUBLIC_BASE_URL=http://localhost:8080 make run`, then open `http://<slug>.localhost:8080` (browsers resolve `*.localhost` to your machine).
 A host nobody claimed answers 404 (also with a trailing dot or a port in the header), and the platform host keeps the dashboard at `/`.
@@ -206,6 +209,18 @@ A host nobody claimed answers 404 (also with a trailing dot or a port in the hea
 **Behind a load balancer or Cloudflare**, also set `TRUSTED_PROXY_HOPS=1`. Etalase takes the client address from the end of `X-Forwarded-For`
 (Cloud Run appends the address it saw); one more proxy in front means the last entry is the proxy, so every visitor would share one rate limit.
 Log the header once on your deployment to confirm the right number; we could not verify it from the sandbox.
+
+## 7b. Sign-up in chat (optional)
+
+Off by default. With `SIGNUP_ENABLED=true`, a stranger who writes to your WhatsApp number is asked for a shop name, offered a unique address on `STORE_BASE_DOMAIN` (they can type another), and asked where they
+ship from. The shop starts **invisible**: no store page, no search result, no UCP/MCP/REST answer until it is verified. Decision and limits: [ADR 0010](docs/adr/0010-chat-signup-address-first.md).
+
+- With the **mock payment provider** (a local run, the sandbox) a finished sign-up is verified at once.
+- With a **real provider** the shop waits for you. `GET /tasks/pending-sellers` lists them; after you have checked the seller's identity and bank account yourself, `POST /tasks/verify-seller` with
+  `{"seller_id": "..."}` opens the shop (both need the `X-Etalase-Operator-Token` header). The provider's own identity check through a link is **not built**. Starting with `SIGNUP_ENABLED` and no `OPERATOR_TOKEN` is refused.
+- An address not verified within `SIGNUP_HOLD_HOURS` (default 72) goes back to the pool; `SIGNUP_SHOPS_PER_HOUR` (default 20) caps new shops across the platform.
+- Local try: `SIGNUP_ENABLED=true make run`, then `curl -X POST localhost:8080/dev/whatsapp -H 'content-type: application/json' -d '{"sender":"6281200001111","text":"hi"}'` and keep answering with the same sender.
+- Not tested with live WhatsApp traffic. The "your shop is open" message needs an approved template when the seller's 24-hour window has closed, and none is defined.
 
 ## 8. Payout hold, disputes and parcel rechecks (optional, all have defaults)
 
@@ -216,7 +231,7 @@ These are settings, not keys. The defaults work; change them in `.env` (and `mak
 | `PAYOUT_HOLD_HOURS` / `NEW_SELLER_HOLD_HOURS` | 72 / 168 | How long a seller waits after the courier confirms delivery. `PAYOUT_HOLD_HOURS=0` pays at once and switches returns off |
 | `SUPPORT_CONTACT` | empty | An address or number people can write to when they disagree with a dispute decision. **Set it only if someone will read it.** With it empty, `/policy/payouts` offers no appeal. `DISPUTE_APPEAL_DAYS` (default 7) is how long people have |
 | `SHIPMENT_RECHECK_HOURS` | 6 | How often Etalase asks the courier again about a shipment it has not confirmed. Every recheck is a **billable Biteship tracking call**, so keep your balance topped up |
-| `OPERATOR_TOKEN` | generated by `make deploy` | The header token for the endpoints that move money by hand (`/tasks/disputes`, `/tasks/resolve-dispute`) and for the report at `/tasks/attribution` |
+| `OPERATOR_TOKEN` | generated by `make deploy` | The header token for the endpoints that move money by hand (`/tasks/disputes`, `/tasks/resolve-dispute`), for the report at `/tasks/attribution`, and for verifying shops that signed up in chat (`/tasks/pending-sellers`, `/tasks/verify-seller`) |
 
 Read `/policy/payouts` on your deployment before you give the store link to anyone: it is what buyers and sellers will be shown,
 and it is generated from these settings. A parcel the courier loses is refunded to the buyer in full and the seller carries the loss;

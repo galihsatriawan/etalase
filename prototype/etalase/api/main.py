@@ -13,7 +13,7 @@ from urllib.parse import urlparse
 
 from fastapi import APIRouter, Depends, FastAPI, Header, HTTPException, Request
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, PlainTextResponse
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from .. import demo
 from ..adapters import instagram
@@ -24,7 +24,7 @@ from . import demo_console
 from ..connector.service import OrderStatusIn, ProductIn, StockIn
 from ..container import AppContext, build_context
 from ..gateway import discovery, pages, payout_policy, storefront, ucp as ucp_protocol
-from ..gateway.hosts import ShopHostMiddleware
+from ..gateway.hosts import ShopHostMiddleware, shop_of
 from ..gateway.mcp_server import build_mcp
 from ..gateway.tools import order_view
 from ..models import Address, CheckoutError, Connection, Seller, now
@@ -106,8 +106,9 @@ def healthz():
 
 # ------------------------------------------------------------------ discovery
 @app.get("/.well-known/ucp")
-def ucp():
-    return ucp_protocol.ucp_profile(ctx)
+def ucp(request: Request):
+    """The platform's profile, or on rina.<domain> that shop's own profile (its endpoint is the shop's address)."""
+    return ucp_protocol.ucp_profile(ctx, shop_of(request))
 
 
 app.include_router(ucp_protocol.build_router(ctx, limits))   # /ucp/v1/checkout-sessions ... (UCP Checkout, REST)
@@ -115,9 +116,25 @@ if ctx.settings.demo_mode:
     app.include_router(demo_console.build_router(ctx, limits))   # /demo: the simulated seller phone
 
 
+def other_shop(request: Request, seller_id: str | None) -> bool:
+    """True when the request came in on one shop's own address but the thing it asks for belongs to another shop."""
+    shop = shop_of(request)
+    return shop is not None and seller_id is not None and seller_id != shop.seller_id
+
+
+def order_of_other_shop(request: Request, order_id: str) -> bool:
+    if shop_of(request) is None:
+        return False
+    order = ctx.store.get_order(order_id[:64])
+    return order is not None and other_shop(request, order.seller_id)
+
+
 @app.get("/checkout/{checkout_id}", response_class=HTMLResponse, include_in_schema=False)
 def hosted_checkout(request: Request, checkout_id: str):
     rate_limit(request, "pay-page", 600, 60)
+    session = ctx.store.get_doc(ucp_protocol.SESSION_KIND, checkout_id[:64])
+    if session is not None and other_shop(request, session.get("seller_id")):
+        checkout_id = ""      # shown as "not valid", exactly like a checkout that does not exist
     return ucp_protocol.pay_page_response(ctx, checkout_id)
 
 
@@ -145,13 +162,14 @@ def remember_source(request: Request, response):
 @app.get("/stores/{seller_id}", response_class=HTMLResponse, include_in_schema=False)
 def store_front(request: Request, seller_id: str):
     rate_limit(request, "storefront", 600, 60)
-    return remember_source(request, storefront.store_page(ctx, seller_id))
+    return remember_source(request, storefront.store_page(ctx, seller_id, request.cookies.get(storefront.cart_cookie(seller_id))))
 
 
 @app.get("/stores/{seller_id}/p/{product_id}", response_class=HTMLResponse, include_in_schema=False)
 def store_product(request: Request, seller_id: str, product_id: str, v: str = ""):
     rate_limit(request, "storefront", 600, 60)
-    return remember_source(request, storefront.product_page(ctx, seller_id, product_id, v))
+    return remember_source(request, storefront.product_page(ctx, seller_id, product_id, v,
+                                                            request.cookies.get(storefront.cart_cookie(seller_id))))
 
 
 @app.get("/stores/{seller_id}/buy/{variant_id}", response_class=HTMLResponse, include_in_schema=False)
@@ -168,22 +186,59 @@ async def store_buy(request: Request, seller_id: str, variant_id: str):
     return await asyncio.to_thread(storefront.buy_submit, ctx, seller_id, variant_id, await request.body(), referrer)
 
 
+# The cart: one cookie per shop (variant ids and quantities only), plain forms and redirects, so it works without JavaScript.
+@app.get("/stores/{seller_id}/cart", response_class=HTMLResponse, include_in_schema=False)
+def store_cart(request: Request, seller_id: str):
+    rate_limit(request, "storefront", 600, 60)
+    return storefront.cart_page(ctx, seller_id, request.cookies.get(storefront.cart_cookie(seller_id)))
+
+
+@app.get("/stores/{seller_id}/cart/badge", response_class=HTMLResponse, include_in_schema=False)
+def store_cart_badge(request: Request, seller_id: str):
+    rate_limit(request, "storefront", 600, 60)
+    return storefront.cart_badge(ctx, seller_id, request.cookies.get(storefront.cart_cookie(seller_id)))
+
+
+@app.get("/stores/{seller_id}/cart/checkout", response_class=HTMLResponse, include_in_schema=False)
+def store_cart_checkout_form(request: Request, seller_id: str):
+    rate_limit(request, "storefront", 600, 60)
+    return storefront.cart_form(ctx, seller_id, request.cookies.get(storefront.cart_cookie(seller_id)))
+
+
+@app.post("/stores/{seller_id}/cart/checkout", response_class=HTMLResponse, include_in_schema=False)
+async def store_cart_checkout(request: Request, seller_id: str):
+    same_origin(request)
+    rate_limit(request, "checkout", 20, 3600)     # the same bucket as every other way to start a checkout
+    referrer = attribution.clean_cookie(request.cookies.get(attribution.COOKIE))
+    return await asyncio.to_thread(storefront.cart_submit, ctx, seller_id, request.cookies.get(storefront.cart_cookie(seller_id)),
+                                   await request.body(), referrer)
+
+
+@app.post("/stores/{seller_id}/cart/{action}", response_class=HTMLResponse, include_in_schema=False)   # after /cart/checkout: first match wins
+async def store_cart_change(request: Request, seller_id: str, action: str):
+    same_origin(request)
+    rate_limit(request, "cart", 120, 60)
+    return await asyncio.to_thread(storefront.cart_change, ctx, seller_id, action,
+                                   request.cookies.get(storefront.cart_cookie(seller_id)), await request.body())
+
+
 @app.get("/pay/{order_id}", response_class=HTMLResponse, include_in_schema=False)
 def order_status_page(request: Request, order_id: str):
     rate_limit(request, "pay-page", 600, 60)
-    return storefront.order_page(ctx, order_id)
+    return storefront.order_page(ctx, "" if order_of_other_shop(request, order_id) else order_id)
 
 
 @app.get("/pay/{order_id}/return", response_class=HTMLResponse, include_in_schema=False)
 def order_return_form(request: Request, order_id: str):
     rate_limit(request, "pay-page", 600, 60)
-    return storefront.return_form(ctx, order_id)
+    return storefront.return_form(ctx, "" if order_of_other_shop(request, order_id) else order_id)
 
 
 @app.post("/pay/{order_id}/return", response_class=HTMLResponse, include_in_schema=False)
 async def order_return_submit(request: Request, order_id: str):
     same_origin(request)
     rate_limit(request, "return", 10, 3600)       # the same bucket as the agent return tools
+    order_id = "" if order_of_other_shop(request, order_id) else order_id
     return await asyncio.to_thread(storefront.return_submit, ctx, order_id, await request.body())
 
 
@@ -214,7 +269,7 @@ def return_policy_page(request: Request, seller_id: str):
 def return_policy_json(request: Request, seller_id: str):
     rate_limit(request, "policy", 600, 60)
     seller = ctx.store.get_seller(seller_id[:64])
-    if seller is None:
+    if seller is None or not seller.open_for_buyers:
         raise HTTPException(404, "store not found")
     return {"return_policy": ctx.returns.policy_view(seller), "track_record": ctx.checkout.track_record(seller.id)}
 
@@ -223,10 +278,18 @@ def return_policy_json(request: Request, seller_id: str):
 agent = APIRouter(prefix="/agent/v1", tags=["agent"])
 
 
-class CheckoutIn(BaseModel):
+class CartLineIn(BaseModel):
     product_id: str = Field(max_length=40)
     variant_id: str = Field(max_length=40)
-    quantity: int = Field(ge=1, le=100)
+    quantity: int = Field(default=1, ge=1, le=100)
+
+
+class CheckoutIn(BaseModel):
+    """One product (product_id, variant_id, quantity) or a cart of up to 10 lines from one shop (items), not both."""
+    product_id: str | None = Field(default=None, max_length=40)
+    variant_id: str | None = Field(default=None, max_length=40)
+    quantity: int = Field(default=1, ge=1, le=100)
+    items: list[CartLineIn] | None = Field(default=None, min_length=1, max_length=10)
     buyer_name: str = Field(min_length=1, max_length=80)
     buyer_phone: str = Field(min_length=8, max_length=20)
     address_line: str = Field(min_length=5, max_length=200)
@@ -236,34 +299,56 @@ class CheckoutIn(BaseModel):
     courier: str | None = Field(default=None, max_length=20)
     payment_method: str = Field(default="qris", max_length=20)     # QRIS only; anything else is refused with an explanation
 
+    @model_validator(mode="after")
+    def one_product_or_a_cart(self):
+        if self.items is None and not (self.product_id and self.variant_id):
+            raise ValueError("send product_id and variant_id, or items")
+        if self.items is not None and (self.product_id or self.variant_id):
+            raise ValueError("send either product_id and variant_id, or items, not both")
+        return self
+
+
+class ShippingIn(BaseModel):
+    items: list[CartLineIn] = Field(min_length=1, max_length=10)
+    postal_code: str = Field(max_length=10)
+
 
 @agent.get("/search")
 def agent_search(request: Request, q: str, max_price_idr: int | None = None, country: str = "ID", limit: int = 5):
     rate_limit(request, "search", 120, 60)
-    return ctx.gateway.search_products(q[:200], max_price_idr, country, limit)
+    return ctx.gateway.search_products(q[:200], max_price_idr, country, limit, shop=shop_of(request))
 
 
 @agent.get("/products/{product_id}")
-def agent_product(product_id: str):
-    return ctx.gateway.get_product(product_id)
+def agent_product(request: Request, product_id: str):
+    return ctx.gateway.get_product(product_id, shop=shop_of(request))
 
 
 @agent.get("/products/{product_id}/shipping-options")
 def agent_shipping(request: Request, product_id: str, variant_id: str, quantity: int, postal_code: str):
     rate_limit(request, "shipping", 60, 60)  # each call can cost a courier-API request
-    return ctx.gateway.get_shipping_options(product_id, variant_id[:40], max(1, min(quantity, 100)), postal_code[:10])
+    return ctx.gateway.get_shipping_options(product_id, variant_id[:40], max(1, min(quantity, 100)), postal_code[:10],
+                                            shop=shop_of(request))
+
+
+@agent.post("/shipping-options")
+def agent_cart_shipping(request: Request, body: ShippingIn):
+    """Courier options for a whole cart (several products of one shop)."""
+    rate_limit(request, "shipping", 60, 60)
+    return ctx.gateway.get_shipping_options(postal_code=body.postal_code, items=[i.model_dump() for i in body.items],
+                                            shop=shop_of(request))
 
 
 @agent.post("/checkouts")
 def agent_checkout(request: Request, body: CheckoutIn):
     rate_limit(request, "checkout", 20, 3600)
-    return ctx.gateway.create_checkout(**body.model_dump(), channel="rest",
+    return ctx.gateway.create_checkout(**body.model_dump(), channel="rest", shop=shop_of(request),
                                        referrer=attribution.agent_from_user_agent(request.headers.get("user-agent")))
 
 
 @agent.get("/checkouts/{checkout_id}")
-def agent_checkout_status(checkout_id: str):
-    return ctx.gateway.get_checkout_status(checkout_id)
+def agent_checkout_status(request: Request, checkout_id: str):
+    return ctx.gateway.get_checkout_status(checkout_id, shop=shop_of(request))
 
 
 class ReturnIn(BaseModel):
@@ -281,13 +366,14 @@ class ReturnTrackingIn(BaseModel):
 @agent.post("/checkouts/{checkout_id}/return")
 def agent_request_return(request: Request, checkout_id: str, body: ReturnIn):
     rate_limit(request, "return", 10, 3600)
-    return ctx.gateway.request_return(checkout_id[:40], body.buyer_phone, body.reason, body.note, body.evidence_urls)
+    return ctx.gateway.request_return(checkout_id[:40], body.buyer_phone, body.reason, body.note, body.evidence_urls,
+                                      shop=shop_of(request))
 
 
 @agent.post("/checkouts/{checkout_id}/return/tracking")
 def agent_return_tracking(request: Request, checkout_id: str, body: ReturnTrackingIn):
     rate_limit(request, "return", 10, 3600)
-    return ctx.gateway.submit_return_tracking(checkout_id[:40], body.buyer_phone, body.waybill)
+    return ctx.gateway.submit_return_tracking(checkout_id[:40], body.buyer_phone, body.waybill, shop=shop_of(request))
 
 
 app.include_router(agent)
@@ -404,6 +490,30 @@ def open_disputes():
 def attribution_report():
     """Which doors buyers use: checkouts started, paid and expired unpaid per channel and per referrer. Header X-Etalase-Operator-Token."""
     return ctx.checkout.attribution_report()
+
+
+class VerifySeller(BaseModel):
+    seller_id: str = Field(max_length=40)
+
+
+@app.get("/tasks/pending-sellers", dependencies=[Depends(operator_token)])
+def pending_sellers():
+    """Shops that signed up in chat and are not verified yet, oldest first. Header X-Etalase-Operator-Token."""
+    rows = sorted(ctx.store.pending_sellers(), key=lambda s: s.created_at)
+    return [{"seller_id": s.id, "name": s.name, "whatsapp": s.whatsapp, "address": slugs.store_url(ctx.settings, s) if s.slug else None,
+             "city": s.origin.city if s.origin else "", "signed_up_at": s.created_at.isoformat(timespec="minutes"),
+             "onboarding": s.onboarding or "done"} for s in rows]
+
+
+@app.post("/tasks/verify-seller", dependencies=[Depends(operator_token)])
+def verify_seller(body: VerifySeller):
+    """The operator has checked this seller's identity and bank account (outside Etalase): open the shop to buyers and agents.
+    This is the pilot's stand-in for the payment provider's own check, which is not built. Header X-Etalase-Operator-Token."""
+    try:
+        seller = ctx.signup.open_shop(body.seller_id)
+    except KeyError:
+        raise HTTPException(404, "seller not found")
+    return {"seller_id": seller.id, "kyc_status": seller.kyc_status, "store_url": slugs.store_url(ctx.settings, seller)}
 
 
 @app.post("/tasks/resolve-dispute", dependencies=[Depends(operator_token)])

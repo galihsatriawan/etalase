@@ -40,7 +40,7 @@ More in [Problem and market](docs/01-problem-and-market.md).
    options, checkout. Stock is reserved while the buyer pays with **QRIS**. QRIS is the only payment method
    (no cash on delivery, so a seller never ships an order that is not paid; [ADR 0009](docs/adr/0009-qris-only-no-cod.md)).
    A buyer without an agent opens the seller's **store link** (put it in an Instagram bio or a WhatsApp
-   status): the same catalog, a short buy form, the QRIS code and an order page, as plain HTML that works on a weak phone connection.
+   status): the same catalog, a cart (several products of one shop in one order, which agents can also send over MCP, REST and UCP), a short buy form, the QRIS code and an order page, as plain HTML that works on a weak phone connection.
    Each order records the door it came through (store link, MCP, UCP or REST) and a coarse referrer label such as `chatgpt` or
    `instagram`, never a URL or an IP address, so we can see which doors buyers really use.
    With a domain of your own, each shop can also have a short address such as `kopi-tuku.example.com`.
@@ -68,7 +68,7 @@ The running prototype (mock payment and courier, synthetic product photos): the 
 cd prototype
 pip install -r requirements-dev.txt
 python scripts/demo.py          # full end-to-end story in the terminal
-pytest -q                       # 507 tests: oversell race, payments, webhook security, OTP abuse
+pytest -q                       # 618 tests: oversell race, payments, webhook security, OTP abuse
 uvicorn etalase.api.main:app --port 8080   # API, MCP at /mcp/, dashboard at /, docs at /docs
 ```
 
@@ -141,13 +141,13 @@ It is published to GitHub Pages by `.github/workflows/learn.yml` (Settings → P
 │   ├── 15-evidence.md            every number with its source and quote
 │   ├── 16-ucp.md                 what we implement of the Universal Commerce Protocol
 │   ├── 17-market-fit-and-direction.md   is the idea still right: verified, partly, unverified
-│   ├── adr/                      nine decision records (0001 to 0009)
+│   ├── adr/                      ten decision records (0001 to 0010)
 │   └── assets/
 ├── learn/                        Etalase Academy (VitePress learning site)
 ├── prototype/                    Python · FastAPI · ADK · MCP · Cloud Run
 │   ├── etalase/                  the application (code map in prototype/README.md)
 │   ├── scripts/                  demo.py, e2e_http.py, browser_check.py, deploy_cloud_run.sh
-│   ├── tests/                    507 tests
+│   ├── tests/                    618 tests
 │   ├── evals/                    labelled messages and the extraction scorer
 │   ├── ucp_conformance/          runner for Google's official UCP conformance suite
 │   └── Dockerfile
@@ -166,7 +166,11 @@ and whether sellers will pay a 4% commission and wait 72 to 168 hours (no seller
 checks to run first are in [Market fit and direction](docs/17-market-fit-and-direction.md) and in
 [Security, privacy and compliance](docs/09-security-privacy-compliance.md#known-gaps-before-a-pilot).
 
-Instagram DM selling is roadmap, not built.
+Instagram DM selling is roadmap, not built. Sign-up in chat is built but off by default and never run on live WhatsApp: a stranger picks a unique shop address first,
+and the shop stays invisible to buyers and agents until it is verified. The identity and bank check at the payment provider is **not built**: with the mock provider a finished
+sign-up is verified at once, with a real one an operator verifies by hand ([ADR 0010](docs/adr/0010-chat-signup-address-first.md)). Each shop address also serves its own UCP
+profile, and agents on it see only that shop ([ADR 0008](docs/adr/0008-seller-channels-and-shop-addresses.md)). Importing a seller's existing WhatsApp catalog is not built and not promised
+([doc 17](docs/17-market-fit-and-direction.md#what-about-the-catalog-a-seller-already-has)).
 
 ## Team
 

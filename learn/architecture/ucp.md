@@ -35,7 +35,7 @@ A business advertises itself at `/.well-known/ucp`. The platform finds the REST 
 
 All of it is in **`prototype/etalase/gateway/ucp.py`**; the app mounts it in `etalase/api/main.py`. It is a thin layer: it keeps a draft session in the store and calls the same `CheckoutService` as the MCP tools and the WhatsApp flow, so stock reservation, the per-phone limit, courier quotes, payment and the seller's confirm-first rule behave identically on every channel.
 
-Not implemented, so not advertised: payment handlers and AP2, cart, catalog, order, discount and buyer-consent capabilities, UCP's MCP and A2A bindings, message signing, multiple line items, pickup.
+Not implemented, so not advertised: payment handlers and AP2, cart, catalog, order, discount and buyer-consent capabilities, UCP's MCP and A2A bindings, message signing, carts that mix shops, pickup.
 
 ## The journey
 
@@ -80,7 +80,7 @@ Closed checkouts (`completed`, `canceled`) answer `409` to update and complete, 
 - **Why not `completed` straight after `complete`?** UCP's default payment model is a card or wallet instrument that the platform submits. QRIS is different: the buyer scans a code in their banking app, and Etalase learns of the payment from a webhook. Reporting `completed` before money arrived would be wrong, so the checkout stays open until then.
 - **Why `requires_escalation` and not `complete_in_progress`?** With `complete_in_progress` a platform may just show "processing" and never open the QR page. `requires_escalation` plus `continue_url` is the spec's way to make the platform hand the buyer over.
 - **Amounts.** UCP amounts are minor units under ISO 4217. IDR has exponent 2, so Rp 85.000 is sent as `8500000`. Etalase stores whole rupiah and converts in `to_minor`.
-- **One line item.** `Order.items` is already a list, but checkout creation, reservation and shipping weight handle one variant. A second item gets an error envelope `unsupported`.
+- **One shop per session, up to 10 lines.** A session holds several line items, and the courier quote, the stock reservation (all lines or none) and the order cover all of them. A cart that mixes shops gets an error envelope `unsupported`, because an order, its payout and its parcel belong to one seller: a platform that wants items from two shops opens two sessions.
 - **No fetch of the platform profile.** The `UCP-Agent` header carries a profile URL; fetching a URL taken from a request header is an SSRF risk, so Etalase checks only that the header and version are acceptable.
 - **Phone number required.** The courier and the seller reach the buyer by phone. A buyer with only an email stays `incomplete` with a recoverable message.
 
@@ -97,7 +97,7 @@ Result on 15 Oct 2026 (spec 2026-04-08, ucp-sdk 0.4.6):
 | Official sample server | 76 | 0 | 1 |
 | Etalase | 29 | 22 | 26 |
 
-All 22 failures are accounted for in `prototype/ucp_conformance/expected_failures.json`, and the runner exits non-zero if an unlisted failure appears. They are: tests that pay with a card or AP2 and expect `completed` in the same call (8), tests of the order capability (6), discount and buyer-consent tests that the suite does not skip when the capability is absent (3), a multi-item test (1), and tests of the sample server's own simulation hooks (4). Read [UCP in docs/16](https://github.com/galihsatriawan/etalase/blob/main/docs/16-ucp.md) for the table.
+All 21 failures are accounted for in `prototype/ucp_conformance/expected_failures.json`, and the runner exits non-zero if an unlisted failure appears. They are: tests that pay with a card or AP2 and expect `completed` in the same call (8), tests of the order capability (6), discount and buyer-consent tests that the suite does not skip when the capability is absent (3), and tests of the sample server's own simulation hooks (4). Read [UCP in docs/16](https://github.com/galihsatriawan/etalase/blob/main/docs/16-ucp.md) for the table.
 
 ::: warning What this does not prove
 The official suite never reaches Etalase's *completion* path, because it completes with a card. That path is covered by our own tests only. Nobody has tried it with Google's surfaces, and UCP checkout is not live for Indonesian businesses that we know of. Say "we implement the UCP checkout over REST and pass the applicable conformance tests", not "we are UCP certified" (there is no certification) and not "we work with AI Mode".

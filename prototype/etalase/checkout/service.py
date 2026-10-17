@@ -34,6 +34,7 @@ log = logging.getLogger("etalase.checkout")
 PHONE_RE = re.compile(r"^\+?[0-9]{8,15}$")
 POSTAL_RE = {"ID": re.compile(r"^[0-9]{5}$")}
 LIMITS = {"name": 80, "line1": 200, "city": 60}
+MAX_CART_LINES = 10       # different items in one checkout; the units across them are capped by max_qty_per_order
 
 
 def normalize_phone(phone: str) -> str:
@@ -66,40 +67,25 @@ class CheckoutService:
         self.limits = RateLimiter()
 
     # ------------------------------------------------------------------ quotes
-    def shipping_options(self, product_id: str, variant_id: str, qty: int, postal_code: str) -> list[dict]:
-        product = self._published(product_id)
-        seller = self.store.get_seller(product.seller_id)
-        v = product.variant(variant_id)
-        rates = self._quote(seller.origin.postal_code if seller.origin else "", postal_code,
-                            max(1, v.weight_gram) * qty, v.price * qty)
+    def shipping_options(self, product_id: str | None = None, variant_id: str | None = None, qty: int = 1,
+                         postal_code: str = "", items: list[tuple[str, str, int] | dict] | None = None) -> list[dict]:
+        """Courier options for one product, or for a whole cart (`items`): the weight and the value of every line are summed."""
+        parsed_items, seller_id = self._cart(items if items is not None else [(product_id, variant_id, qty)], "ID")
+        seller = self.store.get_seller(seller_id)
+        rates = self._quote(seller.origin.postal_code if seller and seller.origin else "", postal_code,
+                            sum(max(1, v.weight_gram) * q for _, v, q in parsed_items), sum(v.price * q for _, v, q in parsed_items))
         return [r.model_dump() for r in sorted(rates, key=lambda r: r.price)]
 
-    def _quote(self, origin_postal: str, dest_postal: str, weight_gram: int, value: int):
-        """Courier rates, with a provider outage (or an empty Biteship balance) reported as a normal checkout error
-        instead of a server error the buyer's agent cannot act on."""
-        try:
-            return self.shipping.get_rates(origin_postal, dest_postal, weight_gram, value)
-        except Exception:
-            log.exception("courier rates failed")
-            raise CheckoutError("courier rates are unavailable right now; try again in a minute") from None
-
-    # ------------------------------------------------------------------ checkout
-    def create_checkout(self, product_id: str | None = None, variant_id: str | None = None, qty: int = 1,
-                        buyer: Address | None = None, courier: str | None = None, service: str | None = None,
-                        channel: str = "", referrer: str = "", payment_method: str = "qris",
-                        items: list[tuple[str, str, int] | dict] | None = None) -> Order:
-        methods.require(payment_method)      # QRIS only in the pilot; a request for COD gets an answer the agent can repeat
-        if buyer is None:
-            raise CheckoutError("buyer address is required")
-
-        raw_items = items if items is not None else [(product_id, variant_id, qty)]
+    def _cart(self, raw_items, country: str) -> tuple[list[tuple[Product, Variant, int]], str]:
+        """The products, variants and quantities a cart names, checked: published, all from one shop, shippable to `country`,
+        and within the per-checkout limits. Raises CheckoutError with a message a buyer or an agent can act on."""
         if not raw_items:
             raise CheckoutError("at least one item required")
-
+        if len(raw_items) > MAX_CART_LINES:
+            raise CheckoutError(f"at most {MAX_CART_LINES} different items per checkout")
         parsed_items: list[tuple[Product, Variant, int]] = []
         common_seller_id: str | None = None
         total_units = 0
-
         for it in raw_items:
             if isinstance(it, (tuple, list)):
                 if len(it) < 2:
@@ -122,16 +108,37 @@ class CheckoutService:
                 common_seller_id = prod.seller_id
             elif common_seller_id != prod.seller_id:
                 raise CheckoutError("all items in a checkout must be from the same shop")
-            if buyer.country not in prod.ships_to or buyer.country not in COUNTRY_PACKS:
-                raise CheckoutError(f"shipping to {buyer.country} is not available (domestic delivery only)")
+            if country not in prod.ships_to or country not in COUNTRY_PACKS:
+                raise CheckoutError(f"shipping to {country} is not available (domestic delivery only)")
             try:
                 var = prod.variant(v_id)
             except KeyError:
                 raise CheckoutError(f"variant '{v_id}' not found for product '{prod.title}'")
             parsed_items.append((prod, var, q))
-
         if total_units > self.settings.max_qty_per_order:
             raise CheckoutError(f"at most {self.settings.max_qty_per_order} units per checkout")
+        return parsed_items, common_seller_id
+
+    def _quote(self, origin_postal: str, dest_postal: str, weight_gram: int, value: int):
+        """Courier rates, with a provider outage (or an empty Biteship balance) reported as a normal checkout error
+        instead of a server error the buyer's agent cannot act on."""
+        try:
+            return self.shipping.get_rates(origin_postal, dest_postal, weight_gram, value)
+        except Exception:
+            log.exception("courier rates failed")
+            raise CheckoutError("courier rates are unavailable right now; try again in a minute") from None
+
+    # ------------------------------------------------------------------ checkout
+    def create_checkout(self, product_id: str | None = None, variant_id: str | None = None, qty: int = 1,
+                        buyer: Address | None = None, courier: str | None = None, service: str | None = None,
+                        channel: str = "", referrer: str = "", payment_method: str = "qris",
+                        items: list[tuple[str, str, int] | dict] | None = None) -> Order:
+        methods.require(payment_method)      # QRIS only in the pilot; a request for COD gets an answer the agent can repeat
+        if buyer is None:
+            raise CheckoutError("buyer address is required")
+
+        parsed_items, common_seller_id = self._cart(items if items is not None else [(product_id, variant_id, qty)],
+                                                    buyer.country)
 
         seller = self.store.get_seller(common_seller_id)
         if seller is None or seller.kyc_status != "verified":

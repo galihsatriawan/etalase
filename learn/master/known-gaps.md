@@ -39,7 +39,7 @@ These parts have real code paths, but the demo runs a stand-in. Each switches on
 | Payments <Badge type="warning" text="Mocked in demo" /> | `MockPayment` (fake QRIS, instant refunds and releases) | `XenditPayment` (dynamic QRIS, callback token) | Refunds and xenPlatform settlement raise `ManualActionRequired` (an operator finishes them); uses the `/qr_codes` endpoint that Xendit calls legacy, and its official reference could not be opened, so the payload is community-sourced and unverified |
 | Shipping <Badge type="warning" text="Mocked in demo" /> | `MockShipping` (three couriers, `confirm_delivered` always true) | `BiteshipShipping` | Checked against Biteship's public docs (rates, orders, tracking, `order.status` webhook) and pinned by tests; not run against the live API; test mode bills rate and tracking calls |
 | Database <Badge type="warning" text="Mocked in demo" /> | `MemoryStore` (one lock) | `FirestoreStore` (transactions) | Never run against the emulator in tests; see the Firestore section below |
-| KYC <Badge type="warning" text="Mocked in demo" /> | `/dev/sellers` creates sellers with `kyc_status="verified"`; `payout_account_id` is `"mock-sub-account"` only with the mock payment adapter (`None` with real Xendit test keys) | None yet | A registration flow and sub-account creation at the provider |
+| KYC <Badge type="warning" text="Mocked in demo" /> | `/dev/sellers` and a finished chat sign-up with the mock provider set `kyc_status="verified"`; `payout_account_id` is `"mock-sub-account"` only with the mock payment adapter (`None` with real Xendit test keys). With a real provider a chat sign-up stays `pending` until an operator calls `POST /tasks/verify-seller` | None yet | The provider's identity and bank check through a link, and sub-account creation |
 | Instagram import <Badge type="warning" text="Mocked in demo" /> | `SampleInstagramSource` (three sample posts) | `InstagramGraphSource` with Instagram Login | Long-lived token exchange, token encryption, Meta App Review |
 | Events, expiry, media, secrets for tokens <Badge type="info" text="Roadmap" /> | In-process `EventBus`, a 60-second loop, a local `./media` folder, a plain `access_token` field | Pub/Sub, Cloud Tasks, Cloud Storage, Cloud KMS | All four |
 
@@ -100,7 +100,16 @@ Fix: [Exercise 13](/master/exercises#_13-run-the-store-contract-against-the-fire
 
 ### Seller onboarding and KYC
 
-There is no registration flow. An unknown number is told to sign up at the dashboard URL, but dashboard sign-in only works for sellers who already exist. Today sellers are created only through `/dev/sellers`, already marked as verified with a mock sub-account. The pilot needs registration, sub-account creation and KYC at the payment provider, and `create_checkout` already refuses sellers whose `kyc_status` is not `verified`.
+Sign-up in chat is built (`seller/signup.py`, ADR 0010) and **off by default**: a stranger picks a unique shop address first, gives the shop name and where they ship from, and the shop is created `pending`. A pending shop is invisible to buyers and agents (search, store page, its address, UCP/MCP/REST) and `create_checkout` refuses it. It has only been driven with simulated messages, never with live WhatsApp traffic.
+
+What is **not** built is the verification: with the mock payment provider a finished sign-up is verified at once, and with a real one an operator verifies by hand (`POST /tasks/verify-seller`). The payment provider's identity and bank check through a link, and the creation of a sub-account, are still to build, and whether the provider lets us hold a payout is undocumented. The "your shop is open" message may not arrive outside WhatsApp's 24-hour window (no approved template), the word list that stops `bca-resmi` is short and has no owner, and there is no report button or abuse process.
+
+### Existing catalogs
+
+Nothing imports the catalog a seller already keeps in WhatsApp Business, and we do not promise to. Reading products typed into the app through the API is unverified, and
+writing to a seller's catalog needs the seller's own WhatsApp Business Account, which our shared-number design does not connect. The realistic import paths are photos and
+screenshots (a screenshot with many products is untested), Instagram (built, tested on samples), Google Sheets or CSV (roadmap) and the Connector API. Which one comes first
+depends on where sellers keep their catalogs, which nobody has measured. See `docs/17`.
 
 ### Messaging
 
@@ -170,7 +179,7 @@ These were found while writing this guide and are now fixed in the code. Each is
 | Search | `CatalogService.search` loads every published product of every seller, calls `get_seller` per product, and matches keywords (a simple plural fold makes `hijabs` find `hijab`, but `kerudung` never matches `hijab`) | Slow and misses synonyms | Embeddings ([Exercise 16](/master/exercises#_16-add-embedding-search-with-vertex-ai)), then Firestore vector queries or a search service |
 | Courier webhook lookup | `_order_by_waybill` collects the unique sellers from all products and scans each seller's orders | Still a full scan of every order on every courier event | Query orders by `shipment.waybill` with a single-field index |
 | Hot documents | A product and all its variants' stock live in one document; every reservation rewrites it | Many checkouts on one popular product contend in Firestore | Stock per variant in its own document, or sharded counters |
-| Carts | `Order.items` is a list, but `create_checkout` builds exactly one item | Buyers want several items per order | Multi-item checkout; fix `_apply` read order first |
+| Carts | Built: several products of one shop in one order, over REST, MCP, UCP and the store pages (cookie cart). An order is still one unit for everything after checkout: the seller accepts or rejects it whole, and returns and refunds cover the whole order | A buyer cannot return one line of a cart, and a seller cannot ship part of it | Per-line acceptance and partial returns; courier choice and an estimate on the cart page; `_apply` read order |
 | Service shape | One Cloud Run service does everything | Webhooks, MCP traffic and workers scale differently | Split gateway, seller inbox and workers (`docs/03`, "Scale" row) |
 | Countries | `IDR` and `ID` hard-coded in the agent view, discovery and MCP instructions | Every new market touches the core | Read from `COUNTRY_PACKS`; per-country deployments where data residency requires |
 | AI cost | Every free-text message can call the model | Cost grows with chat volume | Flash-Lite routing, batch pricing for imports, context caching, a free allowance per seller (`docs/10`); none implemented yet |

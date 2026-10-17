@@ -1,6 +1,6 @@
 # Testing
 
-How Etalase's 507 automated tests are organised, what each file proves, how to run and extend them, and what still has to be measured before a pilot.
+How Etalase's 618 automated tests are organised, what each file proves, how to run and extend them, and what still has to be measured before a pilot.
 
 ::: tip What you will learn
 - The layout of `prototype/tests/`, the fixtures in `conftest.py` and the regression tests for fixed bugs
@@ -19,21 +19,21 @@ All tests run offline in about ten seconds. ADR 0005 (`docs/adr/0005-adapters-an
 ```bash
 cd prototype
 pip install -r requirements-dev.txt
-pytest -q          # 507 passed
+pytest -q          # 618 passed
 ```
 
 ## How the suite is organised
 
 | File | Tests | Covers |
 |---|---|---|
-| `tests/test_parsing.py` | 23 | Price parsing (`85rb`, `Rp85.000`, `price 85k`, `1,2jt`), Gemini colours normalised to the parser's ("Hitam" is "Black"), the offline extractor in English and Indonesian, CSV import, stock and price intents, stable SKUs |
-| `tests/test_checkout.py` | 9 | Instant order end to end (paid, accepted, shipped, delivered, paid out), confirm-first, seller sold out, refund after payment, expiry, domestic-only, KYC gate, tenant isolation, gateway errors as data |
+| `tests/test_parsing.py` | 24 | Price parsing (`85rb`, `Rp85.000`, `price 85k`, `1,2jt`), Gemini colours normalised to the parser's ("Hitam" is "Black"), the offline extractor in English and Indonesian, CSV import, stock and price intents, stable SKUs |
+| `tests/test_checkout.py` | 14 | Instant order end to end (paid, accepted, shipped, delivered, paid out), confirm-first, seller sold out, refund after payment, expiry, domestic-only, KYC gate, tenant isolation, gateway errors as data, multi-item carts (all-or-nothing stock, one shop per cart, clear validation messages) |
 | `tests/test_stock.py` | 6 | The 100-way oversell race, idempotent commit, release and restock, cross-seller `set_stock`, sell-mode rules, chat stock blocked for OMS sellers |
 | `tests/test_instagram.py` | 4 | Posts to drafts, non-product posts skipped, idempotent re-import, imported products searchable, minimal OAuth scope |
 | `tests/test_security.py` | 24 | Startup checks, OTP abuse, signed state, payment races, payout safety, input limits, media paths, webhook dedupe, SSRF, stale writes |
 | `tests/test_api.py` | 12 | The HTTP layer through FastAPI's `TestClient`: discovery, WhatsApp webhook, Connector key, MCP tool list, OpenAPI, `/dev` protection, webhook tokens, Meta signature, CSP and media route, oversized input |
 | `tests/test_regressions.py` | 9 | Bugs found while writing this guide, each with the test that failed before the fix: transaction retries, purpose-bound signatures, "Which product?", late Available taps, OMS-owned stock, short titles and plural search, shipment status never going backwards, unknown couriers |
-| `tests/test_ucp.py` | 18 | Etalase as a real UCP business server: the profile validates against the official `ucp-sdk` schema, a full checkout (create, update, complete, cancel) with every response validated by the SDK's `Checkout` model, idempotency, closed sessions, protocol errors, escaping, sold-out and confirm-first orders |
+| `tests/test_ucp.py` | 25 | Etalase as a real UCP business server: the profile validates against the official `ucp-sdk` schema, a full checkout (create, update, complete, cancel) with every response validated by the SDK's `Checkout` model, idempotency, closed sessions, protocol errors, escaping, sold-out and confirm-first orders |
 | `tests/test_doctor.py` | 15 | The setup doctor: each service reports skip, ok or fail with a fix hint, with the network mocked; no key value is ever printed |
 | `tests/test_evals.py` | 17 | The extraction eval's scoring (title tokens, effective prices, invented price/stock/product counters, question behaviour), so the number on the slide is trustworthy |
 | `tests/test_scripts.py` | 7 | `scripts/env_to_cloud.py` and the deploy script's dry run: secrets travel on stdin only, unchanged secrets get no new version, nothing leaks into output |
@@ -51,6 +51,11 @@ pytest -q          # 507 passed
 | `tests/test_telegram.py` | 28 | Telegram as a second seller channel: update parsing (text, buttons, photos, voice, files, private chats only), Bot API calls and errors that never contain the token, router choice by address, link codes (valid, expired, forged, moved), alerts and button taps over Telegram, replies on the channel the seller wrote on, sign-in code on the chosen channel, the webhook secret, startup checks |
 | `tests/test_review_fixes.py` | 50 | Regression tests for an independent security review: bot token absent from logs, single-use link codes and relink alerts, an atomic shop address and its cooldown, a tracking number owned by one order, stock errors that cannot lose an alert or a refund, WhatsApp fallback for a blocked Telegram chat, Host header spellings, the operator token, the client address behind a proxy, chunked uploads, malformed webhook bodies, links in buyer text |
 | `tests/test_subdomains.py` | 32 | Per-shop addresses: slug rules and reserved names, claiming and changing, `Host` to shop mapping, unclaimed host is 404, other paths pass through, canonical links, each shop a separate origin for the form check, startup checks for `STORE_BASE_DOMAIN`, the doctor's DNS check |
+| `tests/test_shop_profiles.py` | 18 | A shop address is its own UCP business: each shop's profile validates against `BusinessSchema` and points at its own address, UCP sessions belong to the shop they started on, REST and MCP tools see only that shop (the MCP test calls the tool the way FastMCP does for a request on a shop host), another shop's pages 404, a pending shop is invisible and its address is a holding page, a multi-item cart is checked item by item (no other shop's item, none from a shop that is not open) |
+| `tests/test_cart_channels.py` | 10 | A cart (several products of one shop) through REST and MCP: one order with several lines, all-or-nothing stock, the shop rules line by line, the cart shipping quote, the MCP schema, and a two-item order through payment, the seller's message, shipping, return window and payout, and through expiry |
+| `tests/test_store_cart.py` | 22 | The store-page cart: add, update, remove, a tampered or stale cookie, another shop's variant ignored, a shop that is not open, a two-item checkout that makes one order and clears the cart, out-of-stock messages, forms with JavaScript off |
+| `tests/test_ucp_shop_carts.py` | 2 | A UCP cart on a shop's own address: another shop's line is unavailable, on create and on update |
+| `tests/test_signup.py` | 46 | Sign-up in chat: the whole conversation, address offered then claimed, two shops racing for one name, lookalike and link/phone names refused, the pickup address parsed from one message, pending shop invisible and verified by an operator, the 72-hour hold, limits per hour and per number, off by default, prod needs an operator token |
 
 The parametrised tests in `test_parsing.py` count once per case, which is why 8 functions make 23 tests.
 

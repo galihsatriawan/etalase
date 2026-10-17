@@ -224,7 +224,7 @@ Status: <Badge type="warning" text="Mocked in demo" />. The agent is built and r
 |---|---|---|---|
 | MCP | Main agent interface: search, shipping, checkout, status | `gateway/mcp_server.py`, `gateway/tools.py` | <Badge type="tip" text="Built" /> |
 | REST mirror | Same operations for non-MCP clients | `api/main.py` (`/agent/v1`) | <Badge type="tip" text="Built" /> |
-| UCP | Profile at `/.well-known/ucp` and Checkout/Fulfillment over REST | `gateway/ucp.py` | <Badge type="tip" text="Built" /> (29 of 77 official tests pass; failures explained) |
+| UCP | Profile at `/.well-known/ucp` and Checkout/Fulfillment over REST | `gateway/ucp.py` | <Badge type="tip" text="Built" /> (30 of 77 official tests pass; failures explained) |
 | schema.org | JSON-LD per store | `gateway/discovery.py` | <Badge type="tip" text="Built" /> |
 | ADK + Gemini | Seller agent; demo buyer agent | `agents/seller_agent.py`, `agents/buyer_agent.py` | <Badge type="warning" text="Mocked in demo" /> |
 | Gemini structured output | Photos, voice and text to catalog JSON | `catalog/extractor.py` (`GeminiExtractor`) | <Badge type="warning" text="Mocked in demo" /> |

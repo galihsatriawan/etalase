@@ -49,6 +49,9 @@ class FirestoreStore:
             return Seller.model_validate(snap.to_dict())
         return None
 
+    def pending_sellers(self) -> list[Seller]:
+        return [Seller.model_validate(snap.to_dict()) for snap in self._col("sellers").where("kyc_status", "!=", "verified").stream()]
+
     def find_seller_by_slug(self, slug: str) -> Seller | None:
         for snap in self._col("sellers").where("slug", "==", slug).limit(1).stream():
             return Seller.model_validate(snap.to_dict())

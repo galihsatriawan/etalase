@@ -313,8 +313,10 @@ def test_an_unverified_seller_cannot_take_orders_through_the_link(web):
     seller.kyc_status = "pending"
     real_ctx.store.put_seller(seller)
     v = p.variants[0]
+    # A shop that is not verified is not a shop yet: its items do not exist for a buyer, not even to be refused.
     r = post_form(web, f"/stores/{s['id']}/buy/{v.id}", form(v.id))
-    assert r.status_code == 422 and "not accepting orders" in r.text.lower()
+    assert r.status_code == 404 and "not found" in r.text.lower()
+    # (the order service still refuses it too, for any caller that gets past the page: see test_checkout)
 
 
 def test_the_pay_page_for_an_unknown_order_is_a_404_and_never_cached(web):

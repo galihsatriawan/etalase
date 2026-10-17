@@ -56,7 +56,7 @@ This version follows the deck slide order (slides 2 to 12 in `submission/Etalase
 | 0:40–1:05 | 4 · Features, 6 · Wireframe 1 | Seller sends photos and a voice note; summary with readiness score; **Publish** | "Rina just sends what she already has. Gemini turns photos and a voice note into products, variants, prices and weights, and tells her what is missing." |
 | 1:05–1:45 | 5 · Process flow, 6 · Wireframe 2 | Buyer agent: search, shipping quote, checkout, QRIS | "Any agent can now find her products over MCP and check out. Stock is held for 15 minutes while the buyer pays with QRIS." |
 | 1:45–2:05 | 6 · Wireframe 3 | "New paid order" with **Accept**; seller replies "tracking JNE123456" | "Rina never leaves WhatsApp. Buttons never go through the model." |
-| 2:05–2:25 | 4 · Safe agent checkout, 11 · Benchmark | Confirm-first message; the 50-agent race (demo step 8) | "Low or stale stock? She confirms before the buyer pays. 50 agents race for the last unit; exactly one wins. 507 automated tests cover races, payments and webhook abuse." |
+| 2:05–2:25 | 4 · Safe agent checkout, 11 · Benchmark | Confirm-first message; the 50-agent race (demo step 8) | "Low or stale stock? She confirms before the buyer pays. 50 agents race for the last unit; exactly one wins. 618 automated tests cover races, payments and webhook abuse." |
 | 2:25–2:45 | 7 · Architecture, 9 · Cost | Architecture slide; unit economics | "She's paid after the courier confirms delivery, minus 4%. The money sits in the seller's sub-account at the payment provider, not in ours. Platform cost per order is about IDR 5,000–7,600 at ten orders per seller, against IDR 6,800 commission, so we are testing a minimum fee. Any OMS or website builder can plug in with one API." |
 | 2:45–3:00 | 12 · Roadmap | Four phases | "Next: a pilot with 50–100 sellers on Firestore and real payment sub-accounts. Etalase: every seller, shoppable by AI." |
 
@@ -70,7 +70,7 @@ For each criterion, have one claim, one thing to show and one place to point to.
 
 | Criterion | Your claim | Show this | Where it lives |
 |---|---|---|---|
-| **Technical Merit & Gen AI (40%)** | Gemini multimodal extraction with structured output; ADK seller agent with tenant-scoped tools; ADK buyer agent over MCP; transactional stock tested under concurrency | `GeminiExtractor` with `response_schema=ExtractedCatalog`; `build_seller_agent` tools; `pytest -q` (507 passed); demo step 8 | [Catalog and stock](/architecture/catalog-and-stock), [Seller agent](/architecture/seller-agent), [Agent gateway](/architecture/agent-gateway), [Testing](/ship/testing); `prototype/etalase/catalog/extractor.py`, `prototype/etalase/agents/seller_agent.py`, `prototype/tests/test_stock.py` |
+| **Technical Merit & Gen AI (40%)** | Gemini multimodal extraction with structured output; ADK seller agent with tenant-scoped tools; ADK buyer agent over MCP; transactional stock tested under concurrency | `GeminiExtractor` with `response_schema=ExtractedCatalog`; `build_seller_agent` tools; `pytest -q` (618 passed); demo step 8 | [Catalog and stock](/architecture/catalog-and-stock), [Seller agent](/architecture/seller-agent), [Agent gateway](/architecture/agent-gateway), [Testing](/ship/testing); `prototype/etalase/catalog/extractor.py`, `prototype/etalase/agents/seller_agent.py`, `prototype/tests/test_stock.py` |
 | **Problem Alignment & Impact (25%)** | Brings chat-first sellers into online shopping with a catalog from photos, a QRIS store link and an agent door; pay-per-order below marketplace fees for fee-heavy categories; payout after delivery and the return window | BPS 95% / 18% with its nuance; Shopee 10% fashion fee; cost table with the 20-orders break-even | [The problem](/foundations/problem), [Evidence](/business/evidence), [Business model](/business/business-model); `docs/15-evidence.md` |
 | **Innovation & Creativity (25%)** | Catalog from photos and voice notes plus an agent-readable store for sellers with no store system (we found no competitor page claiming the first part); WhatsApp as the seller interface; confirm-first for uncertain stock; Connector API so one partner enables many stores | Confirm-first flow; Connector API in `/docs` | [The product](/foundations/product), [Integrations](/architecture/integrations); `prototype/etalase/catalog/service.py` (`sell_mode`), `prototype/etalase/connector/service.py` |
 | **UX & Solution Design (10%)** | No new app; buttons for decisions, chat for data; bilingual; honest availability for agents | WhatsApp summary with Publish / Edit; `SELLER_LOCALE=id`; dashboard sign-in | [Seller agent](/architecture/seller-agent), [Hands-on](/run/hands-on); `prototype/etalase/seller/i18n.py`, `prototype/etalase/api/dashboard.html` |
@@ -154,6 +154,17 @@ Shopee brings its own listings to AI agents, and checkout continues on Shopee wi
 It is already moving there. Meta Business Agent answers buyers inside WhatsApp Business for free and recommends products from the seller's catalog; the press reports an Indonesian launch on 11 Aug 2026, though rollout, pricing and payment support in Indonesia are unconfirmed. In Indonesia WhatsApp's own payment feature only copies bank details. On the pages we read, Meta's agent does not build a catalog from photos, run QRIS checkout, reserve stock or open the catalog to third-party agents. If Meta adds payment or catalog intake, what remains for us is catalog quality, reserved stock and the payout hold, and we say so. We are a WhatsApp Cloud API customer, and if Meta opens agent features we plug in through the `Messenger` adapter.
 :::
 
+**Q9a. WhatsApp Business already has a catalog and a cart. What do you add?**
+
+::: details Answer
+Correct, and it is free. The app lets a seller type up to 500 items one at a time; each colour or size is its own item, there is no stock field, and a buyer's cart
+arrives as a chat message. WhatsApp does not process the payment, so the seller sends bank details and confirms by hand. We add what happens before and after that:
+the catalog is built from photos and voice notes instead of typing, stock is held while the buyer pays, QRIS is confirmed automatically, couriers are priced, and the
+payout waits for the return window. We do not sync with the WhatsApp catalog today: whether products typed in the app can be read through the API is unverified, and
+writing to it would need each seller's own WhatsApp account. Importing from a spreadsheet or Instagram is the next step. These facts come from vendor pages, not from
+Meta's own, and we say so.
+:::
+
 **Q10. Why won't Google do this itself?**
 
 ::: details Answer
@@ -231,7 +242,7 @@ On purpose: one ADK agent for free-text seller messages, and code for everything
 **Q22. Is your UCP integration real?**
 
 ::: details Answer
-Yes, at the protocol level. `/.well-known/ucp` is a valid UCP profile (checked against the official SDK schema) and `/ucp/v1/checkout-sessions` implements Checkout and Fulfillment over REST, spec 2026-04-08. We ran Google's conformance suite: the official sample server passes 76 of 77 tests, Etalase passes 29, fails 22 and skips 26. The 22 are tests that complete with a card or AP2 (we use QRIS, which the buyer finishes on a hosted page), order, discount and consent capabilities we don't advertise, a multi-item test, and the sample server's own test hooks. Each is listed with its reason in `prototype/ucp_conformance/expected_failures.json`. We are not integrated with AI Mode or the Gemini app, there is no UCP certification to claim, and AP2 payments are roadmap. See [UCP checkout](/architecture/ucp).
+Yes, at the protocol level. `/.well-known/ucp` is a valid UCP profile (checked against the official SDK schema) and `/ucp/v1/checkout-sessions` implements Checkout and Fulfillment over REST, spec 2026-04-08. We ran Google's conformance suite: the official sample server passes 76 of 77 tests, Etalase passes 30, fails 21 and skips 26. The 21 are tests that complete with a card or AP2 (we use QRIS, which the buyer finishes on a hosted page), order, discount and consent capabilities we don't advertise, and the sample server's own test hooks. Each is listed with its reason in `prototype/ucp_conformance/expected_failures.json`. We are not integrated with AI Mode or the Gemini app, there is no UCP certification to claim, and AP2 payments are roadmap. See [UCP checkout](/architecture/ucp).
 :::
 
 **Q23. Exactly what is real in your demo and what is mocked?**
@@ -243,7 +254,7 @@ Built: catalog building and readiness score, the MCP server and REST mirror, sto
 **Q24. How do you know it works?**
 
 ::: details Answer
-`cd prototype && pytest -q` runs 507 tests: 100 threads racing for the last unit (exactly one wins), duplicate and late payments, the payment-versus-expiry race, forged webhooks, OTP brute force and input limits. `python scripts/demo.py` runs the whole story offline in ten steps. Not yet tested: `FirestoreStore` against the emulator, Gemini extraction quality and live provider payloads ([Testing](/ship/testing)).
+`cd prototype && pytest -q` runs 618 tests: 100 threads racing for the last unit (exactly one wins), duplicate and late payments, the payment-versus-expiry race, forged webhooks, OTP brute force and input limits. `python scripts/demo.py` runs the whole story offline in ten steps. Not yet tested: `FirestoreStore` against the emulator, Gemini extraction quality and live provider payloads ([Testing](/ship/testing)).
 :::
 
 **Q25. How does this scale on Cloud Run today?**

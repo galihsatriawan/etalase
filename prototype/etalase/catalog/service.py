@@ -154,12 +154,13 @@ class CatalogService:
         return SellMode.INSTANT
 
     def search(self, query: str, max_price: int | None = None, ship_to_country: str = "ID",
-               limit: int = 5) -> list[dict]:
+               limit: int = 5, seller_id: str | None = None) -> list[dict]:
+        """Products an agent can buy: published, from a shop that is open to buyers. `seller_id` narrows it to one shop."""
         tokens = _tokens(query)
         wanted_colors = {COLOR_MAP[t] for t in tokens if t in COLOR_MAP}
         words = tokens - set(COLOR_MAP)
         results = []
-        for p in self.store.list_products(status=ProductStatus.PUBLISHED):
+        for p in self.store.list_products(seller_id=seller_id, status=ProductStatus.PUBLISHED):
             if ship_to_country not in p.ships_to:
                 continue
             haystack = _tokens(" ".join([p.title, p.category, p.description,
@@ -168,7 +169,7 @@ class CatalogService:
             if words and hits == 0:
                 continue
             seller = self.store.get_seller(p.seller_id)
-            if not seller:
+            if not seller or not seller.open_for_buyers:     # a shop still being set up is not for sale, and not for search
                 continue
             view = self.agent_view(p, seller, colors=wanted_colors, max_price=max_price)
             if not view["variants"]:

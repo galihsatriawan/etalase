@@ -7,7 +7,6 @@
   "CheckoutLifecycleTest.test_complete_is_idempotent": "same as test_complete_checkout: it cannot reach status completed through the card flow",
   "CheckoutLifecycleTest.test_cannot_cancel_completed_checkout": "same as test_complete_checkout: it cannot reach status completed through the card flow",
   "CheckoutLifecycleTest.test_cannot_update_completed_checkout": "same as test_complete_checkout: it cannot reach status completed through the card flow",
-  "FulfillmentStructureTest.test_default_config_single_group_per_method": "sends several line items; Etalase sells one item per checkout session",
   "BusinessLogicTest.test_buyer_consent": "buyer_consent capability not implemented (not advertised); the suite does not skip it",
   "BusinessLogicTest.test_discount_flow": "discount capability not implemented (not advertised); the suite does not skip it",
   "BusinessLogicTest.test_multiple_discounts_one_rejected": "discount capability not implemented (not advertised); the suite does not skip it",

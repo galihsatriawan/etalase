@@ -36,6 +36,7 @@ Yes, but narrower than the first pitch, and with a different centre of gravity.
 | cshub | AI customer service that creates orders inside WhatsApp; Starter Rp300,000 a month; no mention of agent storefronts, payout holds or returns on the page | **Verified** as a statement about the page |
 | Jubelio | Order and stock system, Rp150 per order, many channels | **Verified** as a statement about the page |
 | Mayar | Starter Rp0 per month with 3% platform fee on physical goods plus 0.7% QRIS; Business Rp349,000; storefront, catalog, checkout, QRIS, courier pickup; a merchant-side MCP server with 65 tools; "149,969+ businesses joined" is a vendor claim; no escrow or hold documented | **Verified** as a statement about the pages. The closest fast follower |
+| WhatsApp Business app: catalog and cart | Free in the app: up to 500 items typed in one at a time (a name, at least one photo and a country of origin are required; the price is optional); each colour or size is a separate item; there is no stock field, so a seller hides sold-out items by hand. A buyer's cart arrives as a chat message with products, quantities and prices, and a sent cart cannot be edited. WhatsApp does not process the payment: the seller sends payment details and confirms by hand. Through the API the catalog is managed in Commerce Manager (messages of up to 30 products). Read on vendor pages ([Spur](https://www.spurnow.com/en/blogs/whatsapp-business-catalog), [Aurora Inbox](https://www.aurorainbox.com/en/2026/02/26/create-whatsapp-product-catalog/), [360dialog](https://docs.360dialog.com/docs/waba-messaging/products-and-catalogs)), not on Meta's own pages | **Partly**; this is what a seller already has for free. Our difference is intake without typing, reserved stock, QRIS with automatic confirmation, couriers and the payout hold. Meta Business Agent works from this catalog |
 | Meta Business Agent / WhatsApp Business AI | An AI sales agent that answers customers, recommends products from the catalog and "closes sales"; the press reports an Indonesian launch on 11 Aug 2026; pricing and payment support in Indonesia are not confirmed. On the pages we read it does not build a catalog from photos, run QRIS checkout or expose the catalog to third-party agents | **Partly**; strongest threat on the conversation side |
 | Qontak, Ginee, Sirclo, Cekat.ai, Lincah/Orderfaz, DOKU MCP | Qontak Rp2–3.5 million a month from 5 users (the old "Rp400,000 per user" is withdrawn); Ginee annual plans Rp11.2–16.7 million (partner page); Cekat "3,000+ businesses" (vendor claim); Lincah acquired Orderfaz in Nov 2025; DOKU's MCP server has a QRIS tool (still early) | **Partly**; see doc 15 |
 | Seller willingness to pay 3–5% and to wait 3–7 days for the payout | No data. We have not spoken to sellers | **Unverified** and the largest gap |
@@ -84,6 +85,25 @@ Not changed, on purpose: one core with MCP, REST and UCP doors; WhatsApp as the 
 | **Shop addresses** (`rina.<domain>`) | A link a seller can say aloud and put in a bio; one origin per shop | **Built**, optional (`STORE_BASE_DOMAIN`) | Links look like a platform, not a shop |
 | **Buyer-side Instagram DM bot**, per seller | Where Indonesian sellers talk to buyers; no WhatsApp window problem on the seller's own account | **Not built**, roadmap | See the next section |
 
+## What about the catalog a seller already has?
+
+Asked on 2026-10-17: should Etalase sync the catalog a seller already keeps in WhatsApp Business? **Not for the hackathon, and not as a sync with the WhatsApp
+catalog.** Nothing is built for this.
+
+- **Reading it is unverified.** Meta's Graph API has `GET /<whatsapp-business-account-id>/product_catalogs`, which returns the catalogs connected to a WhatsApp
+  Business Account and needs the `whatsapp_business_management`, `whatsapp_business_messaging` and `catalog_management` permissions ([Meta reference](https://developers.secure.facebook.com/docs/graph-api/reference/whats-app-business-account/product_catalogs)).
+  One vendor page says a catalog that WhatsApp creates by itself is read-only and "does not support products" through the API ([WaliChat](https://app.wali.chat/help/waba-catalog)). We cannot
+  promise to read products a seller typed into the app.
+- **Writing needs the seller's own account.** A Commerce Manager catalog can be managed through the API and linked to a number, but a number has one catalog,
+  a vendor guide says the catalog in the app must be disconnected first, and Meta reviews each product (up to 24 hours) ([bitbybit](https://knowledge.bitbybit.studio/whatsapp-commerce/how-to-connect-bitbybit-commerce-to-whatsapp-coexistence-catalog), WaliChat).
+  It also needs the seller's WhatsApp Business Account. Our design keeps sellers on Etalase's shared number and never connects their account
+  ([ADR 0008](adr/0008-seller-channels-and-shop-addresses.md)), so pushing into their catalog would be a per-seller integration, which is a different product.
+- **Import only, from where catalogs live.** Photos and screenshots go through the extractor we have (a screenshot with many products is not tested yet),
+  Instagram import is built and tested against sample posts, Google Sheets or CSV is on the roadmap, and systems that can push use the Connector API.
+  Which source comes first depends on where sellers keep their catalogs, and nobody has measured that: ask in the ten seller conversations below.
+
+Say "we turn photos into a catalog; importing from a spreadsheet or Instagram is next", not "we sync with your WhatsApp catalog".
+
 ## Channels, cost and addresses (2026-10-16)
 
 Questions raised after the first UI review, and where they landed. Facts are labelled as in the table at the top; sources are in [doc 15](15-evidence.md).
@@ -93,7 +113,7 @@ Questions raised after the first UI review, and where they landed. Facts are lab
 | Can the seller side handle more than WhatsApp (Telegram, Instagram, Facebook, LINE)? | Yes in design, **one proven**: orders, stock checks, payouts and the dashboard code reach a linked Telegram chat through the same interface, and an end-to-end test shows one order flow on both. The others each need their own review and window rules: not built |
 | Is "use Click-to-WhatsApp ads to be free" right? | **Unconfirmed**, and narrower for us than it sounds. Sources describe a free window for conversations that start from a CTWA ad but disagree on its length (72 hours: Meta's page as fetched, Wati, Chatfuel; up to 7 days from 28 Sep 2026: Qontak, respond.io, Spurnow); we do not quote a number. CTWA frees a business's chat with someone who clicked an ad. Etalase's alerts go to sellers on events no ad opens, so it does not make them free. It can make a seller's first chat free (our own ads) and the buyer chats of sellers who run CTWA ads |
 | Would an Instagram DM bot make Etalase stronger? | For market fit, partly: it is where sellers talk to buyers and a seller's own Instagram has no per-message price we could find (**unverified**). It must run **per seller, on the seller's own account**: no buyer buys from an "Etalase" account. It would reuse the agent tools and send the checkout link. For the competition it is weaker per unit of effort: chatbots for WhatsApp and Instagram are a crowded category, the agent-commerce story gets blurred, and it needs Advanced Access (App Review), so a live demo against real sellers' accounts is unlikely before the deadline. **Roadmap, not built** |
-| Can each shop have a subdomain? | Yes, **built** and optional: `rina.<domain>`, needs wildcard DNS and a wildcard certificate. Each shop gets its own browser origin. Per-shop UCP profiles are not built |
+| Can each shop have a subdomain? | Yes, **built** and optional: `rina.<domain>`, needs wildcard DNS and a wildcard certificate. Each shop gets its own browser origin, and its own UCP profile and agent endpoints that see only that shop ([ADR 0008](adr/0008-seller-channels-and-shop-addresses.md)). Never tried on a real domain with wildcard DNS. Sign-up in chat with the address chosen first is built and off by default ([ADR 0010](adr/0010-chat-signup-address-first.md)); the identity and bank check it waits for is not |
 
 Two directions have two rules: seller ↔ Etalase can use one shared bot or number for every seller; buyer ↔ seller must be per tenant.
 
@@ -117,7 +137,7 @@ Say: "Sellers in Indonesia work in WhatsApp. Etalase turns their photos into a c
 holds the payout until the buyer's return window ends (once the provider confirms it can), and shows the seller's return policy to buyers and agents. The agent door is an option; the seller side and the store link are the product today."
 
 Do not say: "UCP is live in Indonesia", "Google named Indonesia" as a Google statement, "agents are already buying from Indonesian sellers", "95% of sellers have no store system", "nobody else builds a catalog from photos" (say "we did not find"), "Etalase never holds funds" as a legal conclusion,
-a return rate, a willingness-to-pay figure, "Xendit holds the funds for us", "sellers are KYC-verified", Telegram adoption, "Instagram DMs are free", or any market-share number that [doc 15](15-evidence.md) marks unverified.
+a return rate, a willingness-to-pay figure, "Xendit holds the funds for us", "sellers are KYC-verified", "sellers sign up in two minutes", "we sync your WhatsApp catalog", Telegram adoption, "Instagram DMs are free", or any market-share number that [doc 15](15-evidence.md) marks unverified.
 
 ## Validation plan: ten seller conversations
 

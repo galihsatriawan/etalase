@@ -57,10 +57,15 @@ def validate_settings(s: Settings, modes: dict) -> None:
             problems.append("DEMO_MODE needs the console messenger: remove WHATSAPP_TOKEN, so no real message is ever sent")
         if modes.get("telegram", "off") != "off":
             problems.append("DEMO_MODE needs Telegram off: remove TELEGRAM_BOT_TOKEN")
+        if s.signup_enabled:
+            problems.append("DEMO_MODE cannot run with SIGNUP_ENABLED: the mock provider verifies a new shop at once, so anyone could "
+                            "open shops on the public sandbox")
     if s.whatsapp_token and not s.whatsapp_app_secret:
         problems.append("WHATSAPP_APP_SECRET is required to verify WhatsApp webhooks")
     if s.whatsapp_token and s.whatsapp_verify_token == "etalase-dev-verify":
         problems.append("WHATSAPP_VERIFY_TOKEN must be changed from the default")
+    if s.signup_enabled and not s.is_dev and not s.operator_token:
+        problems.append("OPERATOR_TOKEN is required when SIGNUP_ENABLED is on (someone has to verify the new shops)")
     if s.store_base_domain and not re.fullmatch(r"[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?(?::\d{1,5})?", s.store_base_domain):
         problems.append("STORE_BASE_DOMAIN must be a bare host such as etalase.id (lowercase, no https://, no path)")
     if s.telegram_bot_token and (not s.telegram_webhook_secret or len(s.telegram_webhook_secret) < MIN_SECRET_LEN

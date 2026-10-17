@@ -238,9 +238,8 @@ def test_unavailable_items_return_an_error_envelope_and_create_nothing(client, i
     unknown = post(client, "/checkout-sessions", {"line_items": [{"item": {"id": "var_nope"}, "quantity": 1}]})
     assert unknown.status_code == 200 and unknown.json()["ucp"]["status"] == "error"
     assert unknown.json()["messages"][0]["code"] == "item_unavailable"
-    two = post(client, "/checkout-sessions", {"line_items": [{"item": {"id": v.id}, "quantity": 1},
-                                                              {"item": {"id": v.id}, "quantity": 1}]})
-    assert two.json()["messages"][0]["code"] == "unsupported"
+    many = post(client, "/checkout-sessions", {"line_items": [{"item": {"id": v.id}, "quantity": 1}] * (ucp_protocol.MAX_LINES + 1)})
+    assert many.status_code == 200 and many.json()["messages"][0]["code"] == "unsupported"
 
 
 def test_protocol_errors(client, item):
@@ -314,3 +313,131 @@ def test_a_returned_and_refunded_order_stays_completed_and_the_pay_page_does_not
     assert final["status"] == "completed"
     page = client.get(f"/checkout/{s['id']}").text
     assert "refunded" in page and "Nothing was charged" not in page
+
+
+# ------------------------------------------------------------------ carts: several line items in one session
+@pytest.fixture
+def cart_shop():
+    """One open shop with two products, so a cart has something to hold."""
+    n = len(ctx.store.list_products())
+    seller = make_seller(ctx, name=f"UCP Cart {n}", wa=f"62814{n:08d}")
+    voal = make_product(ctx, seller, "Voal hijab, black 5, navy 3, mocca 10, price 85k")
+    pashmina = make_product(ctx, seller, "Pashmina silk, pink 4, cream 2, price 145k")
+    return seller, voal, pashmina
+
+
+def lines_of(*pairs):
+    return [{"item": {"id": v.id}, "quantity": q} for v, q in pairs]
+
+
+def ready_cart(client, line_items):
+    r = post(client, "/checkout-sessions", {"line_items": line_items})
+    assert r.status_code == 201, r.text
+    s = valid(r)
+    buyer = fresh_buyer()
+    s = valid(client.put(f"{API}/checkout-sessions/{s['id']}", headers=HEADERS, json={
+        "buyer": buyer, "fulfillment": {"methods": [{"type": "shipping", "destinations": [DEST]}]}}))
+    option = s["fulfillment"]["methods"][0]["groups"][0]["options"][0]["id"]
+    return valid(client.put(f"{API}/checkout-sessions/{s['id']}", headers=HEADERS, json={
+        "buyer": buyer, "fulfillment": {"methods": [{"type": "shipping", "destinations": [DEST],
+                                                      "groups": [{"selected_option_id": option}]}]}}))
+
+
+def test_a_cart_of_two_items_becomes_one_order_priced_the_way_the_session_said(client, cart_shop):
+    seller, voal, pashmina = cart_shop
+    black, pink = variant(voal, "Black"), variant(pashmina, "Pink")
+    s = ready_cart(client, lines_of((black, 2), (pink, 1)))
+    assert [li["id"] for li in s["line_items"]] == ["li_1", "li_2"] and [li["quantity"] for li in s["line_items"]] == [2, 1]
+    assert s["line_items"][1]["item"]["price"] == 145000 * 100
+    assert s["status"] == "ready_for_complete" and not s.get("messages")
+    assert s["totals"][0] == {"type": "subtotal", "amount": (85000 * 2 + 145000) * 100}
+    method = s["fulfillment"]["methods"][0]
+    assert method["line_item_ids"] == ["li_1", "li_2"] and method["groups"][0]["line_item_ids"] == ["li_1", "li_2"]
+    quoted = s["totals"][-1]["amount"]
+    assert quoted > s["totals"][0]["amount"]                        # shipping is in the total
+
+    done = valid(post(client, f"/checkout-sessions/{s['id']}/complete", {}))
+    assert done["status"] == "requires_escalation" and done["messages"][0]["code"] == "payment_required"
+    order = ctx.store.list_orders(seller.id)[0]
+    assert [(i.variant_id, i.qty) for i in order.items] == [(black.id, 2), (pink.id, 1)]
+    assert order.total * 100 == quoted                              # the order costs what the session quoted
+    stock = lambda prod, v: ctx.store.get_product(prod.id).variant(v.id).stock.reserved   # noqa: E731
+    assert (stock(voal, black), stock(pashmina, pink)) == (2, 1)    # both lines held together
+
+    page = client.get(f"/checkout/{s['id']}").text
+    assert "Voal" in page and "Pashmina" in page and "Shipping" in page and "Total" in page
+    assert f"Rp {order.total:,}".replace(",", ".") in page
+
+
+def test_an_update_with_line_items_replaces_the_cart_and_one_without_keeps_it(client, cart_shop):
+    _, voal, pashmina = cart_shop
+    black, navy, pink = variant(voal, "Black"), variant(voal, "Navy"), variant(pashmina, "Pink")
+    s = ready_cart(client, lines_of((black, 1)))
+    assert s["fulfillment"]["methods"][0]["groups"][0]["selected_option_id"]
+    kept = valid(client.put(f"{API}/checkout-sessions/{s['id']}", headers=HEADERS, json={"buyer": fresh_buyer()}))
+    assert [li["item"]["id"] for li in kept["line_items"]] == [black.id]
+    swapped = valid(client.put(f"{API}/checkout-sessions/{s['id']}", headers=HEADERS,
+                               json={"line_items": lines_of((navy, 1), (pink, 2))}))
+    assert [(li["item"]["id"], li["quantity"]) for li in swapped["line_items"]] == [(navy.id, 1), (pink.id, 2)]
+    assert "selected_option_id" not in swapped["fulfillment"]["methods"][0]["groups"][0]     # a new cart is a new quote
+    assert swapped["status"] == "incomplete"
+    gone = client.put(f"{API}/checkout-sessions/{s['id']}", headers=HEADERS, json={"line_items": lines_of((navy, 1)) + [
+        {"item": {"id": "var_nope"}, "quantity": 1}]})
+    assert gone.status_code == 422 and gone.json()["messages"][0]["code"] == "item_unavailable"
+    still = valid(client.get(f"{API}/checkout-sessions/{s['id']}", headers=HEADERS))
+    assert [li["item"]["id"] for li in still["line_items"]] == [navy.id, pink.id]          # the refused update changed nothing
+
+
+def test_the_same_variant_twice_is_one_line(client, cart_shop):
+    _, voal, _ = cart_shop
+    black = variant(voal, "Black")
+    s = valid(post(client, "/checkout-sessions", {"line_items": lines_of((black, 1), (black, 2))}))
+    assert [(li["item"]["id"], li["quantity"]) for li in s["line_items"]] == [(black.id, 3)]
+
+
+def test_a_cart_cannot_mix_shops(client, cart_shop, item):
+    _, voal, _ = cart_shop
+    _, other = item
+    mixed = post(client, "/checkout-sessions", {"line_items": lines_of((variant(voal, "Black"), 1), (other, 1))})
+    assert mixed.status_code == 200 and mixed.json()["ucp"]["status"] == "error"
+    assert mixed.json()["messages"][0]["code"] == "unsupported" and "same shop" in mixed.json()["messages"][0]["content"]
+    s = new_session(client, variant(voal, "Black"), 1)
+    r = client.put(f"{API}/checkout-sessions/{s['id']}", headers=HEADERS, json={"line_items": lines_of((variant(voal, "Black"), 1), (other, 1))})
+    assert r.status_code == 422 and "same shop" in r.json()["messages"][0]["content"]
+
+
+def test_a_line_that_is_short_of_stock_is_flagged_at_its_own_index(client, cart_shop):
+    _, voal, pashmina = cart_shop
+    black, cream = variant(voal, "Black"), variant(pashmina, "Cream")        # two left
+    s = valid(post(client, "/checkout-sessions", {"line_items": lines_of((black, 1), (cream, 3))}))
+    short = [m for m in s["messages"] if m["code"] == "out_of_stock"]
+    assert len(short) == 1 and short[0]["path"] == "$.line_items[1].quantity" and "Only 2 left" in short[0]["content"]
+    assert "Pashmina" in short[0]["content"] and s["status"] == "incomplete"
+    ctx.store.set_stock(pashmina.seller_id, pashmina.id, cream.id, 0, "test")
+    refused = post(client, "/checkout-sessions", {"line_items": lines_of((black, 1), (cream, 1))})
+    assert refused.json()["messages"][0]["code"] == "out_of_stock" and "Pashmina" in refused.json()["messages"][0]["content"]
+
+
+def test_the_unit_cap_counts_the_whole_cart(client, cart_shop, monkeypatch):
+    _, voal, pashmina = cart_shop
+    monkeypatch.setattr(ctx.settings, "max_qty_per_order", 3)
+    s = valid(post(client, "/checkout-sessions", {"line_items": lines_of((variant(voal, "Black"), 2), (variant(pashmina, "Pink"), 2))}))
+    capped = [m for m in s["messages"] if m["code"] == "quantity_exceeded"]
+    assert len(capped) == 1 and capped[0]["path"] == "$.line_items[1].quantity"       # said once, where the cart crosses the cap
+    assert s["status"] == "incomplete"
+
+
+def test_a_session_from_before_carts_still_loads_and_can_be_updated(client, cart_shop):
+    _, voal, _ = cart_shop
+    black = variant(voal, "Black")
+    s = new_session(client, black, 2)
+    stored = ctx.store.get_doc(ucp_protocol.SESSION_KIND, s["id"])
+    lines = stored.pop("lines")
+    stored.update(product_id=lines[0]["product_id"], variant_id=lines[0]["variant_id"], quantity=lines[0]["quantity"])
+    ctx.store.put_doc(ucp_protocol.SESSION_KIND, s["id"], stored)                      # the old shape: one product, variant and quantity
+    loaded = valid(client.get(f"{API}/checkout-sessions/{s['id']}", headers=HEADERS))
+    assert [(li["item"]["id"], li["quantity"]) for li in loaded["line_items"]] == [(black.id, 2)]
+    assert client.get(f"/checkout/{s['id']}").status_code == 200                       # the pay page reads the old shape too
+    updated = valid(client.put(f"{API}/checkout-sessions/{s['id']}", headers=HEADERS, json={"buyer": fresh_buyer()}))
+    assert updated["line_items"][0]["quantity"] == 2
+    assert "lines" in ctx.store.get_doc(ucp_protocol.SESSION_KIND, s["id"])

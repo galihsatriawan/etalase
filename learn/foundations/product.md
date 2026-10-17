@@ -56,7 +56,7 @@ This is the **instant** path. The confirm-first path adds a stock check before t
 
 A seller is identified by their WhatsApp number. KYC and bank details live at the payment provider, not in Etalase. Sellers can build a catalog before KYC, but `create_checkout` refuses orders until `seller.kyc_status == "verified"` (**`prototype/etalase/checkout/service.py`**).
 
-In the prototype, `POST /dev/sellers` creates a verified seller with a mock sub-account <Badge type="warning" text="Mocked in demo" />. Self-service sign-up and KYC are <Badge type="info" text="Roadmap" />.
+In the prototype, `POST /dev/sellers` creates a verified seller with a mock sub-account <Badge type="warning" text="Mocked in demo" />. Sign-up in chat is built but off by default and only tried with simulated messages (a stranger picks a unique shop address first, and the shop stays invisible until it is verified); the payment provider's identity and bank check is <Badge type="info" text="Roadmap" />, and an operator verifies by hand meanwhile.
 
 ### 2. Photos, voice and text become drafts
 
@@ -211,7 +211,7 @@ With `MockPayment` the release is simulated. `XenditPayment.release_to_seller` a
 | Offline extraction, readiness score, publish | <Badge type="tip" text="Built" /> | |
 | Gemini extraction and ADK seller agent | <Badge type="warning" text="Mocked in demo" /> | Runs with a key or Vertex AI |
 | Instagram import | <Badge type="tip" text="Built" /> / <Badge type="warning" text="Mocked in demo" /> | Sample posts offline; Graph API needs app credentials |
-| MCP server, REST mirror, UCP profile and Checkout (REST), schema.org | <Badge type="tip" text="Built" /> | UCP: 29 of 77 official conformance tests pass, the 22 failures are explained ([UCP checkout](/architecture/ucp)); no AP2; untried with Google's surfaces |
+| MCP server, REST mirror, UCP profile and Checkout (REST), schema.org | <Badge type="tip" text="Built" /> | UCP: 30 of 77 official conformance tests pass, the 21 failures are explained ([UCP checkout](/architecture/ucp)); no AP2; untried with Google's surfaces |
 | Reservations, confirm-first, expiry, idempotent webhooks | <Badge type="tip" text="Built" /> | Oversell race tested |
 | QRIS via Xendit | <Badge type="warning" text="Mocked in demo" /> | Creation and webhook written; refunds and settlement manual |
 | Courier rates and booking via Biteship | <Badge type="warning" text="Mocked in demo" /> | `MockShipping` offline |
@@ -219,7 +219,8 @@ With `MockPayment` the release is simulated. `XenditPayment.release_to_seller` a
 | Dashboard with WhatsApp one-time code | <Badge type="tip" text="Built" /> | Read-only views of products and orders |
 | Connector API for OMSs and builders | <Badge type="tip" text="Built" /> | Signed order webhooks; products pushed this way publish directly when publishable |
 | Firestore store | <Badge type="warning" text="Mocked in demo" /> | `FirestoreStore` exists; demo uses `MemoryStore` |
-| Self-service sign-up and KYC | <Badge type="info" text="Roadmap" /> | Dev endpoint in the prototype |
+| Sign-up in chat, address first | <Badge type="warning" text="Built, off by default" /> | Simulated messages only |
+| Identity and bank check at the payment provider | <Badge type="info" text="Roadmap" /> | Mock provider verifies at once; an operator verifies by hand |
 | Google Sheets sync, OMS adapters, WooCommerce plugin | <Badge type="info" text="Roadmap" /> | |
 | Pub/Sub, Cloud Tasks, Cloud Storage, KMS | <Badge type="info" text="Roadmap" /> | In-process equivalents today |
 | AP2, e-wallets, virtual accounts, cross-border | <Badge type="info" text="Roadmap" /> | |

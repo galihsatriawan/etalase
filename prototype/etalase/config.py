@@ -110,6 +110,13 @@ class Settings(BaseSettings):
     # outside dev with mock payment, mock shipping and the console messenger (etalase/security.py), so no real money, courier
     # or WhatsApp message can ever be involved. See JUDGES.md.
     demo_mode: bool = False
+    # Sign-up in chat (seller/signup.py). Off by default, because turning it on lets anyone who writes to the Etalase number
+    # start a shop. SIGNUP_SHOPS_PER_HOUR caps new shops across the whole platform; a shop that is not verified within
+    # SIGNUP_HOLD_HOURS gives its address back. A new shop is open to buyers only once it is verified: with the mock payment
+    # provider that happens at once, with a real one an operator does it (POST /tasks/verify-seller).
+    signup_enabled: bool = False
+    signup_shops_per_hour: int = 20
+    signup_hold_hours: int = 72
 
     @property
     def gemini_enabled(self) -> bool:

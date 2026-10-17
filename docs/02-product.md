@@ -38,11 +38,21 @@ Etalase turns a WhatsApp seller's product photos and chats into a storefront tha
 ## Key journeys
 
 ### 1. Seller onboarding (about 2 minutes)
-1. Seller registers with a WhatsApp number (identity and bank verification happen at the payment provider).
+
+> **Status: designed, not built.** The prototype has no sign-up. The demo creates the seller with `POST /dev/sellers` (marked `verified`, with a mock payout
+> account), and the bot's "Sign up at …" reply points to a dashboard that only signs in sellers who already exist. The target below is a hybrid: **build the shop
+> in the chat, sell after verification** (identity and bank checks on the payment provider's link). Opening sign-up to any number needs limits first (shops
+> created per hour, one shop per number) and rules against impersonation ([doc 09](09-security-privacy-compliance.md#impersonation-and-phishing)).
+
+1. Seller sends "hi" to the Etalase number. The message proves the number (the webhook is signed by Meta), so no code is needed, and the bot asks for a shop name.
+   It also says, once, what Etalase never does: ask for a code, PIN or password in chat, or ask anyone to transfer money.
 2. Sends product photos and one description, typed or as a voice note. Optionally connects Instagram
-   (product posts are imported) or a spreadsheet. Only the WhatsApp number is required.
+   (product posts are imported) or a spreadsheet. Only the WhatsApp number is needed to build the shop; selling needs step 5.
 3. Gets a summary: products, variants, stock, price, estimated weight, readiness score.
-4. Taps **Publish**. The shop is now visible to AI agents.
+4. Taps **Publish**. The shop is a preview: it cannot take an order yet.
+5. Opens the verification link, a fixed page on Etalase's own domain that leads to the payment provider, and completes identity and bank checks there. Once the
+   provider confirms, the shop is open to buyers and AI agents and can take orders. The code already refuses a checkout for a seller who is not `verified`;
+   keeping unverified shops hidden from agents is not built.
 
 ### 2. Buying through an agent
 1. Buyer asks their assistant for a product.

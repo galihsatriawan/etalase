@@ -29,7 +29,7 @@ covers discovery, conversational shopping and inventory.
 - [ ] Team of 2–4 registered (solo participation is not allowed; registration closes 11 October)
 - [ ] Deck converted to PDF (`submission/`)
 - [ ] Working prototype deployed on Cloud Run, end to end
-- [x] Reviewer sandbox deployed (`DEMO=1 make deploy`, 18 Oct 2026: <https://etalase-demo-2gzn7hbgwa-et.a.run.app/demo>), link in the submission and on slide 13, steps in [JUDGES.md](../JUDGES.md): reviewers can run the flow without an account because WhatsApp, payment and courier are simulated there
+- [x] Reviewer sandbox deployed (`DEMO=1 make deploy`, 18 Oct 2026: <https://etalase-demo-2gzn7hbgwa-et.a.run.app/demo>), link in the submission and on slide 13, steps in [JUDGES.md](../JUDGES.md): reviewers can run the flow without an account because WhatsApp, payment and courier are simulated there; the demo shop also answers on its own address, <https://demo.etalase.site/> (load balancer, wildcard certificate and DNS set up 18 Oct 2026; keep them until evaluation ends on 6 Nov)
 - [ ] Public GitHub repository (this repo, created fresh during the hackathon)
 - [ ] Demo video, **strictly under 3 minutes** (terms and conditions; the themes page says "3 minutes"), public YouTube / Vimeo / Drive link, showing the AI at work
 - [x] Everything in English (code, docs, deck)

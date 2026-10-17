@@ -34,7 +34,7 @@ The sidebar is split into six levels. Each one builds on the one before.
 | **1 · Foundations** | [The problem](/foundations/problem), [Agentic commerce 101](/foundations/agentic-commerce), [The Etalase product](/foundations/product), [Glossary](/foundations/glossary) | The *why* and the *what*: the sellers, the market, the protocols (MCP, UCP, AP2, A2A), the product journeys end to end |
 | **2 · Run it** | [Run the demo locally](/run/run-locally), [Hands-on walkthrough](/run/hands-on) | The prototype running on your laptop with no credentials, and a guided tour you can repeat before the demo |
 | **3 · How it works** | [Architecture overview](/architecture/overview) through [Security model](/architecture/security) | The code, module by module: data model, catalog and stock, checkout, the agent gateway, the WhatsApp seller agent, integrations, security |
-| **4 · Ship it** | [Testing](/ship/testing), [Deploy to Cloud Run](/ship/deploy), [Turn on real services](/ship/real-services) | The 725 tests, the Cloud Run deploy, and how to switch Gemini, WhatsApp, Xendit and Biteship from mock to real |
+| **4 · Ship it** | [Testing](/ship/testing), [Deploy to Cloud Run](/ship/deploy), [Turn on real services](/ship/real-services) | The 729 tests, the Cloud Run deploy, and how to switch Gemini, WhatsApp, Xendit and Biteship from mock to real |
 | **5 · Business and pitch** | [Business model and costs](/business/business-model), [Evidence and sources](/business/evidence), [Pitch and Q&A playbook](/business/pitch-and-qa) | Pricing, unit economics, every statistic with its source, and answers to likely judge questions |
 | **6 · Mastery** | [Exercises](/master/exercises), [Known gaps](/master/known-gaps), [Final quiz](/master/quiz) | Changes you make yourself, the honest list of what is not done, and a test of the whole thing |
 
@@ -65,7 +65,7 @@ About two hours a day. Each day ends with something you can *do*, not just read.
 | 3 | [Hands-on walkthrough](/run/hands-on), [Architecture overview](/architecture/overview), [Data model and store](/architecture/data-model) | Start the server, call `/agent/v1/search` and `/.well-known/ucp` by hand |
 | 4 | [Catalog and stock](/architecture/catalog-and-stock), [Checkout and orders](/architecture/checkout-and-orders) | Draw the order state machine from memory, then check it against `checkout/service.py` |
 | 5 | [Agent gateway](/architecture/agent-gateway), [WhatsApp seller agent](/architecture/seller-agent), [Integrations](/architecture/integrations), [Security model](/architecture/security) | Trace one MCP `create_checkout` call from the tool to the store |
-| 6 | [Testing](/ship/testing), [Deploy to Cloud Run](/ship/deploy), [Turn on real services](/ship/real-services) | Run `pytest -q` (725 tests); deploy once; turn on Gemini |
+| 6 | [Testing](/ship/testing), [Deploy to Cloud Run](/ship/deploy), [Turn on real services](/ship/real-services) | Run `pytest -q` (729 tests); deploy once; turn on Gemini |
 | 7 | [Business model](/business/business-model), [Evidence](/business/evidence), [Pitch and Q&A](/business/pitch-and-qa), [Known gaps](/master/known-gaps), [Final quiz](/master/quiz) | Rehearse the 3-minute demo and answer the ten likely judge questions out loud |
 
 ## Fast track: one evening

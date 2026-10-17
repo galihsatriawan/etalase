@@ -196,8 +196,11 @@ Instead of `https://<service>/stores/sel_1a2b3c4d5e`, each shop can have `https:
 1. Own a domain, for example `etalase.id`, and set `STORE_BASE_DOMAIN=etalase.id` (a bare host: lowercase, no `https://`, no path; `localhost:8080` for a local try).
 2. **DNS:** a wildcard record `*.etalase.id` pointing at the service, plus the record for the platform host itself (the dashboard stays on `PUBLIC_BASE_URL`, for example `app.etalase.id`).
 3. **Certificate:** a wildcard certificate for `*.etalase.id`. Cloud Run's own domain mapping does not do wildcards, so put an HTTPS load balancer with a serverless NEG in front of the service
-   and a Google-managed or uploaded wildcard certificate (a managed wildcard needs DNS authorization), or use Cloudflare in front (proxied wildcard record, "Full (strict)" TLS). We did not
-   set this up from the sandbox: it is the same pattern as any wildcard SaaS domain, not verified against your account.
+   and a Google-managed or uploaded wildcard certificate (a managed wildcard needs DNS authorization), or use Cloudflare in front (proxied wildcard record, "Full (strict)" TLS).
+   **Tried for the judge sandbox on 18 Oct 2026 (Google route):** a global external Application Load Balancer with a serverless NEG, a Certificate Manager certificate for `domain` and `*.domain`
+   (DNS authorization: one `_acme-challenge` CNAME at the DNS host), and a wildcard `A` record to the load balancer's IP. Cloud Run received the original `Host` header, so no code change was needed,
+   and `PUBLIC_BASE_URL` stayed on the Cloud Run URL (that host is the platform host). A wildcard covers one label (`rina.domain`, not `a.rina.domain`). The HTTPS forwarding rule does not redirect plain `http://`: that needs a second rule on port 80 with a redirect-only URL map ([Google's pattern](https://docs.cloud.google.com/load-balancing/docs/https/setting-up-global-http-https-redirect)); without it, `http://` does not connect. The Cloudflare route was not tried: its free plan
+   can proxy a wildcard record, but its Host-header override looked Enterprise-only in the docs we read, and a Cloud Run origin would probably need it (Cloud Run routes by `Host`; not tested).
 4. `make doctor` resolves a random label under the domain and warns if the wildcard record is missing.
 5. Shops get an address from their name when created; a seller changes it in the dashboard (**Settings → Your shop address**). The old address stops working, so the dashboard says so.
    The judge sandbox (`DEMO=1`) gives its demo shop `demo.<domain>` when `STORE_BASE_DOMAIN` is set (the name-based address if `demo` is taken).

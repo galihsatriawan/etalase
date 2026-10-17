@@ -1,6 +1,6 @@
 # Testing
 
-How Etalase's 627 automated tests are organised, what each file proves, how to run and extend them, and what still has to be measured before a pilot.
+How Etalase's 666 automated tests are organised, what each file proves, how to run and extend them, and what still has to be measured before a pilot.
 
 ::: tip What you will learn
 - The layout of `prototype/tests/`, the fixtures in `conftest.py` and the regression tests for fixed bugs
@@ -19,7 +19,7 @@ All tests run offline in about ten seconds. ADR 0005 (`docs/adr/0005-adapters-an
 ```bash
 cd prototype
 pip install -r requirements-dev.txt
-pytest -q          # 627 passed
+pytest -q          # 666 passed
 ```
 
 ## How the suite is organised
@@ -56,6 +56,7 @@ pytest -q          # 627 passed
 | `tests/test_store_cart.py` | 22 | The store-page cart: add, update, remove, a tampered or stale cookie, another shop's variant ignored, a shop that is not open, a two-item checkout that makes one order and clears the cart, out-of-stock messages, forms with JavaScript off |
 | `tests/test_stock_check_wait.py` | 9 | A seller who does not answer a stock check: one reminder at 15 minutes (reusing the stock-check template), a notice when it runs out, none for a cancelled or non-stock-check checkout, the agent sees the deadline and then the reason, the store page says the seller did not answer |
 | `tests/test_ucp_shop_carts.py` | 2 | A UCP cart on a shop's own address: another shop's line is unavailable, on create and on update |
+| `tests/test_demo_sandbox.py` | 39 | The judge sandbox (`DEMO_MODE`): it refuses to run with anything real behind it (real keys, prod, sign-up on), seeds a shop that works without setup, simulation steps touch only the demo seller, a visitor cannot empty the shop, what visitors publish disappears, the console is locked down and rate limited, and the deploy script keeps real keys out of it |
 | `tests/test_signup.py` | 46 | Sign-up in chat: the whole conversation, address offered then claimed, two shops racing for one name, lookalike and link/phone names refused, the pickup address parsed from one message, pending shop invisible and verified by an operator, the 72-hour hold, limits per hour and per number, off by default, prod needs an operator token |
 
 The parametrised tests in `test_parsing.py` count once per case, which is why 8 functions make 23 tests.

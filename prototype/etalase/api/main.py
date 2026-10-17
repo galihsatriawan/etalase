@@ -154,13 +154,14 @@ def remember_source(request: Request, response):
 @app.get("/stores/{seller_id}", response_class=HTMLResponse, include_in_schema=False)
 def store_front(request: Request, seller_id: str):
     rate_limit(request, "storefront", 600, 60)
-    return remember_source(request, storefront.store_page(ctx, seller_id))
+    return remember_source(request, storefront.store_page(ctx, seller_id, request.cookies.get(storefront.cart_cookie(seller_id))))
 
 
 @app.get("/stores/{seller_id}/p/{product_id}", response_class=HTMLResponse, include_in_schema=False)
 def store_product(request: Request, seller_id: str, product_id: str, v: str = ""):
     rate_limit(request, "storefront", 600, 60)
-    return remember_source(request, storefront.product_page(ctx, seller_id, product_id, v))
+    return remember_source(request, storefront.product_page(ctx, seller_id, product_id, v,
+                                                            request.cookies.get(storefront.cart_cookie(seller_id))))
 
 
 @app.get("/stores/{seller_id}/buy/{variant_id}", response_class=HTMLResponse, include_in_schema=False)
@@ -175,6 +176,42 @@ async def store_buy(request: Request, seller_id: str, variant_id: str):
     rate_limit(request, "checkout", 20, 3600)     # the same bucket as the REST and MCP checkouts
     referrer = attribution.clean_cookie(request.cookies.get(attribution.COOKIE))
     return await asyncio.to_thread(storefront.buy_submit, ctx, seller_id, variant_id, await request.body(), referrer)
+
+
+# The cart: one cookie per shop (variant ids and quantities only), plain forms and redirects, so it works without JavaScript.
+@app.get("/stores/{seller_id}/cart", response_class=HTMLResponse, include_in_schema=False)
+def store_cart(request: Request, seller_id: str):
+    rate_limit(request, "storefront", 600, 60)
+    return storefront.cart_page(ctx, seller_id, request.cookies.get(storefront.cart_cookie(seller_id)))
+
+
+@app.get("/stores/{seller_id}/cart/badge", response_class=HTMLResponse, include_in_schema=False)
+def store_cart_badge(request: Request, seller_id: str):
+    rate_limit(request, "storefront", 600, 60)
+    return storefront.cart_badge(ctx, seller_id, request.cookies.get(storefront.cart_cookie(seller_id)))
+
+
+@app.get("/stores/{seller_id}/cart/checkout", response_class=HTMLResponse, include_in_schema=False)
+def store_cart_checkout_form(request: Request, seller_id: str):
+    rate_limit(request, "storefront", 600, 60)
+    return storefront.cart_form(ctx, seller_id, request.cookies.get(storefront.cart_cookie(seller_id)))
+
+
+@app.post("/stores/{seller_id}/cart/checkout", response_class=HTMLResponse, include_in_schema=False)
+async def store_cart_checkout(request: Request, seller_id: str):
+    same_origin(request)
+    rate_limit(request, "checkout", 20, 3600)     # the same bucket as every other way to start a checkout
+    referrer = attribution.clean_cookie(request.cookies.get(attribution.COOKIE))
+    return await asyncio.to_thread(storefront.cart_submit, ctx, seller_id, request.cookies.get(storefront.cart_cookie(seller_id)),
+                                   await request.body(), referrer)
+
+
+@app.post("/stores/{seller_id}/cart/{action}", response_class=HTMLResponse, include_in_schema=False)   # after /cart/checkout: first match wins
+async def store_cart_change(request: Request, seller_id: str, action: str):
+    same_origin(request)
+    rate_limit(request, "cart", 120, 60)
+    return await asyncio.to_thread(storefront.cart_change, ctx, seller_id, action,
+                                   request.cookies.get(storefront.cart_cookie(seller_id)), await request.body())
 
 
 @app.get("/pay/{order_id}", response_class=HTMLResponse, include_in_schema=False)

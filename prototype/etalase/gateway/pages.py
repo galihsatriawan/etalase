@@ -43,7 +43,8 @@ FONT_FILES = {"plus-jakarta-sans.woff2": "font/woff2"}
 #   1. photos fade in once they have loaded; a quantity field gets + / - buttons and a live subtotal;
 #   2. links and forms inside the store, the product page, checkout, the order page and the pay page are fetched and swapped in
 #      place (no white flash), with a progress line, history and scroll position kept (typed values too), and a pointer-over
-#      prefetch for store links; after a swap the first invalid field is focused;
+#      prefetch for store links; after a swap the first invalid field is focused; a page brought back from the history gets its
+#      forms unstuck and its cart count refreshed, and the cart and its checkout form are always fetched fresh;
 #   3. a second tap on a submit button does nothing, and the button says what is happening;
 #   4. a page marked data-live asks the server for itself every few seconds and swaps in the new state (the no-JavaScript
 #      fallback is a meta refresh inside <noscript>); [data-left] counts the seconds left to pay, from the server's number, and
@@ -61,6 +62,9 @@ if('scrollRestoration' in history)history.scrollRestoration='manual';
 history.replaceState({y:0},'');
 function seen(i){i.classList.add('in')}
 function sweep(s){(s||d).querySelectorAll('img').forEach(function(i){if(i.complete)seen(i)})}
+function badge(){var c=bar.querySelector('.cartlink');if(!c)return;var h=c.getAttribute('href');
+fetch(h+'/badge',{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.ok?r.text():''}).then(function(t){
+var n=bar.querySelector('.cartlink');if(t&&n&&n.getAttribute('href')===h)n.outerHTML=t}).catch(function(){})}
 d.addEventListener('load',function(e){if(e.target.tagName==='IMG')seen(e.target)},true);
 d.addEventListener('error',function(e){if(e.target.tagName==='IMG')seen(e.target)},true);
 sweep();
@@ -92,6 +96,7 @@ root.querySelectorAll('[data-price-text]').forEach(function(el){el.textContent=m
 root.querySelectorAll('[data-label]').forEach(function(el){el.textContent=c.dataset.vlabel});
 root.querySelectorAll('[data-avail]').forEach(function(el){var w=c.dataset.vavail==='confirm_with_seller';el.className='tag'+(w?' wait':'');el.textContent=w?'Seller confirms stock':'Ready stock'});
 root.querySelectorAll('[data-go]').forEach(function(a){a.setAttribute('href',c.dataset.buy)});
+root.querySelectorAll('[data-variant-input]').forEach(function(i){i.value=c.dataset.id});
 try{history.replaceState(history.state,'',c.getAttribute('href'))}catch(x){}});
 d.addEventListener('click',function(e){var b=e.target.closest('[data-share]');if(!b)return;
 var u=location.href.split('#')[0];
@@ -131,6 +136,7 @@ else{delete f.dataset.sent;if(b.dataset.label){b.textContent=b.dataset.label}b.r
 function snap(){keep();var k=Object.keys(snaps);if(k.length>20)delete snaps[k[0]];
 snaps[location.href]={main:main.innerHTML,cls:main.className,live:main.getAttribute('data-live'),bar:bar.innerHTML,foot:foot?foot.innerHTML:'',title:d.title}}
 function restore(s,y){var my=++seq;function apply(){if(my!==seq)return;bar.innerHTML=s.bar;main.innerHTML=s.main;main.className=s.cls;main.removeAttribute('data-live');
+main.querySelectorAll('form').forEach(function(f){label(f,false)});badge();
 if(foot)foot.innerHTML=s.foot;d.title=s.title;root.classList.add('swapped');t0=performance.now();count();sweep(main);scrollTo({top:y||0,behavior:'instant'})}
 if(d.startViewTransition)d.startViewTransition(apply);else apply()}
 function show(html,url,push,y,my){
@@ -138,7 +144,7 @@ var next=new DOMParser().parseFromString(html,'text/html'),nm=next.getElementByI
 if(!nm||!nb){location.href=url;return}
 function apply(){
 if(my!==seq)return;
-if(push){snap();history.replaceState({y:scrollY},'');history.pushState({y:0},'',url)}
+if(push){snap();history.replaceState({y:scrollY},'');history.pushState({y:0},'',url)}else if(url!==location.href)history.replaceState({y:scrollY},'',url);
 bar.innerHTML=nb.innerHTML;main.innerHTML=nm.innerHTML;main.className=nm.className;
 if(nm.hasAttribute('data-live'))main.setAttribute('data-live',nm.getAttribute('data-live'));else main.removeAttribute('data-live');
 var nf=next.getElementById('foot');if(nf&&foot){foot.innerHTML=nf.innerHTML}
@@ -151,11 +157,12 @@ var hit=!o.body&&cache[url]&&Date.now()-cache[url].t<20000?cache[url].p:null;
 var req=hit||fetch(url,{method:o.body?'POST':'GET',body:o.body,credentials:'same-origin',cache:'no-store',
 headers:o.body?{'content-type':'application/x-www-form-urlencoded'}:{}});
 return Promise.resolve(req).then(function(r){
+if(o.body)cache={};
 if((r.headers.get('content-type')||'').indexOf('text/html')!==0){
 if(o.body)throw new Error('response');location.href=url;return}
 return r.clone().text().then(function(h){show(h,r.url||url,!o.pop&&(r.url||url)!==location.href,o.y,my)})
 }).then(function(){progress(false)},function(err){progress(false);throw err})}
-var NAV=/^\/(stores|pay|checkout)\//;
+var NAV=/^\/(stores|pay|checkout)\//,FRESH=/\/cart(\/checkout)?$/;
 d.addEventListener('click',function(e){
 if(e.defaultPrevented||e.button||e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return;
 var a=e.target.closest('a[href]');
@@ -168,7 +175,7 @@ var p=fetch(a.href,{credentials:'same-origin',cache:'no-store'});cache[a.href]={
 d.addEventListener('pointerover',function(e){if(e.pointerType==='mouse')warm(e)});
 d.addEventListener('touchstart',warm,{passive:true});
 addEventListener('popstate',function(e){var y=(e.state||{}).y||0,s=snaps[location.href];
-if(s&&!s.live){restore(s,y);return}
+if(s&&!s.live&&!FRESH.test(location.pathname)){restore(s,y);return}
 go(location.href,{pop:true,y:y}).catch(function(){location.reload()})});
 d.addEventListener('submit',function(e){var f=e.target;
 if(f.dataset.sent){e.preventDefault();return}
@@ -474,6 +481,16 @@ background:#fff;box-shadow:0 -1px 0 var(--line),0 -10px 24px -16px rgba(14,26,20
 .item b{display:block;font-weight:650;line-height:1.35;overflow-wrap:anywhere}.item small{display:block;color:var(--muted);font-size:.875rem}
 .item a{font-weight:650;font-size:.875rem;display:inline-flex;align-items:center;min-height:2rem}
 .item .price{font-size:1rem;margin:.1rem 0 0;padding:0}
+/* cart */
+.barend{margin-left:auto;margin-right:-.6rem;display:flex;align-items:center}.bar .barend .iconbtn.end,.bar .barend .iconbtn:first-child{margin:0}
+.cartlink{position:relative}.cartn{position:absolute;top:.15rem;right:.1rem;min-width:1.15rem;height:1.15rem;padding:0 .3rem;border-radius:999px;background:var(--brand);color:#fff;font:800 .6875rem/1.15rem var(--sans);text-align:center}
+.cartline+.cartline{margin-top:1.1rem;padding-top:1.1rem;border-top:1px solid var(--line)}
+.cartline .ops{display:flex;align-items:center;flex-wrap:wrap;gap:.6rem;margin-top:.6rem}
+.cartline form{display:flex;align-items:center;gap:.5rem;margin:0}
+.cartline input[type=number]{width:4.25rem;min-height:2.5rem;padding:.4rem .5rem;text-align:center}
+.cartline .btn{min-height:2.5rem;padding:0 1rem;font-size:.9375rem}
+.cartline.gone .item{opacity:.55}
+.addform{display:contents}
 .qtyrow{display:flex;align-items:center;justify-content:space-between;gap:1rem;margin-top:1rem;padding-top:1rem;border-top:1px solid var(--line)}
 .qtyrow label{margin:0}
 .stepper{display:flex;align-items:center;gap:.25rem;background:var(--surface);border-radius:var(--r);box-shadow:inset 0 0 0 1.5px var(--line-2);padding:.25rem}

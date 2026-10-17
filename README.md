@@ -94,7 +94,7 @@ suite against Etalase, and `make e2e` / `make browser` play the whole story over
 | **Secret Manager** | Session secret, dev and webhook tokens, provider keys | Built (deploy script) |
 | **Firestore** | Transactional catalog, stock reservations and orders | Built; demo runs on the in-memory store |
 | **Pub/Sub, Cloud Tasks, Cloud Storage, Cloud KMS** | Events, per-order expiry, media, token encryption | Pilot (in-process equivalents today) |
-| **MCP / UCP / AP2** | MCP server; UCP business server (profile at `/.well-known/ucp`, Checkout over REST); AP2 payments | MCP and UCP built (official conformance suite: see [docs/16](docs/16-ucp.md)); AP2 roadmap |
+| **MCP / UCP / AP2** | MCP server; UCP business server (profile at `/.well-known/ucp`, Checkout and Order with signed webhooks over REST); AP2 payments | MCP and UCP built (official conformance suite: see [docs/16](docs/16-ucp.md)); AP2 roadmap |
 
 ## Judging criteria at a glance
 

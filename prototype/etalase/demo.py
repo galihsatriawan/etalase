@@ -110,6 +110,23 @@ def _product(spec: SeedProduct) -> Product:
     return product
 
 
+DEMO_SLUG = "demo"
+
+
+def _give_address(ctx: "AppContext") -> None:
+    """With STORE_BASE_DOMAIN set, the demo shop answers on its own address (demo.<domain>), so a reviewer can see what a shop
+    address is. When "demo" is not allowed here (it is the platform host's own label, say), the address comes from the shop name
+    instead. Never a reason to stop the sandbox from starting."""
+    from .seller import slugs
+    seller = ctx.store.get_seller(DEMO_SELLER_ID)
+    if not slugs.subdomains_enabled(ctx.settings) or seller is None or seller.slug:
+        return
+    try:
+        slugs.claim(ctx, DEMO_SELLER_ID, DEMO_SLUG)
+    except slugs.SlugError:
+        slugs.assign(ctx, DEMO_SELLER_ID)
+
+
 def seed(ctx: "AppContext") -> None:
     """Create the demo seller and its products if they are not there yet (safe to run again). Fixed ids keep the shop address
     the same across restarts, so a link given to a reviewer keeps working."""
@@ -117,6 +134,7 @@ def seed(ctx: "AppContext") -> None:
         ctx.store.put_seller(Seller(
             id=DEMO_SELLER_ID, name=DEMO_NAME, whatsapp=DEMO_NUMBER, kyc_status="verified", payout_account_id="mock-sub-account",
             origin=Address(name=DEMO_NAME, line1="Jl. Contoh No. 1", city="Jakarta", postal_code="12950")))
+    _give_address(ctx)
     for spec in SEED:
         if ctx.store.get_product(spec.id) is None:
             ctx.store.put_product(_product(spec))

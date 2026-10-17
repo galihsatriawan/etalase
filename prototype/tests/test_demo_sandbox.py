@@ -382,3 +382,36 @@ def test_the_deploy_script_plans_a_separate_sandbox_service(tmp_path):
     for bad in ({"ETALASE_ENV": "prod"}, {"STORE_BACKEND": "firestore"}):
         refused = subprocess.run(["bash", script], cwd=ROOT, text=True, capture_output=True, env={**base, "DEMO": "1", **bad}, timeout=60)
         assert refused.returncode != 0 and "DEMO=1" in refused.stdout + refused.stderr
+
+
+# ---------------------------------------------------------------- the shop address
+def _seeded(**settings):
+    ctx = build_context(Settings(etalase_env="dev", demo_mode=True, _env_file=None, **settings))
+    demo.seed(ctx)
+    return ctx
+
+
+def test_demo_shop_has_no_address_without_a_base_domain():
+    ctx = _seeded()
+    assert ctx.store.get_seller(demo.DEMO_SELLER_ID).slug is None
+
+
+def test_demo_shop_answers_on_its_own_address_when_a_base_domain_is_set():
+    from etalase.seller import slugs
+    ctx = _seeded(store_base_domain="localhost:8080", public_base_url="http://localhost:8080")
+    seller = ctx.store.get_seller(demo.DEMO_SELLER_ID)
+    assert seller.slug == "demo"
+    assert slugs.store_url(ctx.settings, seller) == "http://demo.localhost:8080"
+    assert ctx.store.find_seller_by_slug("demo").id == demo.DEMO_SELLER_ID
+
+
+def test_seeding_again_keeps_the_address():
+    ctx = _seeded(store_base_domain="localhost:8080", public_base_url="http://localhost:8080")
+    demo.seed(ctx)
+    assert ctx.store.get_seller(demo.DEMO_SELLER_ID).slug == "demo"
+
+
+def test_demo_address_falls_back_to_the_shop_name_when_demo_is_the_platform_host():
+    ctx = _seeded(store_base_domain="localhost:8080", public_base_url="http://demo.localhost:8080", session_secret="x" * 32,
+                   dev_token="d" * 16, webhook_token="w" * 16)
+    assert ctx.store.get_seller(demo.DEMO_SELLER_ID).slug == "toko-demo-rina"

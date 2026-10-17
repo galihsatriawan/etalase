@@ -596,7 +596,7 @@ def static_asset(name: str):
     return FileResponse(STATIC_DIR / name, media_type=kind, headers={"Cache-Control": "public, max-age=31536000, immutable"})
 
 
-@app.get("/media/{name}", include_in_schema=False)
+@app.api_route("/media/{name}", methods=["GET", "HEAD"], include_in_schema=False)
 def media(name: str):
     """Product images by file name only (no paths), from the media folder or bundled samples."""
     if "/" in name or "\\" in name or name.startswith(".") or not name.lower().endswith((".jpg", ".jpeg", ".png", ".webp")):

@@ -87,3 +87,28 @@ def test_ingest_normalises_gemini_colours_so_stock_chat_finds_them(ctx):
     colours = [v.options["color"] for v in drafts[0].variants]
     assert colours == ["Black", "White", "Sage Green"]          # unknown colours are title-cased, not dropped
     assert len({v.sku for v in drafts[0].variants}) == 3
+
+
+def test_indonesian_fashion_color_normalization():
+    """Verify newly enriched Indonesian fashion colors: tosca, wardah, milo, coksu, bata, bw, etc."""
+    from etalase.catalog import intents
+    from etalase.catalog.normalize import canonical_color
+
+    assert canonical_color("tosca") == "Teal"
+    assert canonical_color("wardah") == "Seafoam"
+    assert canonical_color("milo") == "Brown"
+    assert canonical_color("coksu") == "Beige"
+    assert canonical_color("bata") == "Terracotta"
+    assert canonical_color("bw") == "Broken White"
+    assert canonical_color("broken white") == "Broken White"
+    assert canonical_color("army") == "Olive"
+
+    it = intents.parse("tosca habis")
+    assert (it.kind, it.color, it.qty) == ("set_stock", "Teal", 0)
+
+    it = intents.parse("wardah tinggal 3")
+    assert (it.kind, it.color, it.qty) == ("set_stock", "Seafoam", 3)
+
+    it = intents.parse("tambah bata 5")
+    assert (it.kind, it.color, it.qty) == ("add_stock", "Terracotta", 5)
+

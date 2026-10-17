@@ -255,7 +255,9 @@ const ic = (name, cls = "") => `<svg class="ico ${cls}" aria-hidden="true"><use 
 const go = (fn) => document.startViewTransition ? document.startViewTransition(fn) : fn();
 const COVERS = [["#0a5c42", "#1fb384"], ["#9a4a00", "#f0a73a"], ["#2c3b95", "#6a82f0"], ["#98234a", "#ec6a8e"], ["#4d3187", "#9a76e0"], ["#0b5568", "#35b3d1"]];
 let token = null, lastMe = {}, shown = "", toastTimer, allOrders = [], filter = "", base = { mind: false, note: "" };
-try { token = sessionStorage.getItem("etalase_token"); } catch (e) {}
+const qToken = new URLSearchParams(location.search).get("token");
+if (qToken) { token = qToken; try { sessionStorage.setItem("etalase_token", token); history.replaceState(null, "", location.pathname); } catch (e) {} }
+else { try { token = sessionStorage.getItem("etalase_token"); } catch (e) {} }
 if (/^(localhost|127\.|\[::1\])/.test(location.hostname) || location.hostname.endsWith(".localhost")) $("dev").hidden = false;
 
 async function api(path, opts = {}) {

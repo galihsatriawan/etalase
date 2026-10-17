@@ -8,16 +8,21 @@ import unicodedata
 COLOR_MAP = {
     "hitam": "Black", "black": "Black",
     "putih": "White", "white": "White",
+    "bw": "Broken White", "broken white": "Broken White", "broken-white": "Broken White",
     "navy": "Navy", "dongker": "Navy",
     "biru": "Blue", "blue": "Blue",
     "merah": "Red", "red": "Red",
     "mocca": "Mocca", "moka": "Mocca", "mocha": "Mocca",
-    "coklat": "Brown", "cokelat": "Brown", "brown": "Brown",
+    "coklat": "Brown", "cokelat": "Brown", "brown": "Brown", "milo": "Brown",
+    "coksu": "Beige", "beige": "Beige", "khaki": "Khaki",
     "abu": "Grey", "abu-abu": "Grey", "grey": "Grey", "gray": "Grey",
-    "hijau": "Green", "green": "Green", "sage": "Sage", "olive": "Olive",
+    "hijau": "Green", "green": "Green", "sage": "Sage", "olive": "Olive", "army": "Olive",
+    "wardah": "Seafoam", "seafoam": "Seafoam",
+    "tosca": "Teal", "teal": "Teal",
+    "bata": "Terracotta", "teracota": "Terracotta", "terracotta": "Terracotta",
     "krem": "Cream", "cream": "Cream",
     "maroon": "Maroon", "pink": "Pink", "ungu": "Purple", "purple": "Purple",
-    "kuning": "Yellow", "yellow": "Yellow", "lilac": "Lilac", "nude": "Nude",
+    "kuning": "Yellow", "yellow": "Yellow", "mustard": "Yellow", "lilac": "Lilac", "nude": "Nude",
 }
 
 # Rough shipping weights used when the seller gives none; the seller confirms them.

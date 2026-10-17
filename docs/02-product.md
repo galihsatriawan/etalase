@@ -74,11 +74,29 @@ Etalase turns a WhatsApp seller's product photos and chats into a storefront tha
 5. The same page shows the tracking number and, after delivery, an **Ask for a return** form (the phone number is the proof, like for an agent).
 6. The seller gets the same alerts on their channel. The seller's number is never on the page.
 
+### 2c. Buying through Google's AI surfaces (UCP): the design, not an integration
+
+> **Status: not integrated.** No Google surface (AI Mode, the Gemini app) calls Etalase today, and UCP agent checkout has no date in Indonesia
+> ([doc 16](16-ucp.md), [doc 17](17-market-fit-and-direction.md)). What follows is the flow the UCP specification describes, played by a test client
+> against our server (our own tests, plus the official conformance suite where it applies). How Google would show each step is Google's decision.
+
+1. The buyer asks the AI for a product. The surface finds the business through its UCP profile, `/.well-known/ucp` (on a shop's own address, that shop's profile).
+2. The surface creates a checkout session with the products, asks the buyer for a name, a phone number and a delivery address (all required: the courier and
+   the seller call the buyer), and shows the courier options Etalase returns as fulfillment options. The buyer, not the seller, picks one; otherwise the cheapest is used.
+3. The buyer agrees and the surface completes the session. Etalase reserves the stock of every line together and creates the QRIS payment.
+4. Etalase answers `requires_escalation` with a `continue_url`. The surface hands the buyer over to Etalase's payment page, because QRIS has to be paid in a
+   banking or e-wallet app, not inside a chat. A surface that only completes with a card or an AP2 mandate cannot use Etalase (8 of the 21 failing conformance tests).
+5. The buyer pays. The session becomes `completed` with the order, and the seller gets "New paid order" in their chat.
+
+Until a surface does this, the same journey is available to any MCP or REST agent (section 2), and to a person through the store link (section 2b).
+
 ### 3. Confirm-first (uncertain stock)
 If stock is untracked, stale (over 3 days) or nearly sold out (2 or fewer), the seller is asked "Is it still available?" **before** the buyer is asked to pay. No refunds needed when stock turns out to be gone.
 
 ### 4. Shipping and payout
 The seller replies "tracking JNE123456". When the courier reports delivery, the order moves to `delivered` and the seller is told the date the money will be paid out. After the return window (72 hours; 168 for a seller with fewer than 5 completed orders) the payout (order value minus commission) is released to the seller's payment sub-account and the seller is notified.
+
+Who picks the courier: the buyer or the buyer's agent (`courier` over REST and MCP, the fulfillment option over UCP); with no choice the cheapest rate is used, and the store pages always use the cheapest. The list of couriers is one list for the whole platform. A seller cannot restrict it or bring their own courier in this version, and the live Biteship rates have never been run.
 
 ### 5. After delivery: returns
 1. The buyer's agent reads the seller's `return_policy` and `track_record` before buying, and `get_checkout_status` tells it until when a return can be requested.

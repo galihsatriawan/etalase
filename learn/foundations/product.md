@@ -211,7 +211,7 @@ With `MockPayment` the release is simulated. `XenditPayment.release_to_seller` a
 | Offline extraction, readiness score, publish | <Badge type="tip" text="Built" /> | |
 | Gemini extraction and ADK seller agent | <Badge type="warning" text="Mocked in demo" /> | Runs with a key or Vertex AI |
 | Instagram import | <Badge type="tip" text="Built" /> / <Badge type="warning" text="Mocked in demo" /> | Sample posts offline; Graph API needs app credentials |
-| MCP server, REST mirror, UCP profile and Checkout (REST), schema.org | <Badge type="tip" text="Built" /> | UCP: 31 of 77 official conformance tests pass, the 20 failures are explained ([UCP checkout](/architecture/ucp)); no AP2; untried with Google's surfaces |
+| MCP server, REST mirror, UCP profile and Checkout (REST), schema.org | <Badge type="tip" text="Built" /> | UCP with Order and signed webhooks: 31 of 77 official conformance tests pass in production mode and 54 in sandbox test mode, every failure explained ([UCP checkout](/architecture/ucp)); no AP2; untried with Google's surfaces |
 | Reservations, confirm-first, expiry, idempotent webhooks | <Badge type="tip" text="Built" /> | Oversell race tested |
 | QRIS via Xendit | <Badge type="warning" text="Mocked in demo" /> | Creation and webhook written; refunds and settlement manual |
 | Courier rates and booking via Biteship | <Badge type="warning" text="Mocked in demo" /> | `MockShipping` offline |

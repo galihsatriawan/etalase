@@ -20,7 +20,7 @@ Etalase turns a WhatsApp seller's product photos and chats into a storefront tha
 | **AI catalog builder:** photos, voice notes, text and Excel/CSV become products, variants, prices and weights (Gemini multimodal, structured output) | ✅ | Product photo clean-up, attribute enrichment |
 | **Instagram import (optional):** product posts (photo + caption) become drafts; promo posts are skipped | ✅ (sample posts offline, Graph API wired) | Auto-detect new posts |
 | **Agent-readiness score** 0–100 with what is missing | ✅ | Benchmarks per category |
-| **Agent gateway:** MCP server, REST mirror, UCP profile and Checkout (REST), schema.org data | ✅ | Merchant Center feed, AP2 payment mandates |
+| **Agent gateway:** MCP server, REST mirror, UCP profile, Checkout and Order with signed webhooks (REST), schema.org data | ✅ | Merchant Center feed, AP2 payment mandates |
 | **WhatsApp seller agent** (ADK): stock and price by chat, tracking numbers, sales questions | ✅ | Proactive restock reminders |
 | **Safe checkout:** stock reservation, instant vs confirm-first, QRIS | ✅ (payment in test mode) | E-wallets, virtual accounts |
 | **Shipping:** courier rates, booking, delivery status (the payout clock starts only when the courier confirms delivery) | ✅ (mock in demo; Biteship adapter wired) | Pickup scheduling, prepaid return labels |

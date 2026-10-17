@@ -164,7 +164,7 @@ The answer is `{"options": [...], "currency": "IDR"}`, sorted by price. If the b
 
 ## Discovery documents
 
-**`GET /.well-known/ucp`** is a UCP business profile (spec 2026-04-08): the `dev.ucp.shopping` REST service at `/ucp/v1` the checkout and fulfillment capabilities and the buyer-consent extension. It is generated in `prototype/etalase/gateway/ucp.py` and is covered by [UCP checkout](/architecture/ucp), which also explains how UCP relates to the MCP and REST interfaces above. Abridged, as a local server returns it:
+**`GET /.well-known/ucp`** is a UCP business profile (spec 2026-04-08): the `dev.ucp.shopping` REST service at `/ucp/v1` the checkout, fulfillment and order capabilities and the buyer-consent extension, with the `signing_keys` that verify our order webhooks. It is generated in `prototype/etalase/gateway/ucp.py` and is covered by [UCP checkout](/architecture/ucp), which also explains how UCP relates to the MCP and REST interfaces above. Abridged, as a local server returns it:
 
 ```json
 {"ucp": {

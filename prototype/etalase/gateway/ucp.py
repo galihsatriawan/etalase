@@ -26,16 +26,21 @@ How Etalase maps onto it
   or was rejected.
 - Amounts are minor units per ISO 4217. IDR has exponent 2, so Rp 85.000 is sent as 8500000.
 
-Not implemented (and therefore not advertised): AP2 mandates, payment handlers, discounts, cart, catalog and
-order capabilities, message signing, pickup, carts of more than one shop. The platform's own profile (UCP-Agent) is
-not fetched, so capability negotiation is simply "we return what we implement" (fetching an arbitrary URL
-from a request header is an SSRF risk; add an allow-listed fetch before relying on negotiation).
+- dev.ucp.shopping.order      (gateway/ucp_order.py): GET /ucp/v1/orders/{id} for the platform that started the checkout, and signed
+  webhooks (the full order on every change) to platforms on the operator's allow-list. The key they are signed with is published as
+  `signing_keys` in this profile.
+
+Not implemented (and therefore not advertised): AP2 mandates, payment handlers, discounts, cart and catalog capabilities, verifying
+the signature of incoming requests, pickup, carts of more than one shop. The platform's own profile (UCP-Agent) is not fetched
+while negotiating a checkout, so capability negotiation is simply "we return what we implement"; it is fetched only for a platform
+on the allow-list, to find the webhook URL it declared for orders (see ucp_order.py for why that fetch is safe).
 """
 
 from __future__ import annotations
 
 import hashlib
 import json
+import logging
 import re
 import secrets
 from datetime import datetime, timedelta
@@ -55,12 +60,15 @@ from .hosts import ShopScope, shop_of
 if TYPE_CHECKING:
     from ..container import AppContext
 
+log = logging.getLogger("etalase.ucp")
+
 UCP_VERSION = "2026-04-08"
 SUPPORTED_VERSIONS = {UCP_VERSION}
 SERVICE = "dev.ucp.shopping"
 CHECKOUT = "dev.ucp.shopping.checkout"
 FULFILLMENT = "dev.ucp.shopping.fulfillment"
 BUYER_CONSENT = "dev.ucp.shopping.buyer_consent"
+ORDER = "dev.ucp.shopping.order"
 # The four consent states the extension defines. Etalase records what the platform sends and nothing more: it sends no marketing and sells no data.
 CONSENT_KEYS = ("analytics", "preferences", "marketing", "sale_of_data")
 SPEC = f"https://ucp.dev/{UCP_VERSION}"
@@ -89,7 +97,7 @@ def rupiah(amount: int) -> str:
 def ucp_profile(ctx: "AppContext", shop: ShopScope | None = None) -> dict:
     """The business profile. On a shop's own address the business is that shop: same capabilities, its own endpoint."""
     base = shop.origin if shop else ctx.settings.public_base_url.rstrip("/")
-    return {"ucp": {
+    profile = {"ucp": {
         "version": UCP_VERSION,
         "services": {SERVICE: [{
             "version": UCP_VERSION,
@@ -105,9 +113,14 @@ def ucp_profile(ctx: "AppContext", shop: ShopScope | None = None) -> dict:
                            "schema": f"{SPEC}/schemas/shopping/fulfillment.json", "extends": CHECKOUT}],
             BUYER_CONSENT: [{"version": UCP_VERSION, "spec": f"{SPEC}/specification/buyer-consent",
                              "schema": f"{SPEC}/schemas/shopping/buyer_consent.json", "extends": CHECKOUT}],
+            ORDER: [{"version": UCP_VERSION, "spec": f"{SPEC}/specification/order", "schema": f"{SPEC}/schemas/shopping/order.json"}],
         },
         "payment_handlers": {},   # QRIS is finished by the buyer on continue_url, not through an instrument handler
     }}
+    keys = ctx.ucp_orders.signing_keys() if getattr(ctx, "ucp_orders", None) else []
+    if keys:      # a sibling of `ucp`: where platforms look for the key a webhook was signed with
+        profile["signing_keys"] = keys
+    return profile
 
 
 # ------------------------------------------------------------------ errors and request shapes
@@ -496,7 +509,7 @@ class UcpCheckout:
         return {"methods": [method]}
 
     # ---- operations (each returns (http_status, payload))
-    def create(self, raw: bytes, agent: str = "", shop: ShopScope | None = None) -> tuple[int, dict]:
+    def create(self, raw: bytes, agent: str = "", shop: ShopScope | None = None, profile: str = "") -> tuple[int, dict]:
         home = (shop.origin if shop else self.base) + "/"
         body = parse_body(raw, require_items=True)
         try:
@@ -506,7 +519,7 @@ class UcpCheckout:
         s = {"id": "chk_" + secrets.token_hex(12), "lines": lines,
              "seller_id": seller_id, "origin": shop.origin if shop else self.base,
              "buyer": self._buyer_in(None), "destination": None, "option_id": None,
-             "options": [], "order_id": None, "canceled": False, "completing": False, "agent": agent,
+             "options": [], "order_id": None, "canceled": False, "completing": False, "agent": agent, "platform_profile": profile[:300],
              "created_at": now().isoformat(), "expires_at": (now() + SESSION_TTL).isoformat()}
         self._apply(s, body, replace=False)
         self.ctx.store.put_doc(SESSION_KIND, s["id"], s)
@@ -550,6 +563,11 @@ class UcpCheckout:
                     {"type": "error", "code": "not_ready", "severity": "recoverable",
                      "content": "The checkout is missing information; resolve the other messages first."})
             return 200, current
+        if self.ctx.ucp_orders.declines_mock_payment(raw):      # UCP_TEST_MODE only: the suite's failing card token
+            current.setdefault("messages", []).append(
+                {"type": "error", "code": "payment_failed", "severity": "recoverable",
+                 "content": "The payment instrument was declined. Nothing was reserved; try another instrument."})
+            return 200, current
 
         claimed: dict[str, bool] = {}
 
@@ -583,6 +601,12 @@ class UcpCheckout:
                                                       "content": text[:200]})
             return 200, failed
         self.ctx.store.update_doc(SESSION_KIND, session_id, lambda d: d.update(order_id=order.id) or True)
+        try:
+            self.ctx.ucp_orders.attach(order, s, s.get("platform_profile", ""))
+            if order.payment is not None and self.ctx.ucp_orders.accepts_mock_payment(raw):
+                self.ctx.checkout.payment_succeeded(order.payment.reference)       # UCP_TEST_MODE only: the suite's mock card token
+        except Exception:      # the order exists and is payable: a problem with the platform's view of it must not undo that
+            log.exception("could not record UCP order %s", order.id)
         return 200, self.view(self._load(session_id))
 
     def cancel(self, session_id: str, shop: ShopScope | None = None) -> tuple[int, dict]:
@@ -659,13 +683,18 @@ def build_router(ctx: "AppContext", limits: RateLimiter) -> APIRouter:
         if not limits.allow(f"ucp-{bucket}:{client_ip(request)}", limit, window):
             raise UcpError(429, "rate_limited", "Too many requests, slow down.")
 
-    async def run(request: Request, bucket: tuple[str, int, int], fn: Callable[[bytes], tuple[int, dict]]) -> JSONResponse:
+    def profile_of(request: Request) -> str:
+        m = AGENT_RE.search(request.headers.get("ucp-agent", ""))
+        return m.group(1) if m else ""
+
+    async def run(request: Request, bucket: tuple[str, int, int], fn: Callable[[bytes], tuple[int, dict]],
+                  idempotent: bool = True) -> JSONResponse:
         """Common path: headers, rate limit, idempotency replay, and UcpError -> error envelope."""
         try:
             check_headers(request)
             throttle(request, *bucket)
             raw = await request.body()
-            key = request.headers.get("idempotency-key", "")[:128]
+            key = request.headers.get("idempotency-key", "")[:128] if idempotent else ""
             if not key:
                 return respond(*await _in_thread(fn, raw))
             shop = shop_of(request)
@@ -687,7 +716,7 @@ def build_router(ctx: "AppContext", limits: RateLimiter) -> APIRouter:
     async def create(request: Request):
         agent = attribution.agent_from_ucp_header(request.headers.get("ucp-agent"))   # the platform's host, kept on the order
         shop = shop_of(request)
-        return await run(request, ("create", 120, 60), lambda raw: svc.create(raw, agent, shop))
+        return await run(request, ("create", 120, 60), lambda raw: svc.create(raw, agent, shop, profile_of(request)))
 
     @router.get("/checkout-sessions/{session_id}")
     async def read(request: Request, session_id: str):
@@ -708,6 +737,28 @@ def build_router(ctx: "AppContext", limits: RateLimiter) -> APIRouter:
     async def cancel(request: Request, session_id: str):
         shop = shop_of(request)
         return await run(request, ("cancel", 120, 60), lambda raw: svc.cancel(session_id, shop))
+
+    # ---- orders: read by the platform that started the checkout; changes come to it by webhook
+    @router.get("/orders/{order_id}")
+    async def read_order(request: Request, order_id: str):
+        shop, profile = shop_of(request), profile_of(request)
+        return await run(request, ("order", 600, 60),
+                         lambda raw: (200, ctx.ucp_orders.view(order_id, profile, shop.seller_id if shop else None)), idempotent=False)
+
+    if ctx.settings.ucp_test_mode:        # sandbox only: a platform simulator adds events and adjustments (see ucp_order.py)
+        @router.put("/orders/{order_id}")
+        async def update_order(request: Request, order_id: str):
+            shop, profile = shop_of(request), profile_of(request)
+
+            def go(raw: bytes) -> tuple[int, dict]:
+                try:
+                    body = json.loads(raw or b"{}")
+                except ValueError as e:
+                    raise UcpError(400, "invalid_request", f"request body is not valid JSON ({e})") from e
+                if not isinstance(body, dict):
+                    raise UcpError(400, "invalid_request", "request body must be a JSON object")
+                return 200, ctx.ucp_orders.update_for_test(order_id, profile, shop.seller_id if shop else None, body)
+            return await run(request, ("order-update", 120, 60), go, idempotent=False)
 
     return router
 

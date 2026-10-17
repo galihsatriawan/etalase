@@ -60,6 +60,35 @@ def validate_settings(s: Settings, modes: dict) -> None:
         if s.signup_enabled:
             problems.append("DEMO_MODE cannot run with SIGNUP_ENABLED: the mock provider verifies a new shop at once, so anyone could "
                             "open shops on the public sandbox")
+    if s.ucp_platforms or s.ucp_signing_key:
+        from .gateway.ucp_order import parse_platforms
+        from .gateway.ucp_signing import Signer, SigningKeyError
+        try:
+            platforms = parse_platforms(s.ucp_platforms)
+        except ValueError as e:
+            platforms = []
+            problems.append(str(e))
+        try:
+            Signer.load(s.ucp_signing_key)
+        except SigningKeyError as e:
+            problems.append(str(e))
+        if platforms and not s.is_dev and not s.ucp_signing_key:
+            problems.append("UCP_SIGNING_KEY is required outside dev when UCP_PLATFORMS lists platforms: webhooks must be signed with a key that survives restarts")
+        if not s.is_dev:
+            for p in platforms:
+                if not p.profile.startswith("https://"):
+                    problems.append(f"UCP_PLATFORMS: {p.profile} must be https outside dev")
+    if s.ucp_test_mode:
+        # Test mode lets a caller mark an order as paid with a known token, so nothing real may sit behind it.
+        if not s.is_dev:
+            problems.append("UCP_TEST_MODE only runs with ETALASE_ENV=dev: it accepts a mock card token as payment")
+        for part in ("payment", "shipping"):
+            if modes.get(part) != "mock":
+                problems.append(f"UCP_TEST_MODE needs the mock {part} adapter: remove the real {part} keys")
+        if modes.get("messaging") != "console":
+            problems.append("UCP_TEST_MODE needs the console messenger: remove WHATSAPP_TOKEN")
+        if len(s.ucp_simulation_secret) < MIN_SECRET_LEN:
+            problems.append("UCP_SIMULATION_SECRET (16+ chars) is required with UCP_TEST_MODE")
     if s.whatsapp_token and not s.whatsapp_app_secret:
         problems.append("WHATSAPP_APP_SECRET is required to verify WhatsApp webhooks")
     if s.whatsapp_token and s.whatsapp_verify_token == "etalase-dev-verify":

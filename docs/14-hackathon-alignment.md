@@ -31,8 +31,10 @@ covers discovery, conversational shopping and inventory.
 - [ ] Working prototype deployed on Cloud Run, end to end
 - [ ] Reviewer sandbox deployed (`DEMO=1 make deploy`), link in the submission, steps in [JUDGES.md](../JUDGES.md): reviewers can run the flow without an account because WhatsApp, payment and courier are simulated there
 - [ ] Public GitHub repository (this repo, created fresh during the hackathon)
-- [ ] Demo video, about 3 minutes, public YouTube / Vimeo / Drive link
+- [ ] Demo video, **strictly under 3 minutes** (terms and conditions; the themes page says "3 minutes"), public YouTube / Vimeo / Drive link, showing the AI at work
 - [x] Everything in English (code, docs, deck)
+
+Rules read on 18 Oct 2026: the terms and conditions say nothing about which tools may write the code; they require the prototype to be "built primarily using the Google Cloud tech stack" and the code and assets to be fresh and created during the hackathon. The submission deadline on the home page is 18 Oct 2026, with no time zone.
 
 Sources: [FAQ](https://aibuildercup.com/Faqs.html), [Themes](https://aibuildercup.com/themes.html),
 [Rewards](https://aibuildercup.com/rewards.html).

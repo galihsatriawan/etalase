@@ -3,7 +3,8 @@
 UCP (https://ucp.dev) is the open standard that lets AI shopping platforms discover a business and run a
 checkout with it. This module implements the business side of:
 
-- discovery profile at /.well-known/ucp
+- discovery profile at /.well-known/ucp, on the platform host and on every shop's own address (rina.<domain>), where it
+  describes that shop alone: its endpoint is the shop's origin and its checkout only accepts that shop's items
 - dev.ucp.shopping.checkout   over REST  (create / get / update / complete / cancel)
 - dev.ucp.shopping.fulfillment extension (shipping address + courier choice)
 
@@ -43,6 +44,7 @@ from .. import attribution
 from ..models import Address, CheckoutError, OrderStatus, now
 from ..security import RateLimiter, client_ip
 from . import pages
+from .hosts import ShopScope, shop_of
 
 if TYPE_CHECKING:
     from ..container import AppContext
@@ -74,8 +76,9 @@ def rupiah(amount: int) -> str:
 
 
 # ------------------------------------------------------------------ discovery
-def ucp_profile(ctx: "AppContext") -> dict:
-    base = ctx.settings.public_base_url.rstrip("/")
+def ucp_profile(ctx: "AppContext", shop: ShopScope | None = None) -> dict:
+    """The business profile. On a shop's own address the business is that shop: same capabilities, its own endpoint."""
+    base = shop.origin if shop else ctx.settings.public_base_url.rstrip("/")
     return {"ucp": {
         "version": UCP_VERSION,
         "services": {SERVICE: [{
@@ -165,22 +168,32 @@ def option_id(rate: dict) -> str:
 class UcpCheckout:
     def __init__(self, ctx: "AppContext") -> None:
         self.ctx = ctx
-        self.base = ctx.settings.public_base_url.rstrip("/")
+
+    @property
+    def base(self) -> str:
+        return self.ctx.settings.public_base_url.rstrip("/")
 
     # ---- helpers
-    def _url(self, session_id: str) -> str:
-        return f"{self.base}/checkout/{session_id}"
+    def _origin(self, s: dict | None = None) -> str:
+        """Links in a session point at the address it was started on (a shop's own address, or the platform host)."""
+        return (s or {}).get("origin") or self.base
 
-    def _find_variant(self, item_id: str):
-        for product in self.ctx.store.list_products(status="published"):
+    def _url(self, s: dict) -> str:
+        return f"{self._origin(s)}/checkout/{s['id']}"
+
+    def _find_variant(self, item_id: str, seller_id: str | None = None):
+        """The product and variant an item id names, if a buyer can buy it: published, and its seller is open. On a shop's own
+        address only that shop's items exist."""
+        for product in self.ctx.store.list_products(seller_id=seller_id, status="published"):
             for v in product.variants:
                 if v.id == item_id:
-                    return product, v
+                    seller = self.ctx.store.get_seller(product.seller_id)
+                    return (product, v) if seller is not None and seller.open_for_buyers else (None, None)
         return None, None
 
-    def _load(self, session_id: str) -> dict:
+    def _load(self, session_id: str, shop: ShopScope | None = None) -> dict:
         s = self.ctx.store.get_doc(SESSION_KIND, session_id)
-        if s is None:
+        if s is None or (shop is not None and s.get("seller_id") != shop.seller_id):    # another shop's session does not exist here
             raise UcpError(404, "not_found", "checkout session not found")
         return s
 
@@ -353,7 +366,7 @@ class UcpCheckout:
         totals.append({"type": "total", "amount": grand})
 
         out: dict[str, Any] = {"ucp": envelope(), "id": s["id"], "status": status, "currency": currency,
-                               "line_items": line_items, "totals": totals, "links": self._links(product),
+                               "line_items": line_items, "totals": totals, "links": self._links(product, s),
                                "expires_at": expires.isoformat()}
         buyer = {k: v for k, v in s["buyer"].items() if v}
         if buyer:
@@ -363,17 +376,17 @@ class UcpCheckout:
         if messages:
             out["messages"] = messages
         if status == "completed":
-            out["order"] = {"id": order.id, "label": order.id, "permalink_url": self._url(s["id"])}
+            out["order"] = {"id": order.id, "label": order.id, "permalink_url": self._url(s)}
         elif status != "canceled":
-            out["continue_url"] = self._url(s["id"])
+            out["continue_url"] = self._url(s)
         return out
 
-    def _links(self, product) -> list[dict]:
+    def _links(self, product, s: dict) -> list[dict]:
         """The seller's return policy as a UCP `refund_policy` link (a well-known link type in the checkout spec)."""
         if product is None:
             return []
         return [{"type": "refund_policy", "title": "Return policy",
-                 "url": f"{self.base}/stores/{product.seller_id}/returns"}]
+                 "url": f"{self._origin(s)}/stores/{product.seller_id}/returns"}]
 
     def _fulfillment_view(self, s: dict, order, currency: str) -> dict:
         method: dict[str, Any] = {"id": "shipping_1", "type": "shipping", "line_item_ids": ["li_1"], "destinations": []}
@@ -395,19 +408,20 @@ class UcpCheckout:
         return {"methods": [method]}
 
     # ---- operations (each returns (http_status, payload))
-    def create(self, raw: bytes, agent: str = "") -> tuple[int, dict]:
+    def create(self, raw: bytes, agent: str = "", shop: ShopScope | None = None) -> tuple[int, dict]:
+        home = (shop.origin if shop else self.base) + "/"
         body = parse_body(raw, require_items=True)
         if len(body.line_items) != 1:
-            return 200, error_payload("unsupported", "This business sells one item per checkout session.",
-                                      continue_url=self.base + "/")
+            return 200, error_payload("unsupported", "This business sells one item per checkout session.", continue_url=home)
         li = body.line_items[0]
-        product, variant = self._find_variant(li.item.id)
+        product, variant = self._find_variant(li.item.id, shop.seller_id if shop else None)
         if product is None:
-            return 200, error_payload("item_unavailable", "That item does not exist or is not for sale.", continue_url=self.base + "/")
+            return 200, error_payload("item_unavailable", "That item does not exist or is not for sale.", continue_url=home)
         avail = variant.stock.available
         if avail is not None and avail <= 0:
-            return 200, error_payload("out_of_stock", "That item is out of stock.", continue_url=self.base + "/")
+            return 200, error_payload("out_of_stock", "That item is out of stock.", continue_url=home)
         s = {"id": "chk_" + secrets.token_hex(12), "product_id": product.id, "variant_id": variant.id,
+             "seller_id": product.seller_id, "origin": shop.origin if shop else self.base,
              "quantity": li.quantity, "buyer": self._buyer_in(None), "destination": None, "option_id": None,
              "options": [], "order_id": None, "canceled": False, "completing": False, "agent": agent,
              "created_at": now().isoformat(), "expires_at": (now() + SESSION_TTL).isoformat()}
@@ -415,12 +429,12 @@ class UcpCheckout:
         self.ctx.store.put_doc(SESSION_KIND, s["id"], s)
         return 201, self.view(s)
 
-    def get(self, session_id: str) -> tuple[int, dict]:
-        return 200, self.view(self._load(session_id))
+    def get(self, session_id: str, shop: ShopScope | None = None) -> tuple[int, dict]:
+        return 200, self.view(self._load(session_id, shop))
 
-    def update(self, session_id: str, raw: bytes) -> tuple[int, dict]:
+    def update(self, session_id: str, raw: bytes, shop: ShopScope | None = None) -> tuple[int, dict]:
         body = parse_body(raw, require_items=False)
-        s = self._load(session_id)
+        s = self._load(session_id, shop)
         if s.get("order_id") or s.get("completing") or s.get("canceled"):
             current = self.view(s)
             if current["status"] in ("completed", "canceled"):
@@ -433,7 +447,7 @@ class UcpCheckout:
             if len(body.line_items) != 1:
                 raise UcpError(422, "unsupported", "This business sells one item per checkout session.")
             li = body.line_items[0]
-            product, variant = self._find_variant(li.item.id)
+            product, variant = self._find_variant(li.item.id, shop.seller_id if shop else None)
             if product is None:
                 raise UcpError(422, "item_unavailable", "That item does not exist or is not for sale.")
             if (variant.id, li.quantity) != (s["variant_id"], s["quantity"]):
@@ -445,9 +459,9 @@ class UcpCheckout:
         self.ctx.store.put_doc(SESSION_KIND, s["id"], s)
         return 200, self.view(s)
 
-    def complete(self, session_id: str, raw: bytes) -> tuple[int, dict]:
+    def complete(self, session_id: str, raw: bytes, shop: ShopScope | None = None) -> tuple[int, dict]:
         parse_body(raw, require_items=False)
-        s = self._load(session_id)
+        s = self._load(session_id, shop)
         current = self.view(s)
         if current["status"] in ("completed", "canceled"):
             raise UcpError(409, "checkout_closed", f"This checkout is already {current['status']}.")
@@ -491,8 +505,8 @@ class UcpCheckout:
         self.ctx.store.update_doc(SESSION_KIND, session_id, lambda d: d.update(order_id=order.id) or True)
         return 200, self.view(self._load(session_id))
 
-    def cancel(self, session_id: str) -> tuple[int, dict]:
-        s = self._load(session_id)
+    def cancel(self, session_id: str, shop: ShopScope | None = None) -> tuple[int, dict]:
+        s = self._load(session_id, shop)
         if s.get("order_id"):
             order = self.ctx.checkout.cancel_unpaid(s["order_id"])
             if order is not None and order.status in PAID_STATES:
@@ -526,7 +540,7 @@ class UcpCheckout:
             body = (pages.pay_card(rupiah(total), order.payment.qr_string, left, pages.clock(order.expires_at) if order.expires_at else "") + rows)
         elif order.status in PAID_STATES:
             body = (pages.status("ok", "Paid", "<p>The seller will ship your order.</p>") + rows
-                    + f'<p class=links><a href="{escape(self.base)}/stores/{escape(order.seller_id)}/returns">{pages.ico("shield", "sm")}Return policy</a></p>')
+                    + f'<p class=links><a href="{escape(self._origin(s))}/stores/{escape(order.seller_id)}/returns">{pages.ico("shield", "sm")}Return policy</a></p>')
         elif order.status == OrderStatus.REFUNDED:
             body = (pages.status("ok", "Refunded", "<p>This order was refunded. If the money has not reached you yet, ask the shopping assistant for the status.</p>")
                     + rows)
@@ -568,7 +582,8 @@ def build_router(ctx: "AppContext", limits: RateLimiter) -> APIRouter:
             key = request.headers.get("idempotency-key", "")[:128]
             if not key:
                 return respond(*await _in_thread(fn, raw))
-            scope = f"{request.method} {request.url.path}"
+            shop = shop_of(request)
+            scope = f"{request.method} {request.url.path} {shop.seller_id if shop else ''}"    # one key on two shops is two requests
             doc_id = hashlib.sha256(f"{scope}|{key}".encode()).hexdigest()
             fingerprint = hashlib.sha256(raw).hexdigest()
             seen = ctx.store.get_doc(IDEMPOTENCY_KIND, doc_id)
@@ -585,23 +600,28 @@ def build_router(ctx: "AppContext", limits: RateLimiter) -> APIRouter:
     @router.post("/checkout-sessions")
     async def create(request: Request):
         agent = attribution.agent_from_ucp_header(request.headers.get("ucp-agent"))   # the platform's host, kept on the order
-        return await run(request, ("create", 120, 60), lambda raw: svc.create(raw, agent))
+        shop = shop_of(request)
+        return await run(request, ("create", 120, 60), lambda raw: svc.create(raw, agent, shop))
 
     @router.get("/checkout-sessions/{session_id}")
     async def read(request: Request, session_id: str):
-        return await run(request, ("read", 600, 60), lambda raw: svc.get(session_id))
+        shop = shop_of(request)
+        return await run(request, ("read", 600, 60), lambda raw: svc.get(session_id, shop))
 
     @router.put("/checkout-sessions/{session_id}")
     async def update(request: Request, session_id: str):
-        return await run(request, ("update", 240, 60), lambda raw: svc.update(session_id, raw))
+        shop = shop_of(request)
+        return await run(request, ("update", 240, 60), lambda raw: svc.update(session_id, raw, shop))
 
     @router.post("/checkout-sessions/{session_id}/complete")
     async def complete(request: Request, session_id: str):
-        return await run(request, ("complete", 30, 3600), lambda raw: svc.complete(session_id, raw))
+        shop = shop_of(request)
+        return await run(request, ("complete", 30, 3600), lambda raw: svc.complete(session_id, raw, shop))
 
     @router.post("/checkout-sessions/{session_id}/cancel")
     async def cancel(request: Request, session_id: str):
-        return await run(request, ("cancel", 120, 60), lambda raw: svc.cancel(session_id))
+        shop = shop_of(request)
+        return await run(request, ("cancel", 120, 60), lambda raw: svc.cancel(session_id, shop))
 
     return router
 
@@ -614,7 +634,7 @@ async def _in_thread(fn: Callable[[bytes], tuple[int, dict]], raw: bytes) -> tup
 def policy_page_response(ctx: "AppContext", seller_id: str) -> HTMLResponse:
     """The seller's return policy as a plain page: the target of the UCP refund_policy link."""
     seller = ctx.store.get_seller(seller_id[:64])
-    if seller is None:
+    if seller is None or not seller.open_for_buyers:
         return HTMLResponse(pages.layout("Return policy", pages.status("info", "This store was not found", icon="search"), heading=False),
                             status_code=404, headers={"Content-Security-Policy": PAY_PAGE_CSP})
     policy = ctx.returns.policy_view(seller)

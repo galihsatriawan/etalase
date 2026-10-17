@@ -99,6 +99,15 @@ class Seller(BaseModel):
     channel: str = "whatsapp"
     telegram_chat_id: str | None = None
     slug: str | None = None       # the shop's own address <slug>.<STORE_BASE_DOMAIN> (seller/slugs.py); unique
+    created_at: datetime = Field(default_factory=now)   # an unverified shop keeps its address only for a limited time
+    # Where a chat sign-up stands: "slug" (choosing the address), "city", "postal" or "" (done). The shop can be written to
+    # (photos, descriptions) once it is done, but it is not open to buyers or agents until kyc_status is "verified".
+    onboarding: str = ""
+
+    @property
+    def open_for_buyers(self) -> bool:
+        """Only a verified shop is visible to agents and buyers; anything else is a preview nobody else can see."""
+        return self.kyc_status == "verified"
 
     @property
     def address(self) -> str:

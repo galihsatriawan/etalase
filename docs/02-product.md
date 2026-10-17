@@ -28,7 +28,8 @@ Etalase turns a WhatsApp seller's product photos and chats into a storefront tha
 | **Returns:** `request_return` for agents, Approve / Dispute / Item received buttons for sellers, operator queue for disputes, return policy shown to agents ([ADR 0007](adr/0007-payout-hold-and-returns.md)) | ✅ (refund is simulated; Xendit refunds are manual) | Automatic Xendit refunds, prepaid return labels, per-buyer limits |
 | **Public store link** (`/stores/{id}`, or `<shop>.<domain>` when a base domain is set): a catalog page with search and sort, a product page with photos and option chips, a short checkout, a QRIS pay page that can be saved as an image, order status and a return form that a person opens from an Instagram bio, a WhatsApp status or a QR code; the same pages carry schema.org data and pointers to MCP and UCP for agents. Server-rendered HTML that also works with JavaScript off; one small script makes moving between pages smooth and keeps a waiting order page current. Orders land in the seller's chat like any other | ✅ | Share cards per product, an optional cart, id-ID copy for buyers |
 | **Seller channels:** WhatsApp is the default and the sign-in identity; a seller can link a **Telegram** chat and choose it for orders, stock checks and payouts (no 24-hour window, no message fee). One `Messenger` interface, the address picks the channel ([ADR 0008](adr/0008-seller-channels-and-shop-addresses.md)) | ✅ WhatsApp and Telegram | LINE, Zalo, Instagram or Messenger as seller channels; an Instagram DM bot **for buyers**, run per seller on the seller's own account (roadmap, not built) |
-| **Shop address:** each shop can claim `rina.<domain>` instead of `/stores/<id>`; short enough to say aloud, and each shop is its own browser origin | ✅ optional (`STORE_BASE_DOMAIN`, needs wildcard DNS and certificate) | Custom domain per shop |
+| **Shop address:** each shop can claim `rina.<domain>` instead of `/stores/<id>`; short enough to say aloud, and each shop is its own browser origin. The address is also the shop's agent surface: `rina.<domain>/.well-known/ucp`, `/ucp/v1`, `/agent/v1` and `/mcp` see only that shop ([ADR 0008](adr/0008-seller-channels-and-shop-addresses.md)) | ✅ optional (`STORE_BASE_DOMAIN`, needs wildcard DNS and certificate; never tried on a real domain) | Custom domain per shop |
+| **Sign-up in chat** with the address chosen first (unique, held 72 hours until verified), limits per hour and per number, lookalike names refused, the shop invisible until verified ([ADR 0010](adr/0010-chat-signup-address-first.md)) | ✅ built, **off by default**, simulated messages only | The payment provider's identity and bank check through a link; abuse reporting; Indonesian wording for refusals |
 | **Seller dashboard** with one-time-code sign-in (the code goes to the seller's chosen channel): shop link with copy and share, four tiles for what needs attention (tappable filters), orders, products, return policy, shop address and channel settings | ✅ | Analytics, multi-user shops |
 | **Connector API** for OMSs, e-commerce plugins and website builders | ✅ | WooCommerce plugin, Jubelio and Ginee adapters |
 | **Google Sheets sync** (OAuth + Picker, `drive.file` scope) | Designed | ✅ |
@@ -39,20 +40,24 @@ Etalase turns a WhatsApp seller's product photos and chats into a storefront tha
 
 ### 1. Seller onboarding (about 2 minutes)
 
-> **Status: designed, not built.** The prototype has no sign-up. The demo creates the seller with `POST /dev/sellers` (marked `verified`, with a mock payout
-> account), and the bot's "Sign up at …" reply points to a dashboard that only signs in sellers who already exist. The target below is a hybrid: **build the shop
-> in the chat, sell after verification** (identity and bank checks on the payment provider's link). Opening sign-up to any number needs limits first (shops
-> created per hour, one shop per number) and rules against impersonation ([doc 09](09-security-privacy-compliance.md#impersonation-and-phishing)).
+> **Status: the chat part is built, the verification part is not.** A hybrid: **build the shop in the chat, sell after verification.** Steps 1 to 4 below run in the
+> prototype with `SIGNUP_ENABLED=true` (off by default), tested with simulated messages and never with live WhatsApp traffic. Step 5, the payment provider's identity and bank
+> check through a link, is **not built**: with the mock payment provider a finished sign-up is verified at once, and with a real one an operator verifies by hand
+> (`POST /tasks/verify-seller`). Until then the shop is invisible to buyers and agents. Decision and limits: [ADR 0010](adr/0010-chat-signup-address-first.md); the
+> impersonation risks: [doc 09](09-security-privacy-compliance.md#impersonation-and-phishing). Demo sellers are still created with `POST /dev/sellers`.
 
 1. Seller sends "hi" to the Etalase number. The message proves the number (the webhook is signed by Meta), so no code is needed, and the bot asks for a shop name.
-   It also says, once, what Etalase never does: ask for a code, PIN or password in chat, or ask anyone to transfer money.
+   It also says, once, what Etalase never does: ask for a code, PIN or password in chat, or ask anyone to transfer money. Then the bot proposes the shop's address
+   from the name (`rina-hijab.<domain>`), or the seller types another; the address must be unique, is claimed atomically, and may not read like a bank, a marketplace or an
+   official account. Last, where they ship from (street, city, postal code in one message; buyers only see the city).
 2. Sends product photos and one description, typed or as a voice note. Optionally connects Instagram
    (product posts are imported) or a spreadsheet. Only the WhatsApp number is needed to build the shop; selling needs step 5.
 3. Gets a summary: products, variants, stock, price, estimated weight, readiness score.
-4. Taps **Publish**. The shop is a preview: it cannot take an order yet.
+4. Taps **Publish**. The products are saved; the shop is a preview nobody else can see and cannot take an order yet.
 5. Opens the verification link, a fixed page on Etalase's own domain that leads to the payment provider, and completes identity and bank checks there. Once the
-   provider confirms, the shop is open to buyers and AI agents and can take orders. The code already refuses a checkout for a seller who is not `verified`;
-   keeping unverified shops hidden from agents is not built.
+   provider confirms, the shop is open to buyers and AI agents and can take orders. **Not built**: today the mock provider verifies at once, or an operator does it by hand.
+   What is built: a shop that is not `verified` is hidden from search, the store page, its address and the UCP/MCP/REST endpoints, and `create_checkout` refuses it.
+   An address not verified within 72 hours (`SIGNUP_HOLD_HOURS`) goes back to the pool.
 
 ### 2. Buying through an agent
 1. Buyer asks their assistant for a product.

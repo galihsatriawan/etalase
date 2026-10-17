@@ -56,7 +56,14 @@ def _jsonld(data) -> str:
     return '<script type="application/ld+json">' + json.dumps(data).replace("<", "\\u003c") + "</script>"
 
 
+def _open(ctx: "AppContext", seller_id: str) -> bool:
+    seller = ctx.store.get_seller(seller_id)
+    return seller is not None and seller.open_for_buyers
+
+
 def _find(ctx: "AppContext", seller_id: str, variant_id: str) -> tuple[Product, object] | None:
+    if not _open(ctx, seller_id):     # a shop still being set up has nothing to buy
+        return None
     for p in ctx.store.list_products(seller_id=seller_id, status="published"):
         for v in p.variants:
             if v.id == variant_id:
@@ -172,11 +179,20 @@ def _product_card(ctx: "AppContext", seller, p: Product, index: int = 0, *, rise
 SHARE = f'<button class="iconbtn end" type=button data-share aria-label="Share this page">{pages.ico("share")}</button>'
 
 
+def _holding_page() -> HTMLResponse:
+    """What anyone sees at the address of a shop that is not verified yet. It names nothing: no shop name, no products."""
+    return _respond(layout("Opening soon", '<section class="stat info"><span class="bubble info">' + pages.ico("clock") + '</span>'
+                           '<h2>This shop is not open yet</h2><div class=sub><p>It is being set up. Check back soon.</p></div></section>'),
+                    404)
+
+
 def store_page(ctx: "AppContext", seller_id: str) -> HTMLResponse:
     seller = ctx.store.get_seller(seller_id[:64])
     if seller is None:
         return _not_found("This store was not found.")
-    base = ctx.settings.public_base_url.rstrip("/")
+    if not seller.open_for_buyers:
+        return _holding_page()
+    base = slugs.store_origin(ctx.settings, seller)      # on a shop's own address the agent endpoints are on that address too
     sid = escape(seller.id)
     products = ctx.store.list_products(seller_id=seller.id, status="published")
     city = seller.origin.city if seller.origin else ""
@@ -229,6 +245,8 @@ def store_page(ctx: "AppContext", seller_id: str) -> HTMLResponse:
 
 # ------------------------------------------------------------------ one product
 def _product_of(ctx: "AppContext", seller_id: str, product_id: str) -> Product | None:
+    if not _open(ctx, seller_id):
+        return None
     return next((p for p in ctx.store.list_products(seller_id=seller_id, status="published") if p.id == product_id), None)
 
 

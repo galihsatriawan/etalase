@@ -375,14 +375,14 @@ Also delete any optional `etalase-*` provider secrets you created. Cloud Build k
 | Register webhook URLs at Meta, Xendit and Biteship | Use the URLs the script prints. |
 | Cloud Build permissions | See the warning in Step 2. |
 | Per-secret IAM | The bindings are project-wide; tighten for the pilot. |
-| Support `prod` | Needs every provider secret, `WHATSAPP_PHONE_NUMBER_ID`, and a seller sign-up flow that does not exist yet. |
+| Support `prod` | Needs every provider secret, `WHATSAPP_PHONE_NUMBER_ID`, and, for sign-up, `SIGNUP_ENABLED` plus an `OPERATOR_TOKEN` and someone to verify each new shop by hand (the provider's own check is not built). |
 | Scale beyond one instance | Move in-memory state out first (see [Known gaps](/master/known-gaps)), then lift `--max-instances` and move expiry to Cloud Tasks. |
 
 ## Pitfalls
 
 - **Data disappears on redeploy.** `MemoryStore` plus one instance: every deploy starts empty. Re-seed with `/dev/sellers` before a demo.
 - **`--update-*` keeps old values.** A variable you no longer want stays on the service until you remove it with `--remove-env-vars`. Check with `gcloud run services describe etalase --region asia-southeast2`.
-- **No real seller sign-up in prod.** Sellers are created only through `POST /dev/sellers`, which exists only in `dev`.
+- **Sign-up in prod waits for a person.** With `SIGNUP_ENABLED=true` a stranger can build a shop in chat, but it stays invisible until an operator calls `POST /tasks/verify-seller`. With it off, sellers are created only through `POST /dev/sellers`, which exists only in `dev`.
 - **`/dev/outbox` is empty when real WhatsApp is on**, because only the console messenger keeps an outbox.
 - **A half-configured provider stops the service.** Wiring `etalase-whatsapp-token` without the app secret and verify token makes the next revision refuse to start. Cloud Run keeps serving the previous revision, but your change did not go live; check the logs for `Refusing to start:`.
 

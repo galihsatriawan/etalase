@@ -42,6 +42,10 @@ class MemoryStore:
                     return s.model_copy(deep=True)
         return None
 
+    def pending_sellers(self) -> list[Seller]:
+        with self._lock:
+            return [s.model_copy(deep=True) for s in self._sellers.values() if s.kyc_status != "verified"]
+
     def find_seller_by_slug(self, slug: str) -> Seller | None:
         with self._lock:
             for s in self._sellers.values():

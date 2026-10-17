@@ -44,7 +44,9 @@ def return_policy_jsonld(ctx: "AppContext", seller) -> dict:
 def schema_org_products(ctx: "AppContext", seller_id: str) -> list[dict]:
     base = ctx.settings.public_base_url.rstrip("/")
     seller = ctx.store.get_seller(seller_id)
-    policy = return_policy_jsonld(ctx, seller) if seller else None
+    if seller is None or not seller.open_for_buyers:     # a shop still being set up publishes nothing
+        return []
+    policy = return_policy_jsonld(ctx, seller)
     out = []
     for p in ctx.store.list_products(seller_id=seller_id, status="published"):
         for v in p.variants:

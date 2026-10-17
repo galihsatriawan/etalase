@@ -71,6 +71,8 @@ class SellerInbox:
 
     def _unknown_sender(self, msg: Inbound) -> None:
         ctx = self.ctx
+        if ctx.signup.begin(msg):      # sign-up in chat, when it is switched on: the stranger starts a shop
+            return
         if not msg.sender.startswith(TELEGRAM_PREFIX):
             # Anyone can message the Etalase number. Each reply is a billed WhatsApp message, so a stranger gets a few per hour.
             if self._limits.allow(f"wa-unknown:{msg.sender}", 3, 3600):
@@ -91,6 +93,11 @@ class SellerInbox:
         seller = ctx.store.find_seller_by_address(msg.sender)
         if seller is None:
             self._unknown_sender(msg)
+            return
+        if seller.onboarding:            # still answering the sign-up questions
+            ctx.signup.step(seller, msg)
+            return
+        if ctx.signup.reclaim(seller, msg.sender):     # lost the address to the hold timer: pick one again
             return
         if msg.kind == "button":
             self.handle_button(seller.id, msg.button_id)
@@ -175,8 +182,11 @@ class SellerInbox:
             if action == "publish":
                 published = ctx.catalog.publish(seller_id)
                 total = len(ctx.store.list_products(seller_id=seller_id, status="published"))
-                ctx.messenger.send_text(self.to(seller), ctx.t("published", n=len(published), total=total,
-                                                               url=self.store_url(seller_id)))
+                if seller.open_for_buyers:
+                    ctx.messenger.send_text(self.to(seller), ctx.t("published", n=len(published), total=total,
+                                                                   url=self.store_url(seller_id)))
+                else:     # a shop still waiting for verification: saved, not visible to anyone
+                    ctx.messenger.send_text(self.to(seller), ctx.t("published_pending", n=len(published), total=total))
             elif action == "edit":
                 ctx.messenger.send_text(self.to(seller), ctx.t("edit_hint"))
             elif action == "confirm":

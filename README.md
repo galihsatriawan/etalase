@@ -66,7 +66,7 @@ The running prototype (mock payment and courier, synthetic product photos): the 
 cd prototype
 pip install -r requirements-dev.txt
 python scripts/demo.py          # full end-to-end story in the terminal
-pytest -q                       # 507 tests: oversell race, payments, webhook security, OTP abuse
+pytest -q                       # 577 tests: oversell race, payments, webhook security, OTP abuse
 uvicorn etalase.api.main:app --port 8080   # API, MCP at /mcp/, dashboard at /, docs at /docs
 ```
 
@@ -139,13 +139,13 @@ It is published to GitHub Pages by `.github/workflows/learn.yml` (Settings → P
 │   ├── 15-evidence.md            every number with its source and quote
 │   ├── 16-ucp.md                 what we implement of the Universal Commerce Protocol
 │   ├── 17-market-fit-and-direction.md   is the idea still right: verified, partly, unverified
-│   ├── adr/                      nine decision records (0001 to 0009)
+│   ├── adr/                      ten decision records (0001 to 0010)
 │   └── assets/
 ├── learn/                        Etalase Academy (VitePress learning site)
 ├── prototype/                    Python · FastAPI · ADK · MCP · Cloud Run
 │   ├── etalase/                  the application (code map in prototype/README.md)
 │   ├── scripts/                  demo.py, e2e_http.py, browser_check.py, deploy_cloud_run.sh
-│   ├── tests/                    507 tests
+│   ├── tests/                    577 tests
 │   ├── evals/                    labelled messages and the extraction scorer
 │   ├── ucp_conformance/          runner for Google's official UCP conformance suite
 │   └── Dockerfile
@@ -164,8 +164,10 @@ and whether sellers will pay a 4% commission and wait 72 to 168 hours (no seller
 checks to run first are in [Market fit and direction](docs/17-market-fit-and-direction.md) and in
 [Security, privacy and compliance](docs/09-security-privacy-compliance.md#known-gaps-before-a-pilot).
 
-Instagram DM selling is roadmap, not built. Seller sign-up and KYC are designed but not built: the demo seller is created by a dev endpoint
-([doc 02](docs/02-product.md#1-seller-onboarding-about-2-minutes)). Importing a seller's existing WhatsApp catalog is not built and not promised
+Instagram DM selling is roadmap, not built. Sign-up in chat is built but off by default and never run on live WhatsApp: a stranger picks a unique shop address first,
+and the shop stays invisible to buyers and agents until it is verified. The identity and bank check at the payment provider is **not built**: with the mock provider a finished
+sign-up is verified at once, with a real one an operator verifies by hand ([ADR 0010](docs/adr/0010-chat-signup-address-first.md)). Each shop address also serves its own UCP
+profile, and agents on it see only that shop ([ADR 0008](docs/adr/0008-seller-channels-and-shop-addresses.md)). Importing a seller's existing WhatsApp catalog is not built and not promised
 ([doc 17](docs/17-market-fit-and-direction.md#what-about-the-catalog-a-seller-already-has)).
 
 ## Team

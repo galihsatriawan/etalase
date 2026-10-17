@@ -13,7 +13,7 @@ from urllib.parse import urlparse
 
 from fastapi import APIRouter, Depends, FastAPI, Header, HTTPException, Request
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, PlainTextResponse
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from ..adapters import instagram
 from ..adapters.messaging import Inbound, parse_whatsapp_webhook, whatsapp_failed_statuses
@@ -233,10 +233,18 @@ def return_policy_json(request: Request, seller_id: str):
 agent = APIRouter(prefix="/agent/v1", tags=["agent"])
 
 
-class CheckoutIn(BaseModel):
+class CartLineIn(BaseModel):
     product_id: str = Field(max_length=40)
     variant_id: str = Field(max_length=40)
-    quantity: int = Field(ge=1, le=100)
+    quantity: int = Field(default=1, ge=1, le=100)
+
+
+class CheckoutIn(BaseModel):
+    """One product (product_id, variant_id, quantity) or a cart of up to 10 lines from one shop (items), not both."""
+    product_id: str | None = Field(default=None, max_length=40)
+    variant_id: str | None = Field(default=None, max_length=40)
+    quantity: int = Field(default=1, ge=1, le=100)
+    items: list[CartLineIn] | None = Field(default=None, min_length=1, max_length=10)
     buyer_name: str = Field(min_length=1, max_length=80)
     buyer_phone: str = Field(min_length=8, max_length=20)
     address_line: str = Field(min_length=5, max_length=200)
@@ -245,6 +253,19 @@ class CheckoutIn(BaseModel):
     country: str = Field(default="ID", min_length=2, max_length=2)
     courier: str | None = Field(default=None, max_length=20)
     payment_method: str = Field(default="qris", max_length=20)     # QRIS only; anything else is refused with an explanation
+
+    @model_validator(mode="after")
+    def one_product_or_a_cart(self):
+        if self.items is None and not (self.product_id and self.variant_id):
+            raise ValueError("send product_id and variant_id, or items")
+        if self.items is not None and (self.product_id or self.variant_id):
+            raise ValueError("send either product_id and variant_id, or items, not both")
+        return self
+
+
+class ShippingIn(BaseModel):
+    items: list[CartLineIn] = Field(min_length=1, max_length=10)
+    postal_code: str = Field(max_length=10)
 
 
 @agent.get("/search")
@@ -262,6 +283,14 @@ def agent_product(request: Request, product_id: str):
 def agent_shipping(request: Request, product_id: str, variant_id: str, quantity: int, postal_code: str):
     rate_limit(request, "shipping", 60, 60)  # each call can cost a courier-API request
     return ctx.gateway.get_shipping_options(product_id, variant_id[:40], max(1, min(quantity, 100)), postal_code[:10],
+                                            shop=shop_of(request))
+
+
+@agent.post("/shipping-options")
+def agent_cart_shipping(request: Request, body: ShippingIn):
+    """Courier options for a whole cart (several products of one shop)."""
+    rate_limit(request, "shipping", 60, 60)
+    return ctx.gateway.get_shipping_options(postal_code=body.postal_code, items=[i.model_dump() for i in body.items],
                                             shop=shop_of(request))
 
 

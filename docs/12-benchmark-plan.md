@@ -55,7 +55,7 @@ and any change needs a new run before a new number is quoted.
 ```bash
 cd prototype
 pip install -r requirements-dev.txt
-pytest -q            # 731 tests
+pytest -q            # 735 tests
 make eval            # extraction accuracy: offline rules, plus Gemini when a key is set
 make ucp-conformance # Google's official UCP conformance suite against Etalase (see docs/16-ucp.md)
 ```

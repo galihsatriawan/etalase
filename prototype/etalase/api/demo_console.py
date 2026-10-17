@@ -18,6 +18,10 @@ from ..security import DASHBOARD_CSP, RateLimiter, client_ip
 
 PAGE = Path(__file__).with_name("demo.html")
 
+# The sandbox shares one AI budget (SELLER_AI_CALLS_PER_HOUR and _PER_DAY) between every visitor. This keeps one visitor from
+# using all of it: typed messages and sample photos count, button taps do not (they never reach the model).
+AI_SENDS_PER_VISITOR_PER_HOUR = 25
+
 
 class SendIn(BaseModel):
     text: str = Field(default="", max_length=1000)
@@ -28,9 +32,9 @@ class SendIn(BaseModel):
 def build_router(ctx: AppContext, limits: RateLimiter) -> APIRouter:
     router = APIRouter(prefix="/demo", include_in_schema=False)
 
-    def limited(request: Request, bucket: str, limit: int, window_s: int) -> None:
+    def limited(request: Request, bucket: str, limit: int, window_s: int, detail: str = "too many requests, slow down") -> None:
         if not limits.allow(f"{bucket}:{client_ip(request)}", limit, window_s):
-            raise HTTPException(429, "too many requests, slow down")
+            raise HTTPException(429, detail)
 
     def same_origin(request: Request) -> None:
         origin = request.headers.get("origin")
@@ -52,6 +56,9 @@ def build_router(ctx: AppContext, limits: RateLimiter) -> APIRouter:
         """The demo seller 'writes' in WhatsApp: a text, a button tap, or one of the sample photos with an optional caption."""
         same_origin(request)
         limited(request, "demo-send", 150, 3600)
+        if not body.button_id:
+            limited(request, "demo-ai", AI_SENDS_PER_VISITOR_PER_HOUR, 3600,
+                    "The sandbox limits how many messages one visitor can send per hour, to keep its AI cost small. Please try again later.")
         text = body.text.strip()
         if body.button_id:
             msg, shown = Inbound(demo.DEMO_NUMBER, "button", button_id=body.button_id), dict(text=text or body.button_id, tapped=True)

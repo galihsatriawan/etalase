@@ -299,6 +299,15 @@ def test_the_order_page_button_redirects_back_whatever_happens(web, box):
     assert web.post("/demo/pay/ord_missing", follow_redirects=False).status_code == 303
 
 
+def test_one_visitor_cannot_use_the_whole_shared_ai_budget(web):
+    for i in range(demo_console.AI_SENDS_PER_VISITOR_PER_HOUR):
+        assert web.post("/demo/api/send", json={"text": f"hello {i}"}).status_code == 200
+    refused = web.post("/demo/api/send", json={"text": "one more"})
+    assert refused.status_code == 429 and "per hour" in refused.json()["detail"]
+    # a button tap never reaches the model, so it is not counted against that limit
+    assert web.post("/demo/api/send", json={"button_id": "publish", "text": "Publish"}).status_code == 200
+
+
 def test_signing_in_gives_the_demo_seller_and_nobody_else(web, box):
     token = web.post("/demo/api/signin").json()["token"]
     assert box.auth.seller_from_token(token) == demo.DEMO_SELLER_ID

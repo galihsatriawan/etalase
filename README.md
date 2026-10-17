@@ -71,7 +71,7 @@ The running prototype (mock payment and courier, synthetic product photos): the 
 cd prototype
 pip install -r requirements-dev.txt
 python scripts/demo.py          # full end-to-end story in the terminal
-pytest -q                       # 731 tests: oversell race, payments, webhook security, OTP abuse
+pytest -q                       # 735 tests: oversell race, payments, webhook security, OTP abuse
 uvicorn etalase.api.main:app --port 8080   # API, MCP at /mcp/, dashboard at /, docs at /docs
 ```
 
@@ -151,7 +151,7 @@ It is published to GitHub Pages by `.github/workflows/learn.yml` (Settings → P
 ├── prototype/                    Python · FastAPI · ADK · MCP · Cloud Run
 │   ├── etalase/                  the application (code map in prototype/README.md)
 │   ├── scripts/                  demo.py, e2e_http.py, browser_check.py, deploy_cloud_run.sh
-│   ├── tests/                    731 tests
+│   ├── tests/                    735 tests
 │   ├── evals/                    labelled messages and the extraction scorer
 │   ├── ucp_conformance/          runner for Google's official UCP conformance suite
 │   └── Dockerfile

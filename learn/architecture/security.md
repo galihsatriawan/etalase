@@ -193,7 +193,8 @@ def _same(a: str, b: str) -> bool:
 | `POST /agent/v1/checkouts` | 20 per hour per IP |
 | The same three buckets for the MCP tools `search_products` / `get_product` (search), `get_shipping_options`, `create_checkout` | shared with the REST routes: one count per IP, whichever door the agent uses; `get_checkout_status` has 240 per minute |
 | Checkouts per buyer phone (REST and MCP) | 5 per hour |
-| Gemini calls per seller (free-text turns plus catalog builds, only when Gemini is on) | 60 per hour (`SELLER_AI_CALLS_PER_HOUR`) |
+| Gemini calls per seller (free-text turns plus catalog builds, only when Gemini is on) | 60 per hour (`SELLER_AI_CALLS_PER_HOUR`); an optional ceiling per rolling 24 hours (`SELLER_AI_CALLS_PER_DAY`, off by default, 300 in the judge sandbox) |
+| Judge sandbox, typed messages and sample photos per visitor | 25 per hour, so one visitor cannot use the sandbox's shared AI budget |
 | Units per checkout | 10 |
 | Request body | 2 MB (413 above that) |
 

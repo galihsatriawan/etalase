@@ -21,7 +21,7 @@ Open `/demo`. You are playing a seller (a made-up shop, "Toko Demo Rina"). The l
 
 | | In this sandbox | Beyond it |
 |---|---|---|
-| Catalog from text and photos | Real code. With a Gemini key on the server it is Gemini (the page says which); without one, rules parse the typed text and photos are not read | On 43 labelled text messages Gemini 3.8 Flash got 36 fully right (84%; our target is 90%). Photos and voice are not measured: see `prototype/evals` |
+| Catalog from text and photos | Real code. With a Gemini key on the server it is Gemini (the page says which); without one, rules parse the typed text and photos are not read | On 43 labelled text messages Gemini 3.8 Flash got 42 fully right (98%) after a prompt fix made on those same messages (36, or 84%, before it; our target is 90%). Photos and voice are not measured: see `prototype/evals` |
 | Store page, product page, checkout, order page | Real | |
 | Stock reservation and the "confirm with the seller first" rule | Real (tested under concurrency) | |
 | MCP server, REST agent API, UCP checkout and profile | Real. UCP, with the Order capability and signed webhooks: in the official conformance suite 31 of 77 tests pass in production mode and 54 in the sandbox test mode that lets the suite pay with its mock card; every failure is listed with its reason ([doc 16](docs/16-ucp.md)) | |

@@ -30,7 +30,7 @@ class EventBus:
 
 TOPICS = (
     "catalog.drafted", "catalog.published", "stock.changed",
-    "order.awaiting_confirmation", "order.awaiting_payment", "order.paid", "order.accepted",
+    "order.awaiting_confirmation", "order.stock_check_reminder", "order.awaiting_payment", "order.paid", "order.accepted",
     "order.rejected", "order.expired", "order.shipped", "order.delivered", "order.returned_to_sender", "order.parcel_lost",
     "payout.released",
     "return.requested", "return.approved", "return.disputed", "return.shipped_back", "return.refunded", "return.closed",

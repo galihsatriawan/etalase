@@ -48,8 +48,9 @@ class AppContext:
         out what is due. Order matters: a return that lapses this minute is paid out this minute."""
         # Each step already skips an order that raises; the guards here keep a failure in one step from stopping the others.
         empty = {"returns_auto_approved": [], "returns_lapsed": [], "returns_escalated": []}
-        result: dict = {"expired": [], "shipments_reconciled": [], **empty, "payouts_released": [], "addresses_released": []}
-        for key, step in (("expired", lambda: self.checkout.expire_due(when)),
+        result: dict = {"stock_reminders": [], "expired": [], "shipments_reconciled": [], **empty, "payouts_released": [], "addresses_released": []}
+        for key, step in (("stock_reminders", lambda: self.checkout.remind_stock_checks(when)),
+                          ("expired", lambda: self.checkout.expire_due(when)),
                           ("shipments_reconciled", lambda: self.checkout.reconcile_shipments(when)),
                           ("timers", lambda: self.returns.sweep(when)),
                           ("payouts_released", lambda: self.checkout.release_due_payouts(when)),

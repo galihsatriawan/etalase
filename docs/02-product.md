@@ -93,6 +93,8 @@ Until a surface does this, the same journey is available to any MCP or REST agen
 ### 3. Confirm-first (uncertain stock)
 If stock is untracked, stale (over 3 days) or nearly sold out (2 or fewer), the seller is asked "Is it still available?" **before** the buyer is asked to pay. No refunds needed when stock turns out to be gone.
 
+The seller has `SELLER_CONFIRM_TIMEOUT_MINUTES` (60 by default) to answer. Once, after 15 minutes (`SELLER_CONFIRM_REMINDER_MINUTES`, 0 turns it off), the seller gets the same question again; if the window ends with no answer the check expires, the stock is released, the seller is told it ran out of time and nothing is charged, because the payment code only exists after the seller says yes. The buyer's agent sees the deadline while it waits and, afterwards, that the seller did not answer (not that a payment timed out); the store page says the same to a person.
+
 ### 4. Shipping and payout
 The seller replies "tracking JNE123456". When the courier reports delivery, the order moves to `delivered` and the seller is told the date the money will be paid out. After the return window (72 hours; 168 for a seller with fewer than 5 completed orders) the payout (order value minus commission) is released to the seller's payment sub-account and the seller is notified.
 

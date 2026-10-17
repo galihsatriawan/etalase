@@ -253,6 +253,7 @@ class Order(BaseModel):
     shipment: Shipment | None = None
     payout: Payout | None = None
     seller_confirmed: bool = False
+    stock_check_reminded: bool = False        # the seller was nudged once about an unanswered stock check
     delivered_at: datetime | None = None
     payout_due_at: datetime | None = None     # the end of the return window: the payout is released from here on
     return_terms: ReturnTerms | None = None   # the policy shown at checkout; None on orders created before returns existed

@@ -26,6 +26,12 @@ TEMPLATES: dict[str, dict] = {
         "buttons": {"en": ["Available", "Sold out"], "id": ["Ada", "Habis"]},
         "example": ["Voal Hijab (Black) x 2", "Bandung"],
     },
+    "stock_check_expired": {
+        "body": {"en": "The stock check for {{1}} (buyer in {{2}}) ran out of time because there was no answer. The buyer was not charged.",
+                 "id": "Cek stok untuk {{1}} (pembeli di {{2}}) kedaluwarsa karena tidak ada jawaban. Pembeli tidak ditagih."},
+        "buttons": {"en": [], "id": []},
+        "example": ["Voal Hijab (Black) x 2", "Bandung"],
+    },
     "new_paid_order": {
         "body": {"en": "New paid order. {{1}}. {{2}}, ship to {{3}} via {{4}}.",
                  "id": "Pesanan baru (sudah dibayar). {{1}}. {{2}}, kirim ke {{3}} via {{4}}."},

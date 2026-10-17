@@ -31,7 +31,7 @@ covers discovery, conversational shopping and inventory.
 - [ ] Working prototype deployed on Cloud Run, end to end
 - [ ] Public GitHub repository (this repo, created fresh during the hackathon)
 - [ ] Demo video, about 3 minutes, public YouTube / Vimeo / Drive link
-- [ ] Everything in English (code, docs, deck)
+- [x] Everything in English (code, docs, deck)
 
 Sources: [FAQ](https://aibuildercup.com/Faqs.html), [Themes](https://aibuildercup.com/themes.html),
 [Rewards](https://aibuildercup.com/rewards.html).

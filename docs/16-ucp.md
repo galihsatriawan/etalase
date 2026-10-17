@@ -51,6 +51,12 @@ The 21 failures are listed one by one, with the reason, in `prototype/ucp_confor
 
 What this does not show: the checkout *completion* path is not exercised by the official suite for Etalase (it only passes through our own tests, with schema validation). A platform that insists on completing with a card instrument cannot use Etalase; a platform that follows `requires_escalation` and `continue_url` can. Whether Google's surfaces call an Indonesian business at all is a distribution question (see [known gaps](../learn/master/known-gaps.md)).
 
+## Watch a surface buy from Etalase
+
+`make ucp-shopper` (`prototype/scripts/ucp_shopper.py`) plays an AI shopping surface and prints every step: it reads `/.well-known/ucp`, opens a session with two products of one shop, sends the buyer and the address, picks a courier from the options Etalase returns, completes, receives `requires_escalation` with a `continue_url`, pays the QRIS code there and sees the session become `completed` with the order. It starts its own sandbox; against a running server it takes the address (`python scripts/ucp_shopper.py URL --demo-pay` on the deployed sandbox, or `--wait 120` to pay a real code yourself).
+
+**What it is not:** it is a UCP client written for this repository, not Google AI Mode and not the Gemini app. Every call is a real call to the server; only the surface is simulated. Google's Merchant Center onboarding for UCP checkout is a US-only rollout by invitation (Australia and Canada expected in 2027, Indonesia not mentioned: [Google](https://support.google.com/merchants/answer/16992327?hl=en), checked 17 Oct 2026), so no Google surface can call Etalase today.
+
 ## Run it
 
 ```bash

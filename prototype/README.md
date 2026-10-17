@@ -13,6 +13,7 @@ make browser   # real-browser check of the buyer pages (needs playwright)
 make judge     # the reviewers' sandbox at http://localhost:8080/demo (simulated chat, payment and courier; see ../JUDGES.md)
 make e2e-judge       # the reviewers' path through the sandbox over real HTTP
 make browser-judge   # the same path in a real browser, including the demo payment button (needs playwright)
+make ucp-shopper     # a simulated AI shopping surface buys two products over UCP, step by step (not Google AI Mode)
 make deploy    # PROJECT_ID=my-project make deploy: Cloud Run from your .env (make deploy-dry prints the plan only)
 make help      # all targets, including the UCP conformance runner
 ```
@@ -24,7 +25,7 @@ Where every key comes from: [../SETUP.md](../SETUP.md).
 ```bash
 pip install -r requirements-dev.txt
 python scripts/demo.py
-pytest -q          # 666 tests, no network, no keys
+pytest -q          # 675 tests, no network, no keys
 ```
 
 The demo walks through ten steps: seller onboarding on WhatsApp, an optional Instagram import, an agent buying over MCP, payment,

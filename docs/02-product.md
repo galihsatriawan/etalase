@@ -77,8 +77,8 @@ Etalase turns a WhatsApp seller's product photos and chats into a storefront tha
 ### 2c. Buying through Google's AI surfaces (UCP): the design, not an integration
 
 > **Status: not integrated.** No Google surface (AI Mode, the Gemini app) calls Etalase today, and UCP agent checkout has no date in Indonesia
-> ([doc 16](16-ucp.md), [doc 17](17-market-fit-and-direction.md)). What follows is the flow the UCP specification describes, played by a test client
-> against our server (our own tests, plus the official conformance suite where it applies). How Google would show each step is Google's decision.
+> ([doc 16](16-ucp.md), [doc 17](17-market-fit-and-direction.md)). What follows is the flow the UCP specification describes, played by a client
+> against our server (our own tests, `make ucp-shopper`, which prints each step, plus the official conformance suite where it applies). How Google would show each step is Google's decision.
 
 1. The buyer asks the AI for a product. The surface finds the business through its UCP profile, `/.well-known/ucp` (on a shop's own address, that shop's profile).
 2. The surface creates a checkout session with the products, asks the buyer for a name, a phone number and a delivery address (all required: the courier and

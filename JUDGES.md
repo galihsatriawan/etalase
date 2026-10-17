@@ -47,6 +47,7 @@ make setup          # once: virtualenv, dependencies, tests
 make judge          # http://localhost:8080/demo
 make e2e-judge      # the steps above over real HTTP, starts its own server
 make browser-judge  # the same in headless Chromium (needs Playwright)
+make ucp-shopper    # an AI shopping surface (simulated) buys two products over UCP, step by step
 ```
 
 To deploy your own copy to Cloud Run as a separate service (it never touches a real deployment, and takes only the Gemini key from `.env`):

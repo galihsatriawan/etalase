@@ -2,7 +2,7 @@
 VENV := .venv
 PY   := $(if $(wildcard $(VENV)/bin/python),$(VENV)/bin/python,python3)
 
-.PHONY: help setup doctor doctor-offline eval eval-baseline test demo run judge e2e e2e-judge browser browser-judge deploy deploy-dry ucp-conformance ucp-reference ucp-server academy
+.PHONY: help setup doctor doctor-offline eval eval-baseline test demo run judge e2e e2e-judge browser browser-judge deploy deploy-dry ucp-conformance ucp-reference ucp-server ucp-shopper academy
 
 help:            ## list the targets
 	@grep -E '^[a-z0-9-]+:.*##' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  make %-18s %s\n", $$1, $$2}'
@@ -60,6 +60,9 @@ ucp-reference:   ## same suite against the official sample server: proves the su
 
 ucp-server:      ## Etalase with fixed demo items on :8190, to try UCP requests by hand
 	$(PY) -m ucp_conformance.server --port 8190
+
+ucp-shopper:     ## a simulated AI shopping surface buys two products over UCP, start to finish (own sandbox; not Google AI Mode)
+	$(PY) scripts/ucp_shopper.py
 
 academy:         ## build the documentation site (../learn)
 	cd ../learn && npm ci --no-audit --no-fund && npm run build

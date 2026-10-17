@@ -1,6 +1,6 @@
 # Testing
 
-How Etalase's 675 automated tests are organised, what each file proves, how to run and extend them, and what still has to be measured before a pilot.
+How Etalase's 680 automated tests are organised, what each file proves, how to run and extend them, and what still has to be measured before a pilot.
 
 ::: tip What you will learn
 - The layout of `prototype/tests/`, the fixtures in `conftest.py` and the regression tests for fixed bugs
@@ -19,7 +19,7 @@ All tests run offline in about ten seconds. ADR 0005 (`docs/adr/0005-adapters-an
 ```bash
 cd prototype
 pip install -r requirements-dev.txt
-pytest -q          # 675 passed
+pytest -q          # 680 passed
 ```
 
 ## How the suite is organised
@@ -33,7 +33,7 @@ pytest -q          # 675 passed
 | `tests/test_security.py` | 24 | Startup checks, OTP abuse, signed state, payment races, payout safety, input limits, media paths, webhook dedupe, SSRF, stale writes |
 | `tests/test_api.py` | 12 | The HTTP layer through FastAPI's `TestClient`: discovery, WhatsApp webhook, Connector key, MCP tool list, OpenAPI, `/dev` protection, webhook tokens, Meta signature, CSP and media route, oversized input |
 | `tests/test_regressions.py` | 9 | Bugs found while writing this guide, each with the test that failed before the fix: transaction retries, purpose-bound signatures, "Which product?", late Available taps, OMS-owned stock, short titles and plural search, shipment status never going backwards, unknown couriers |
-| `tests/test_ucp.py` | 25 | Etalase as a real UCP business server: the profile validates against the official `ucp-sdk` schema, a full checkout (create, update, complete, cancel) with every response validated by the SDK's `Checkout` model, idempotency, closed sessions, protocol errors, escaping, sold-out and confirm-first orders |
+| `tests/test_ucp.py` | 30 | Etalase as a real UCP business server: the profile validates against the official `ucp-sdk` schema, a full checkout (create, update, complete, cancel) with every response validated by the SDK's `Checkout` model, idempotency, closed sessions, protocol errors, escaping, sold-out and confirm-first orders, and the buyer-consent extension (kept, replaced, withdrawn, unknown keys dropped) |
 | `tests/test_doctor.py` | 15 | The setup doctor: each service reports skip, ok or fail with a fix hint, with the network mocked; no key value is ever printed |
 | `tests/test_evals.py` | 17 | The extraction eval's scoring (title tokens, effective prices, invented price/stock/product counters, question behaviour), so the number on the slide is trustworthy |
 | `tests/test_scripts.py` | 7 | `scripts/env_to_cloud.py` and the deploy script's dry run: secrets travel on stdin only, unchanged secrets get no new version, nothing leaks into output |
@@ -56,6 +56,7 @@ pytest -q          # 675 passed
 | `tests/test_store_cart.py` | 22 | The store-page cart: add, update, remove, a tampered or stale cookie, another shop's variant ignored, a shop that is not open, a two-item checkout that makes one order and clears the cart, out-of-stock messages, forms with JavaScript off |
 | `tests/test_stock_check_wait.py` | 9 | A seller who does not answer a stock check: one reminder at 15 minutes (reusing the stock-check template), a notice when it runs out, none for a cancelled or non-stock-check checkout, the agent sees the deadline and then the reason, the store page says the seller did not answer |
 | `tests/test_ucp_shopper.py` | 9 | The simulated AI shopping surface (`scripts/ucp_shopper.py`): the UCP journey step by step (discovery, session with two products, courier options, `requires_escalation` and `continue_url`, payment, `completed` with the order), one shop only, a variant that needs the seller's answer is not picked, a payment that never comes is a failure when one was expected, the banner says it is not Google AI Mode |
+| `tests/test_env_to_cloud.py` | 4 | `scripts/env_to_cloud.py`: plain settings reach gcloud intact, including a value that contains the usual separator (an e-mail address in `SUPPORT_CONTACT`) |
 | `tests/test_ucp_shop_carts.py` | 2 | A UCP cart on a shop's own address: another shop's line is unavailable, on create and on update |
 | `tests/test_demo_sandbox.py` | 39 | The judge sandbox (`DEMO_MODE`): it refuses to run with anything real behind it (real keys, prod, sign-up on), seeds a shop that works without setup, simulation steps touch only the demo seller, a visitor cannot empty the shop, what visitors publish disappears, the console is locked down and rate limited, and the deploy script keeps real keys out of it |
 | `tests/test_signup.py` | 46 | Sign-up in chat: the whole conversation, address offered then claimed, two shops racing for one name, lookalike and link/phone names refused, the pickup address parsed from one message, pending shop invisible and verified by an operator, the 72-hour hold, limits per hour and per number, off by default, prod needs an operator token |

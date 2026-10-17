@@ -85,7 +85,7 @@ Etalase turns a WhatsApp seller's product photos and chats into a storefront tha
    the seller call the buyer), and shows the courier options Etalase returns as fulfillment options. The buyer, not the seller, picks one; otherwise the cheapest is used.
 3. The buyer agrees and the surface completes the session. Etalase reserves the stock of every line together and creates the QRIS payment.
 4. Etalase answers `requires_escalation` with a `continue_url`. The surface hands the buyer over to Etalase's payment page, because QRIS has to be paid in a
-   banking or e-wallet app, not inside a chat. A surface that only completes with a card or an AP2 mandate cannot use Etalase (8 of the 21 failing conformance tests).
+   banking or e-wallet app, not inside a chat. A surface that only completes with a card or an AP2 mandate cannot use Etalase (8 of the 20 failing conformance tests).
 5. The buyer pays. The session becomes `completed` with the order, and the seller gets "New paid order" in their chat.
 
 Until a surface does this, the same journey is available to any MCP or REST agent (section 2), and to a person through the store link (section 2b).

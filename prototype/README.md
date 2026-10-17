@@ -21,7 +21,7 @@ Where every key comes from: [../SETUP.md](../SETUP.md).
 ```bash
 pip install -r requirements-dev.txt
 python scripts/demo.py
-pytest -q          # 507 tests, no network, no keys
+pytest -q          # 567 tests, no network, no keys
 ```
 
 The demo walks through ten steps: seller onboarding on WhatsApp, an optional Instagram import, an agent buying over MCP, payment,
@@ -76,7 +76,8 @@ Copy `.env.example` to `.env` and fill in what you have. Each part switches inde
 | `XENDIT_SECRET_KEY`, `XENDIT_CALLBACK_TOKEN` | QRIS via Xendit (use test-mode keys) |
 | `BITESHIP_API_KEY` | Real courier rates and bookings |
 | `TELEGRAM_BOT_TOKEN`, `TELEGRAM_WEBHOOK_SECRET`, `TELEGRAM_BOT_USERNAME` | Telegram as the seller's channel (a seller links a chat with a one-time code) |
-| `STORE_BASE_DOMAIN` | Shop addresses `<shop>.<domain>` (needs wildcard DNS and a wildcard certificate) |
+| `STORE_BASE_DOMAIN` | Shop addresses `<shop>.<domain>` (needs wildcard DNS and a wildcard certificate). Each address also serves that shop's own `/.well-known/ucp`, `/ucp/v1`, `/agent/v1` and `/mcp` |
+| `SIGNUP_ENABLED`, `SIGNUP_SHOPS_PER_HOUR`, `SIGNUP_HOLD_HOURS` | Sign-up in chat (off by default). A new shop is invisible until verified; an address not verified in `SIGNUP_HOLD_HOURS` (72) goes back to the pool. With a real payment provider an operator verifies (`POST /tasks/verify-seller`, needs `OPERATOR_TOKEN`) |
 | `PAYOUT_HOLD_HOURS`, `NEW_SELLER_HOLD_HOURS`, `NEW_SELLER_ORDERS`, `RETURN_SELLER_RESPONSE_HOURS`, `RETURN_LAPSE_DAYS` | The payout hold and returns (`PAYOUT_HOLD_HOURS=0` pays at once and switches returns off) |
 | `SHIPMENT_RECHECK_HOURS` | How often unconfirmed shipments are asked about again (default 6; each recheck is a billable courier call) |
 | `SUPPORT_CONTACT`, `DISPUTE_APPEAL_DAYS` | Where a seller or buyer writes to appeal a dispute decision, shown on `/policy/payouts`. With no contact set, no appeal is offered |

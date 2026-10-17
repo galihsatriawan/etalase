@@ -8,7 +8,7 @@ UCP is the open standard Google launched in January 2026 with Shopify, Etsy, Way
 
 | Piece | Where | Notes |
 |---|---|---|
-| Discovery profile `GET /.well-known/ucp` | `prototype/etalase/gateway/ucp.py` | Validated against the official `BusinessSchema` (ucp-sdk 0.4.6) in `tests/test_ucp.py` |
+| Discovery profile `GET /.well-known/ucp` | `prototype/etalase/gateway/ucp.py` | Validated against the official `BusinessSchema` (ucp-sdk 0.4.6) in `tests/test_ucp.py`. On a shop's own address (`rina.<domain>`, when `STORE_BASE_DOMAIN` is set) it is **that shop's** profile: its endpoint is the shop's address and its checkout only accepts that shop's items (`tests/test_shop_profiles.py`, validated against `BusinessSchema` too; the official conformance suite was run on the platform host only) |
 | `dev.ucp.shopping.checkout` over REST | `/ucp/v1/checkout-sessions` (create, get, update, complete, cancel) | Every response is validated against the official `Checkout` model in the tests |
 | `dev.ucp.shopping.fulfillment` extension | same | Domestic home delivery; courier quotes become fulfillment options |
 | Hosted payment page (`continue_url`) | `GET /checkout/{id}` | QRIS code, refreshes itself; strict CSP, all text escaped |

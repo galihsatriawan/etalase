@@ -34,6 +34,7 @@ class AppContext:
     media_dir: str
     gateway: object = None
     inbox: object = None
+    signup: object = None
     connector: object = None
     returns: object = None
     auth: object = None
@@ -47,11 +48,12 @@ class AppContext:
         out what is due. Order matters: a return that lapses this minute is paid out this minute."""
         # Each step already skips an order that raises; the guards here keep a failure in one step from stopping the others.
         empty = {"returns_auto_approved": [], "returns_lapsed": [], "returns_escalated": []}
-        result: dict = {"expired": [], "shipments_reconciled": [], **empty, "payouts_released": []}
+        result: dict = {"expired": [], "shipments_reconciled": [], **empty, "payouts_released": [], "addresses_released": []}
         for key, step in (("expired", lambda: self.checkout.expire_due(when)),
                           ("shipments_reconciled", lambda: self.checkout.reconcile_shipments(when)),
                           ("timers", lambda: self.returns.sweep(when)),
-                          ("payouts_released", lambda: self.checkout.release_due_payouts(when))):
+                          ("payouts_released", lambda: self.checkout.release_due_payouts(when)),
+                          ("addresses_released", lambda: self.signup.sweep(when))):
             try:
                 out = step()
             except Exception:
@@ -68,6 +70,7 @@ def build_context(settings: Settings | None = None, echo_messages: bool = False)
     from .seller import notifications
     from .seller.i18n import Translator
     from .seller.inbox import SellerInbox
+    from .seller.signup import Signup
 
     s = settings or get_settings()
     export_google_env(s)
@@ -106,6 +109,7 @@ def build_context(settings: Settings | None = None, echo_messages: bool = False)
     ctx.returns = ReturnService(checkout)
     ctx.gateway = GatewayTools(ctx)
     ctx.inbox = SellerInbox(ctx)
+    ctx.signup = Signup(ctx)
     ctx.connector = ConnectorService(ctx)
     ctx.auth = OtpAuth(ctx, s.session_secret)
     if s.gemini_enabled:

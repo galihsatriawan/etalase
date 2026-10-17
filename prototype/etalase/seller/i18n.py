@@ -201,6 +201,75 @@ MESSAGES: dict[str, dict[str, str]] = {
         "en": "Your Etalase sign-in code: {code}\nValid for 5 minutes. Never share this code.",
         "id": "Kode masuk Etalase: {code}\nBerlaku 5 menit. Jangan bagikan kode ini ke siapa pun.",
     },
+    # ---- sign-up in chat (seller/signup.py)
+    "signup_welcome": {
+        "en": "Hi! I'm Etalase. I'll set up your online shop right here in chat, it takes about 2 minutes. What is your shop's name?\n\n"
+              "One thing to know: Etalase never asks for a code, PIN or password in chat, and never asks you to transfer money.",
+        "id": "Halo! Aku Etalase. Aku bantu bikin toko online-mu di chat ini, sekitar 2 menit. Apa nama tokomu?\n\n"
+              "Satu hal: Etalase tidak pernah meminta kode, PIN, atau kata sandi lewat chat, dan tidak pernah meminta kamu transfer uang.",
+    },
+    "signup_busy": {
+        "en": "A lot of shops are signing up right now. Please try again in an hour.",
+        "id": "Lagi banyak toko yang mendaftar. Coba lagi satu jam lagi ya.",
+    },
+    "signup_name_bad": {
+        "en": "{reason}", "id": "{reason}",
+    },
+    "signup_slug_offer": {
+        "en": "Nice, {name}! Your shop address can be:\n{url}\nTap Use it, or type the name you want instead (letters, numbers and hyphens).",
+        "id": "Mantap, {name}! Alamat tokomu bisa jadi:\n{url}\nKetuk Pakai ini, atau ketik nama lain yang kamu mau (huruf, angka, dan tanda hubung).",
+    },
+    "signup_slug_taken": {
+        "en": "{slug} is already taken. How about:\n{url}\nTap Use it, or type another name.",
+        "id": "{slug} sudah dipakai. Bagaimana kalau:\n{url}\nKetuk Pakai ini, atau ketik nama lain.",
+    },
+    "signup_slug_bad": {
+        "en": "{reason} Type another name, or tap Use it for {url}.",
+        "id": "{reason} Ketik nama lain, atau ketuk Pakai ini untuk {url}.",
+    },
+    "btn_use_it": {"en": "Use it", "id": "Pakai ini"},
+    "signup_address": {
+        "en": "{saved}Where will you ship from? Send the street, city and 5-digit postal code in one message, "
+              "e.g. 'Jl. Dago 10, Bandung 40135'. Buyers only ever see the city.",
+        "id": "{saved}Kamu kirim barang dari mana? Kirim jalan, kota, dan kode pos 5 angka dalam satu pesan, "
+              "misalnya 'Jl. Dago 10, Bandung 40135'. Pembeli hanya melihat kotanya.",
+    },
+    "signup_saved": {"en": "Saved: {url}\n", "id": "Tersimpan: {url}\n"},
+    "signup_address_bad": {
+        "en": "I couldn't read that. Send the street, city and 5-digit postal code, e.g. 'Jl. Dago 10, Bandung 40135'.",
+        "id": "Aku belum bisa membacanya. Kirim jalan, kota, dan kode pos 5 angka, misalnya 'Jl. Dago 10, Bandung 40135'.",
+    },
+    "signup_done_open": {
+        "en": "Your shop is ready: {url}\nSend photos and a description of your products (a voice note works too) and I'll build "
+              "your catalog. Reminder: Etalase never asks for a code, PIN or password in chat, and never asks you to transfer money.",
+        "id": "Tokomu siap: {url}\nKirim foto dan keterangan produkmu (voice note juga boleh) dan aku buatkan katalognya. "
+              "Ingat: Etalase tidak pernah meminta kode, PIN, atau kata sandi lewat chat, dan tidak pernah meminta kamu transfer uang.",
+    },
+    "signup_done_pending": {
+        "en": "Your shop {name} is set up: {url}\nIt is not open to buyers yet. It opens once your identity is verified, and I'll "
+              "tell you here. Meanwhile send photos and a description of your products and I'll build your catalog.{hold}",
+        "id": "Toko {name} sudah dibuat: {url}\nTokomu belum dibuka untuk pembeli. Tokomu dibuka setelah identitasmu diverifikasi, "
+              "dan aku kabari di sini. Sementara itu, kirim foto dan keterangan produkmu dan aku buatkan katalognya.{hold}",
+    },
+    "signup_hold_note": {
+        "en": " Your address is held for {hours} hours.", "id": " Alamatmu ditahan selama {hours} jam.",
+    },
+    "signup_released": {
+        "en": "Your shop address {slug} was given back because the shop was not verified within {hours} hours. "
+              "Send any message here to choose an address again.",
+        "id": "Alamat tokomu {slug} dikembalikan karena toko belum diverifikasi dalam {hours} jam. "
+              "Kirim pesan apa saja di sini untuk memilih alamat lagi.",
+    },
+    "shop_opened": {
+        "en": "Good news: your shop is verified and open. Buyers and AI agents can find your products now: {url}",
+        "id": "Kabar baik: tokomu sudah terverifikasi dan dibuka. Pembeli dan agen AI sekarang bisa menemukan produkmu: {url}",
+    },
+    "published_pending": {
+        "en": "Done! {n} new product(s) saved ({total} in your shop). Your shop is not open to buyers yet: it opens once your "
+              "identity is verified, and I'll tell you here.",
+        "id": "Beres! {n} produk baru tersimpan ({total} di tokomu). Tokomu belum dibuka untuk pembeli: baru dibuka setelah "
+              "identitasmu diverifikasi, dan aku kabari di sini.",
+    },
 }
 
 

@@ -22,7 +22,7 @@ from ..adapters.telegram import parse_telegram_update
 from ..connector.service import OrderStatusIn, ProductIn, StockIn
 from ..container import AppContext, build_context
 from ..gateway import discovery, pages, payout_policy, storefront, ucp as ucp_protocol
-from ..gateway.hosts import ShopHostMiddleware
+from ..gateway.hosts import ShopHostMiddleware, shop_of
 from ..gateway.mcp_server import build_mcp
 from ..gateway.tools import order_view
 from ..models import Address, CheckoutError, Connection, Seller, now
@@ -100,16 +100,33 @@ def healthz():
 
 # ------------------------------------------------------------------ discovery
 @app.get("/.well-known/ucp")
-def ucp():
-    return ucp_protocol.ucp_profile(ctx)
+def ucp(request: Request):
+    """The platform's profile, or on rina.<domain> that shop's own profile (its endpoint is the shop's address)."""
+    return ucp_protocol.ucp_profile(ctx, shop_of(request))
 
 
 app.include_router(ucp_protocol.build_router(ctx, limits))   # /ucp/v1/checkout-sessions ... (UCP Checkout, REST)
 
 
+def other_shop(request: Request, seller_id: str | None) -> bool:
+    """True when the request came in on one shop's own address but the thing it asks for belongs to another shop."""
+    shop = shop_of(request)
+    return shop is not None and seller_id is not None and seller_id != shop.seller_id
+
+
+def order_of_other_shop(request: Request, order_id: str) -> bool:
+    if shop_of(request) is None:
+        return False
+    order = ctx.store.get_order(order_id[:64])
+    return order is not None and other_shop(request, order.seller_id)
+
+
 @app.get("/checkout/{checkout_id}", response_class=HTMLResponse, include_in_schema=False)
 def hosted_checkout(request: Request, checkout_id: str):
     rate_limit(request, "pay-page", 600, 60)
+    session = ctx.store.get_doc(ucp_protocol.SESSION_KIND, checkout_id[:64])
+    if session is not None and other_shop(request, session.get("seller_id")):
+        checkout_id = ""      # shown as "not valid", exactly like a checkout that does not exist
     return ucp_protocol.pay_page_response(ctx, checkout_id)
 
 
@@ -163,19 +180,20 @@ async def store_buy(request: Request, seller_id: str, variant_id: str):
 @app.get("/pay/{order_id}", response_class=HTMLResponse, include_in_schema=False)
 def order_status_page(request: Request, order_id: str):
     rate_limit(request, "pay-page", 600, 60)
-    return storefront.order_page(ctx, order_id)
+    return storefront.order_page(ctx, "" if order_of_other_shop(request, order_id) else order_id)
 
 
 @app.get("/pay/{order_id}/return", response_class=HTMLResponse, include_in_schema=False)
 def order_return_form(request: Request, order_id: str):
     rate_limit(request, "pay-page", 600, 60)
-    return storefront.return_form(ctx, order_id)
+    return storefront.return_form(ctx, "" if order_of_other_shop(request, order_id) else order_id)
 
 
 @app.post("/pay/{order_id}/return", response_class=HTMLResponse, include_in_schema=False)
 async def order_return_submit(request: Request, order_id: str):
     same_origin(request)
     rate_limit(request, "return", 10, 3600)       # the same bucket as the agent return tools
+    order_id = "" if order_of_other_shop(request, order_id) else order_id
     return await asyncio.to_thread(storefront.return_submit, ctx, order_id, await request.body())
 
 
@@ -206,7 +224,7 @@ def return_policy_page(request: Request, seller_id: str):
 def return_policy_json(request: Request, seller_id: str):
     rate_limit(request, "policy", 600, 60)
     seller = ctx.store.get_seller(seller_id[:64])
-    if seller is None:
+    if seller is None or not seller.open_for_buyers:
         raise HTTPException(404, "store not found")
     return {"return_policy": ctx.returns.policy_view(seller), "track_record": ctx.checkout.track_record(seller.id)}
 
@@ -232,30 +250,31 @@ class CheckoutIn(BaseModel):
 @agent.get("/search")
 def agent_search(request: Request, q: str, max_price_idr: int | None = None, country: str = "ID", limit: int = 5):
     rate_limit(request, "search", 120, 60)
-    return ctx.gateway.search_products(q[:200], max_price_idr, country, limit)
+    return ctx.gateway.search_products(q[:200], max_price_idr, country, limit, shop=shop_of(request))
 
 
 @agent.get("/products/{product_id}")
-def agent_product(product_id: str):
-    return ctx.gateway.get_product(product_id)
+def agent_product(request: Request, product_id: str):
+    return ctx.gateway.get_product(product_id, shop=shop_of(request))
 
 
 @agent.get("/products/{product_id}/shipping-options")
 def agent_shipping(request: Request, product_id: str, variant_id: str, quantity: int, postal_code: str):
     rate_limit(request, "shipping", 60, 60)  # each call can cost a courier-API request
-    return ctx.gateway.get_shipping_options(product_id, variant_id[:40], max(1, min(quantity, 100)), postal_code[:10])
+    return ctx.gateway.get_shipping_options(product_id, variant_id[:40], max(1, min(quantity, 100)), postal_code[:10],
+                                            shop=shop_of(request))
 
 
 @agent.post("/checkouts")
 def agent_checkout(request: Request, body: CheckoutIn):
     rate_limit(request, "checkout", 20, 3600)
-    return ctx.gateway.create_checkout(**body.model_dump(), channel="rest",
+    return ctx.gateway.create_checkout(**body.model_dump(), channel="rest", shop=shop_of(request),
                                        referrer=attribution.agent_from_user_agent(request.headers.get("user-agent")))
 
 
 @agent.get("/checkouts/{checkout_id}")
-def agent_checkout_status(checkout_id: str):
-    return ctx.gateway.get_checkout_status(checkout_id)
+def agent_checkout_status(request: Request, checkout_id: str):
+    return ctx.gateway.get_checkout_status(checkout_id, shop=shop_of(request))
 
 
 class ReturnIn(BaseModel):
@@ -273,13 +292,14 @@ class ReturnTrackingIn(BaseModel):
 @agent.post("/checkouts/{checkout_id}/return")
 def agent_request_return(request: Request, checkout_id: str, body: ReturnIn):
     rate_limit(request, "return", 10, 3600)
-    return ctx.gateway.request_return(checkout_id[:40], body.buyer_phone, body.reason, body.note, body.evidence_urls)
+    return ctx.gateway.request_return(checkout_id[:40], body.buyer_phone, body.reason, body.note, body.evidence_urls,
+                                      shop=shop_of(request))
 
 
 @agent.post("/checkouts/{checkout_id}/return/tracking")
 def agent_return_tracking(request: Request, checkout_id: str, body: ReturnTrackingIn):
     rate_limit(request, "return", 10, 3600)
-    return ctx.gateway.submit_return_tracking(checkout_id[:40], body.buyer_phone, body.waybill)
+    return ctx.gateway.submit_return_tracking(checkout_id[:40], body.buyer_phone, body.waybill, shop=shop_of(request))
 
 
 app.include_router(agent)
@@ -396,6 +416,30 @@ def open_disputes():
 def attribution_report():
     """Which doors buyers use: checkouts started, paid and expired unpaid per channel and per referrer. Header X-Etalase-Operator-Token."""
     return ctx.checkout.attribution_report()
+
+
+class VerifySeller(BaseModel):
+    seller_id: str = Field(max_length=40)
+
+
+@app.get("/tasks/pending-sellers", dependencies=[Depends(operator_token)])
+def pending_sellers():
+    """Shops that signed up in chat and are not verified yet, oldest first. Header X-Etalase-Operator-Token."""
+    rows = sorted(ctx.store.pending_sellers(), key=lambda s: s.created_at)
+    return [{"seller_id": s.id, "name": s.name, "whatsapp": s.whatsapp, "address": slugs.store_url(ctx.settings, s) if s.slug else None,
+             "city": s.origin.city if s.origin else "", "signed_up_at": s.created_at.isoformat(timespec="minutes"),
+             "onboarding": s.onboarding or "done"} for s in rows]
+
+
+@app.post("/tasks/verify-seller", dependencies=[Depends(operator_token)])
+def verify_seller(body: VerifySeller):
+    """The operator has checked this seller's identity and bank account (outside Etalase): open the shop to buyers and agents.
+    This is the pilot's stand-in for the payment provider's own check, which is not built. Header X-Etalase-Operator-Token."""
+    try:
+        seller = ctx.signup.open_shop(body.seller_id)
+    except KeyError:
+        raise HTTPException(404, "seller not found")
+    return {"seller_id": seller.id, "kyc_status": seller.kyc_status, "store_url": slugs.store_url(ctx.settings, seller)}
 
 
 @app.post("/tasks/resolve-dispute", dependencies=[Depends(operator_token)])

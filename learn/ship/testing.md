@@ -1,6 +1,6 @@
 # Testing
 
-How Etalase's 507 automated tests are organised, what each file proves, how to run and extend them, and what still has to be measured before a pilot.
+How Etalase's 567 automated tests are organised, what each file proves, how to run and extend them, and what still has to be measured before a pilot.
 
 ::: tip What you will learn
 - The layout of `prototype/tests/`, the fixtures in `conftest.py` and the regression tests for fixed bugs
@@ -19,7 +19,7 @@ All tests run offline in about ten seconds. ADR 0005 (`docs/adr/0005-adapters-an
 ```bash
 cd prototype
 pip install -r requirements-dev.txt
-pytest -q          # 507 passed
+pytest -q          # 567 passed
 ```
 
 ## How the suite is organised
@@ -51,6 +51,8 @@ pytest -q          # 507 passed
 | `tests/test_telegram.py` | 28 | Telegram as a second seller channel: update parsing (text, buttons, photos, voice, files, private chats only), Bot API calls and errors that never contain the token, router choice by address, link codes (valid, expired, forged, moved), alerts and button taps over Telegram, replies on the channel the seller wrote on, sign-in code on the chosen channel, the webhook secret, startup checks |
 | `tests/test_review_fixes.py` | 50 | Regression tests for an independent security review: bot token absent from logs, single-use link codes and relink alerts, an atomic shop address and its cooldown, a tracking number owned by one order, stock errors that cannot lose an alert or a refund, WhatsApp fallback for a blocked Telegram chat, Host header spellings, the operator token, the client address behind a proxy, chunked uploads, malformed webhook bodies, links in buyer text |
 | `tests/test_subdomains.py` | 32 | Per-shop addresses: slug rules and reserved names, claiming and changing, `Host` to shop mapping, unclaimed host is 404, other paths pass through, canonical links, each shop a separate origin for the form check, startup checks for `STORE_BASE_DOMAIN`, the doctor's DNS check |
+| `tests/test_shop_profiles.py` | 14 | A shop address is its own UCP business: each shop's profile validates against `BusinessSchema` and points at its own address, UCP sessions belong to the shop they started on, REST and MCP tools see only that shop (the MCP test calls the tool the way FastMCP does for a request on a shop host), another shop's pages 404, a pending shop is invisible and its address is a holding page |
+| `tests/test_signup.py` | 46 | Sign-up in chat: the whole conversation, address offered then claimed, two shops racing for one name, lookalike and link/phone names refused, the pickup address parsed from one message, pending shop invisible and verified by an operator, the 72-hour hold, limits per hour and per number, off by default, prod needs an operator token |
 
 The parametrised tests in `test_parsing.py` count once per case, which is why 8 functions make 23 tests.
 

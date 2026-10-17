@@ -39,7 +39,7 @@ These parts have real code paths, but the demo runs a stand-in. Each switches on
 | Payments <Badge type="warning" text="Mocked in demo" /> | `MockPayment` (fake QRIS, instant refunds and releases) | `XenditPayment` (dynamic QRIS, callback token) | Refunds and xenPlatform settlement raise `ManualActionRequired` (an operator finishes them); uses the `/qr_codes` endpoint that Xendit calls legacy, and its official reference could not be opened, so the payload is community-sourced and unverified |
 | Shipping <Badge type="warning" text="Mocked in demo" /> | `MockShipping` (three couriers, `confirm_delivered` always true) | `BiteshipShipping` | Checked against Biteship's public docs (rates, orders, tracking, `order.status` webhook) and pinned by tests; not run against the live API; test mode bills rate and tracking calls |
 | Database <Badge type="warning" text="Mocked in demo" /> | `MemoryStore` (one lock) | `FirestoreStore` (transactions) | Never run against the emulator in tests; see the Firestore section below |
-| KYC <Badge type="warning" text="Mocked in demo" /> | `/dev/sellers` creates sellers with `kyc_status="verified"`; `payout_account_id` is `"mock-sub-account"` only with the mock payment adapter (`None` with real Xendit test keys) | None yet | A registration flow and sub-account creation at the provider |
+| KYC <Badge type="warning" text="Mocked in demo" /> | `/dev/sellers` and a finished chat sign-up with the mock provider set `kyc_status="verified"`; `payout_account_id` is `"mock-sub-account"` only with the mock payment adapter (`None` with real Xendit test keys). With a real provider a chat sign-up stays `pending` until an operator calls `POST /tasks/verify-seller` | None yet | The provider's identity and bank check through a link, and sub-account creation |
 | Instagram import <Badge type="warning" text="Mocked in demo" /> | `SampleInstagramSource` (three sample posts) | `InstagramGraphSource` with Instagram Login | Long-lived token exchange, token encryption, Meta App Review |
 | Events, expiry, media, secrets for tokens <Badge type="info" text="Roadmap" /> | In-process `EventBus`, a 60-second loop, a local `./media` folder, a plain `access_token` field | Pub/Sub, Cloud Tasks, Cloud Storage, Cloud KMS | All four |
 
@@ -100,7 +100,9 @@ Fix: [Exercise 13](/master/exercises#_13-run-the-store-contract-against-the-fire
 
 ### Seller onboarding and KYC
 
-There is no registration flow. An unknown number is told to sign up at the dashboard URL, but dashboard sign-in only works for sellers who already exist. Today sellers are created only through `/dev/sellers`, already marked as verified with a mock sub-account. The pilot needs registration, sub-account creation and KYC at the payment provider, and `create_checkout` already refuses sellers whose `kyc_status` is not `verified`.
+Sign-up in chat is built (`seller/signup.py`, ADR 0010) and **off by default**: a stranger picks a unique shop address first, gives the shop name and where they ship from, and the shop is created `pending`. A pending shop is invisible to buyers and agents (search, store page, its address, UCP/MCP/REST) and `create_checkout` refuses it. It has only been driven with simulated messages, never with live WhatsApp traffic.
+
+What is **not** built is the verification: with the mock payment provider a finished sign-up is verified at once, and with a real one an operator verifies by hand (`POST /tasks/verify-seller`). The payment provider's identity and bank check through a link, and the creation of a sub-account, are still to build, and whether the provider lets us hold a payout is undocumented. The "your shop is open" message may not arrive outside WhatsApp's 24-hour window (no approved template), the word list that stops `bca-resmi` is short and has no owner, and there is no report button or abuse process.
 
 ### Existing catalogs
 

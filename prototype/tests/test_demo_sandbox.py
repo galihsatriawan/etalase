@@ -415,3 +415,18 @@ def test_demo_address_falls_back_to_the_shop_name_when_demo_is_the_platform_host
     ctx = _seeded(store_base_domain="localhost:8080", public_base_url="http://demo.localhost:8080", session_secret="x" * 32,
                    dev_token="d" * 16, webhook_token="w" * 16)
     assert ctx.store.get_seller(demo.DEMO_SELLER_ID).slug == "toko-demo-rina"
+
+
+def test_demo_card_links_stay_on_the_shared_host_without_a_base_domain():
+    links = demo.console_state(_seeded())["links"]
+    base = "http://localhost:8080"
+    assert links == {"store": f"{base}/stores/{demo.DEMO_SELLER_ID}", "mcp": f"{base}/mcp/",
+                     "ucp": f"{base}/.well-known/ucp", "dashboard": f"{base}/"}
+
+
+def test_demo_card_sends_agents_to_the_shops_own_address_and_keeps_the_dashboard_on_the_shared_host():
+    ctx = _seeded(store_base_domain="localhost:8080", public_base_url="http://localhost:8080")
+    links = demo.console_state(ctx)["links"]
+    shop = "http://demo.localhost:8080"
+    assert links["store"] == shop and links["mcp"] == f"{shop}/mcp/" and links["ucp"] == f"{shop}/.well-known/ucp"
+    assert links["dashboard"] == "http://localhost:8080/"      # the dashboard is not part of a shop's address

@@ -6,6 +6,9 @@ Etalase turns a small seller's product photos and chats into a storefront that A
 (Gemini or any MCP client; Etalase also answers Google's Universal Commerce Protocol checkout) can find, check stock on and buy from, with every order landing
 back in the seller's chat (WhatsApp, or Telegram if the seller prefers).
 
+It is for sellers who run on chat: they take orders in WhatsApp (or Telegram) and have no store page or checkout of their own to give a buyer or an agent.
+Some also list on a marketplace, so Etalase does not assume they have no shop anywhere; it gives them one they own.
+
 Built for the **AI Builder Cup 2026** (Google Cloud, JAPAC), theme **Retail & Commerce: Intelligent
 Customer and Business Experiences**.
 

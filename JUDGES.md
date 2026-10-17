@@ -9,7 +9,7 @@ The sandbox is the real application running with three things simulated, so that
 Open `/demo`. You are playing a seller (a made-up shop, "Toko Demo Rina"). The left side is her WhatsApp chat.
 
 1. **Build a catalog.** Tap the **Catalog** suggestion (it fills in a description and picks a sample photo), then **Send**. Etalase replies with a draft: product, colours, stock, price, an agent-readiness score. Tap **Publish** in the chat.
-2. **Buy as a person.** Open the shop link under *Open and try*. The shop already holds three seeded products plus the one you just published. Pick one and check out (any made-up name, phone number and address).
+2. **Buy as a person.** Open the shop link under *Open and try*. The shop already holds three seeded products plus the one you just published. Pick one and check out (any made-up name, phone number and address), or tap **Add to cart** on two products and check out the cart: several products of one shop become one order, one QRIS code and one shipment. An agent can do the same with `items` over MCP, REST and UCP.
 3. **Pay.** The order page shows a QRIS code. The **Simulate the QRIS payment** button under it stands in for scanning with a banking app.
 4. **Run the order as the seller.** The chat now shows *New paid order*. Tap **Accept**, then send `tracking JNE123456`. Under **Orders**, tap **Courier delivers**, then **Skip the return window**: the payout is released (4% commission, the rest to the seller). Before you skip the window, open the order page as the buyer and try **Ask for a return** (it asks for the phone number you ordered with) to see the other branch.
 5. **Buy as an AI agent.** Point any MCP client at the **MCP address** shown on the page, or read the **UCP profile** (`/.well-known/ucp`). An agent can search, check availability and the seller's return policy, and check out; its QRIS page links back to the same demo payment button. From a terminal, `python -m etalase.agents.buyer_agent "black voal hijab under Rp100k to Bandung 40135"` (needs a Gemini key) does it with an agent we wrote.
@@ -22,7 +22,7 @@ Open `/demo`. You are playing a seller (a made-up shop, "Toko Demo Rina"). The l
 | Catalog from text and photos | Real code. With a Gemini key on the server it is Gemini (the page says which); without one, rules parse the typed text and photos are not read | Accuracy on real seller photos is not measured: see `prototype/evals` |
 | Store page, product page, checkout, order page | Real | |
 | Stock reservation and the "confirm with the seller first" rule | Real (tested under concurrency) | |
-| MCP server, REST agent API, UCP checkout and profile | Real. UCP: in the official conformance suite 29 of 77 tests pass, 22 fail and 26 are skipped ([doc 16](docs/16-ucp.md)) | |
+| MCP server, REST agent API, UCP checkout and profile | Real. UCP: in the official conformance suite 30 of 77 tests pass, 21 fail and 26 are skipped ([doc 16](docs/16-ucp.md)) | |
 | Payout hold, return window, return flow, refunds | Real logic; the **clock is simulated**: a button skips the wait | |
 | WhatsApp | **Simulated.** The "phone" is a web page reading the app's message queue. The WhatsApp Cloud API adapter is written and unit-tested, but has never been run against live Meta traffic | Needs a Meta business setup |
 | QRIS payment | **Simulated.** A mock payment provider and the button above. The Xendit adapter is written and unit-tested, never run live | Needs a Xendit account |
@@ -36,7 +36,7 @@ Open `/demo`. You are playing a seller (a made-up shop, "Toko Demo Rina"). The l
 - **Use made-up details.** Orders placed in the sandbox, including the buyer's name, phone and address, can be seen by every other visitor (in the seller dashboard, for one). Nothing is sent anywhere, but do not type real personal data, and the same goes for an agent you point at it.
 - **Products you publish disappear from the shop after an hour.** The seeded ones stay, and their stock is topped up automatically.
 - **It resets when the server restarts**, which is why the sandbox keeps everything in memory. Nothing you type is stored anywhere else.
-- **Nothing real is behind it.** The server refuses to start in this mode if a payment, courier or WhatsApp key is present, and refuses it outside the development setting (`DEMO_MODE`, `prototype/etalase/security.py`).
+- **Nothing real is behind it.** The server refuses to start in this mode if a payment, courier or WhatsApp key is present, and refuses it outside the development setting, and refuses it with chat sign-up switched on (`DEMO_MODE`, `prototype/etalase/security.py`).
 - Requests are rate-limited per address. If you see *slow down*, wait a minute.
 
 ## Run it yourself

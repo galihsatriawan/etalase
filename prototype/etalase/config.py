@@ -30,7 +30,7 @@ class Settings(BaseSettings):
     google_genai_use_vertexai: bool = Field(
         default=False, validation_alias=AliasChoices("GOOGLE_GENAI_USE_VERTEXAI", "GOOGLE_GENAI_USE_ENTERPRISE"))
     google_cloud_project: str | None = None
-    google_cloud_location: str = "asia-southeast1"
+    google_cloud_location: str = "global"
     # Google limits the 2.5 models to existing users and recommends 3.8 Flash for new projects (ai.google.dev, 2026-10-15)
     gemini_model: str = "gemini-3.8-flash"
 

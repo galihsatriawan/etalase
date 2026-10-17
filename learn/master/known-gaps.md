@@ -192,7 +192,7 @@ These were found while writing this guide and are now fixed in the code. Each is
 Code cannot answer these; a pilot can. Most come from `docs/10-business-model.md` ("Assumptions to validate first") and `docs/11-roadmap.md`.
 
 1. **Will sellers pay 3–5% per delivered order?** The whole model rests on it.
-2. **How many sellers track stock at all?** If few do, confirm-first fires on most orders, and buyers wait for the seller before they can pay. How long will buyers and their agents wait (the window is 60 minutes)?
+2. **How many sellers track stock at all?** If few do, confirm-first fires on most orders, and buyers wait for the seller before they can pay. How long will buyers and their agents wait (the window is 60 minutes, with one reminder to the seller at 15)? A silent seller now gets a reminder and a notice when the check ran out, and the agent is told the seller did not answer, but the window itself is a guess that no buyer has tested.
 3. **When does UCP checkout reach Indonesia, and how will agents find Etalase?** Publishing `/.well-known/ucp` and passing the applicable conformance tests does not make any assistant call us. Distribution to agents (Merchant Center feed, agent directories, partnerships) is unsolved.
 4. **Will the payment provider support sub-accounts and delayed release for this use case?** If not, the payout design changes (`docs/11`, "What could change the order").
 5. **Who pays the gateway's fixed fee?** Passing IDR 4,000 to the buyer may hurt conversion; absorbing it removes the margin at list price.

@@ -2,7 +2,7 @@
 
 Free-form messages and reply buttons only work while the seller has written to the business number in the **last 24 hours**
 (the customer service window). Outside it, Meta rejects the send with error **131047** and only an **approved template** goes
-through. Etalase sends six kinds of alert that can arrive outside the window: a stock check, a new paid order, a "ship now"
+through. Etalase sends seven kinds of alert that can arrive outside the window: a stock check (the reminder after 15 minutes reuses it), a note that a stock check ran out of time, a new paid order, a "ship now"
 reminder, the payout notice, a return request and a return approval (the two return alerts have buttons). Each one is tried free-form first and, on error 131047 only, re-sent as the template below.
 
 You create the templates **once**, in the same WhatsApp Business Account as your phone number. Until a template is approved,
@@ -45,6 +45,16 @@ of truth, and a unit test keeps it in step with what the notifications send.
 
 - Body: Cek stok dulu ya. {{1}} untuk pembeli di {{2}}. Barangnya masih ada?
 - Buttons (type Quick reply): `Ada`, `Habis`
+- Sample values: `Voal Hijab (Black) x 2`, `Bandung`
+
+### `etalase_stock_check_expired` / `en`
+
+- Body: The stock check for {{1}} (buyer in {{2}}) ran out of time because there was no answer. The buyer was not charged.
+- Sample values: `Voal Hijab (Black) x 2`, `Bandung`
+
+### `etalase_stock_check_expired` / `id`
+
+- Body: Cek stok untuk {{1}} (pembeli di {{2}}) kedaluwarsa karena tidak ada jawaban. Pembeli tidak ditagih.
 - Sample values: `Voal Hijab (Black) x 2`, `Bandung`
 
 ### `etalase_new_paid_order` / `en`

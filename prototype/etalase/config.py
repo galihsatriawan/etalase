@@ -83,6 +83,8 @@ class Settings(BaseSettings):
     confirm_if_stale_days: int = 3
     confirm_if_available_lte: int = 2
     seller_confirm_timeout_minutes: int = 60
+    # A seller who has not answered a stock check gets one reminder this many minutes after it was sent (0 = no reminder).
+    seller_confirm_reminder_minutes: int = 15
     max_qty_per_order: int = 10
     max_checkouts_per_buyer_per_hour: int = 5
     # Payout hold. After the courier confirms delivery the seller's money stays at the payment provider for this long.

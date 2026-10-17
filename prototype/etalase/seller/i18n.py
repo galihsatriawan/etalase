@@ -79,6 +79,16 @@ MESSAGES: dict[str, dict[str, str]] = {
         "en": "Quick stock check 🙏\n{items}\nBuyer in {city}. Is it still available?",
         "id": "Cek stok dulu ya 🙏\n{items}\nPembeli di {city}. Barangnya masih ada?",
     },
+    "stock_check_reminder": {
+        "en": "Reminder 🙏 The buyer is still waiting.\n{items}\nBuyer in {city}. Is it still available?",
+        "id": "Pengingat 🙏 Pembeli masih menunggu.\n{items}\nPembeli di {city}. Barangnya masih ada?",
+    },
+    "stock_check_expired": {
+        "en": "The stock check for {items} (buyer in {city}) ran out of time because there was no answer. The buyer was not charged. "
+              "If you still have it, the buyer can try again.",
+        "id": "Cek stok untuk {items} (pembeli di {city}) kedaluwarsa karena tidak ada jawaban. Pembeli tidak ditagih. "
+              "Kalau barangnya masih ada, pembeli bisa mencoba lagi.",
+    },
     "btn_available": {"en": "Available", "id": "Ada"},
     "btn_sold_out": {"en": "Sold out", "id": "Habis"},
     "new_paid_order": {

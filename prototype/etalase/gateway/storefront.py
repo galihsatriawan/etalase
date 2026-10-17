@@ -30,7 +30,7 @@ from urllib.parse import parse_qs
 from fastapi.responses import HTMLResponse, RedirectResponse
 
 from .. import demo
-from ..models import Address, CheckoutError, Order, OrderStatus, Product, now
+from ..models import Address, CheckoutError, Order, OrderStatus, Product, SellMode, now
 from ..seller import slugs
 from ..seller.format import rupiah
 from . import discovery, pages
@@ -733,7 +733,9 @@ def order_page(ctx: "AppContext", order_id: str) -> HTMLResponse:
         progress, live = pages.track(STEPS, 1), s.value
         msg = pages.status("wait", "Waiting for the seller",
                            "<p>The seller is confirming that the item is in stock. The payment code appears here as soon as they do; "
-                           "this page updates by itself.</p>")
+                           "this page updates by itself. You are not charged before that" +
+                           (f", and if the seller has not answered by {pages.clock(order.expires_at)} the order is cancelled" if order.expires_at else "") +
+                           ".</p>")
     elif s == OrderStatus.AWAITING_PAYMENT and order.payment:
         progress, live = pages.track(STEPS, 1), f"{s.value}:{order.payment.status}"
         left = max(0, int((order.expires_at - now()).total_seconds())) if order.expires_at else None
@@ -788,8 +790,10 @@ def order_page(ctx: "AppContext", order_id: str) -> HTMLResponse:
         msg = pages.status("ok", "Completed", "<p>Delivered and completed. The return window has closed.</p>")
     else:   # rejected or expired
         again = f'<a class="btn alt" href="/stores/{escape(seller.id)}">Back to the store</a>' if seller else ""
-        msg = pages.status("bad", "Cancelled or expired",
-                           "<p>You were not charged. If you still want the item, start again from the store page.</p>" + again)
+        silent = order.status == OrderStatus.EXPIRED and order.sell_mode == SellMode.CONFIRM_FIRST and order.payment is None
+        msg = pages.status("bad", "The seller did not answer in time" if silent else "Cancelled or expired",
+                           "<p>You were not charged" + (" and no payment code was issued" if silent else "") +
+                           ". If you still want the item, try again later or choose another from the store page.</p>" + again)
     links = ""
     if seller is not None:
         links = (f'<p class=links><a href="/stores/{escape(seller.id)}/returns">{pages.ico("shield", "sm")}Return policy</a>'

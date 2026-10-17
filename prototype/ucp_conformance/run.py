@@ -1,6 +1,7 @@
 """Run the official UCP conformance suite against a live server.
 
-    python -m ucp_conformance.run                      # Etalase (started for you, mock adapters)
+    python -m ucp_conformance.run                      # Etalase as it runs in production (started for you, mock adapters)
+    python -m ucp_conformance.run --mode test          # Etalase in the sandbox test mode the order tests need (see server.py)
     python -m ucp_conformance.run --target reference   # the official sample server: shows the suite itself works
     python -m ucp_conformance.run protocol_test idempotency_test
 
@@ -57,10 +58,11 @@ def prepare(work: Path, target: str) -> None:
         sh(["uv", "sync", "-q", "--directory", str(work / "samples/rest/python/server")])
 
 
-def start_server(work: Path, target: str) -> tuple[subprocess.Popen, str]:
+def start_server(work: Path, target: str, mode: str = "production") -> tuple[subprocess.Popen, str]:
     if target == "etalase":
         port = ETALASE_PORT
-        proc = subprocess.Popen([sys.executable, "-m", "ucp_conformance.server", "--port", str(port)], cwd=ROOT,
+        extra = ["--test-mode", f"--simulation-secret={SIM_SECRET}"] if mode == "test" else []
+        proc = subprocess.Popen([sys.executable, "-m", "ucp_conformance.server", "--port", str(port), *extra], cwd=ROOT,
                                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     else:
         port, db = REFERENCE_PORT, Path("/tmp/ucp_reference_db")
@@ -87,7 +89,8 @@ def start_server(work: Path, target: str) -> tuple[subprocess.Popen, str]:
 def run_file(work: Path, name: str, url: str, target: str) -> list[tuple[str, str, str]]:
     cmd = ["uv", "run", "--no-sync", "python", f"{name}.py", f"--server_url={url}", f"--simulation_secret={SIM_SECRET}"]
     if target == "etalase":
-        cmd += [f"--conformance_input={HERE / 'conformance_input.json'}", f"--fixture_config={HERE / 'test_fixtures.json'}"]
+        cmd += [f"--conformance_input={HERE / 'conformance_input.json'}", f"--fixture_config={HERE / 'test_fixtures.json'}",
+                f"--test_data_dir={HERE / 'test_data'}"]       # an Indonesian address: Etalase ships inside Indonesia only
     done = subprocess.run(cmd, cwd=work / "conformance", text=True, capture_output=True, timeout=600)
     return [(m.group(2).split(".")[-2] + "." + m.group(2).split(".")[-1], m.group(1), m.group(3) or "")
             for m in (LINE.match(l.strip()) for l in (done.stdout + done.stderr).splitlines()) if m]
@@ -98,11 +101,15 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("files", nargs="*", help="test files to run (default: all)")
     ap.add_argument("--target", choices=["etalase", "reference"], default="etalase")
     ap.add_argument("--work", type=Path, default=ROOT / ".ucp-work")
-    ap.add_argument("--out", type=Path, default=HERE / "results" / "latest.md")
+    ap.add_argument("--mode", choices=["production", "test"], default="production",
+                    help="production: QRIS is the only way to pay. test: the sandbox test mode (mock card token, mock platform webhooks)")
+    ap.add_argument("--out", type=Path, default=None)
     args = ap.parse_args(argv)
+    suffix = "" if args.mode == "production" else "_test_mode"
+    args.out = args.out or HERE / "results" / f"latest{suffix}.md"
 
     prepare(args.work, args.target)
-    proc, url = start_server(args.work, args.target)
+    proc, url = start_server(args.work, args.target, args.mode)
     results: dict[str, list] = {}
     try:
         for name in args.files or TEST_FILES:
@@ -110,12 +117,20 @@ def main(argv: list[str] | None = None) -> int:
             results[name] = run_file(args.work, name, url, args.target)
     finally:
         proc.terminate()
+        try:
+            proc.wait(timeout=15)       # the next run must not find this server still answering on the same port
+        except subprocess.TimeoutExpired:
+            proc.kill()
 
-    expected = json.loads((HERE / "expected_failures.json").read_text()) if args.target == "etalase" else {}
+    expected = json.loads((HERE / f"expected_failures{suffix}.json").read_text()) if args.target == "etalase" else {}
     total = {"OK": 0, "FAILED": 0, "SKIPPED": 0}
     unexpected, fixed = [], []
-    lines = [f"# UCP conformance: {args.target}", "",
+    how = {"production": "Etalase as it runs in production: QRIS is the only way to pay, so the tests that pay with a card cannot get an order.",
+           "test": "Etalase in its sandbox test mode (UCP_TEST_MODE): the suite's mock card token pays, its mock platform receives signed "
+                   "order webhooks, and PUT /orders and /testing/simulate-shipping exist. Production does not have these."}
+    lines = [f"# UCP conformance: {args.target}" + (f" ({args.mode} mode)" if args.target == "etalase" else ""), "",
              f"Official suite (github.com/Universal-Commerce-Protocol/conformance), UCP spec 2026-04-08, SDK {SDK_VERSION}.", "",
+             *([how[args.mode], ""] if args.target == "etalase" else []),
              "| Test file | Passed | Failed | Skipped |", "|---|---|---|---|"]
     detail = []
     for name, tests in results.items():

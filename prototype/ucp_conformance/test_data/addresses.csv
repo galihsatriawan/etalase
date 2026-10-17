@@ -1,0 +1,3 @@
+id,customer_id,street_address,city,state,postal_code,country
+addr_1,customer_1,Jl. Dago 10,Bandung,Jawa Barat,40135,ID
+addr_2,customer_1,Jl. Braga 5,Bandung,Jawa Barat,40111,ID

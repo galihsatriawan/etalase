@@ -112,6 +112,17 @@ class Settings(BaseSettings):
     # outside dev with mock payment, mock shipping and the console messenger (etalase/security.py), so no real money, courier
     # or WhatsApp message can ever be involved. See JUDGES.md.
     demo_mode: bool = False
+    # UCP Order capability (gateway/ucp_order.py). UCP_PLATFORMS is the allow-list of AI platforms that receive signed order
+    # webhooks: a JSON list of profile URLs, or {"profile": url, "webhook_hosts": [...]}. Empty = nobody is sent anything, and
+    # platforms can still read their own orders. UCP_SIGNING_KEY is the PEM private key (EC P-256 or Ed25519) the webhooks are
+    # signed with; its public half is published in the profile. It is required outside dev when platforms are listed.
+    ucp_platforms: str = ""
+    ucp_signing_key: str = ""
+    # UCP_TEST_MODE is for running the official UCP conformance suite against a sandbox: it accepts the suite's mock card token as a
+    # payment, enables PUT /ucp/v1/orders/{id} and POST /testing/simulate-shipping/{id} (behind UCP_SIMULATION_SECRET). Like
+    # DEMO_MODE it is refused outside dev with mock adapters (etalase/security.py). Production never has it.
+    ucp_test_mode: bool = False
+    ucp_simulation_secret: str = ""
     # Sign-up in chat (seller/signup.py). Off by default, because turning it on lets anyone who writes to the Etalase number
     # start a shop. SIGNUP_SHOPS_PER_HOUR caps new shops across the whole platform; a shop that is not verified within
     # SIGNUP_HOLD_HOURS gives its address back. A new shop is open to buyers only once it is verified: with the mock payment

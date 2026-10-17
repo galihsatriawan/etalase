@@ -79,7 +79,8 @@ def test_profile_is_a_valid_ucp_business_profile(client):
     service = profile["ucp"]["services"]["dev.ucp.shopping"][0]
     assert service["transport"] == "rest" and service["endpoint"].endswith(API)
     caps = profile["ucp"]["capabilities"]
-    assert set(caps) == {"dev.ucp.shopping.checkout", "dev.ucp.shopping.fulfillment", "dev.ucp.shopping.buyer_consent"}
+    assert set(caps) == {"dev.ucp.shopping.checkout", "dev.ucp.shopping.fulfillment", "dev.ucp.shopping.buyer_consent",
+                         "dev.ucp.shopping.order"}
     assert caps["dev.ucp.shopping.fulfillment"][0]["extends"] == "dev.ucp.shopping.checkout"
     assert caps["dev.ucp.shopping.buyer_consent"][0]["extends"] == "dev.ucp.shopping.checkout"
 

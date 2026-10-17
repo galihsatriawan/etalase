@@ -1,6 +1,6 @@
 # Testing
 
-How Etalase's 680 automated tests are organised, what each file proves, how to run and extend them, and what still has to be measured before a pilot.
+How Etalase's 725 automated tests are organised, what each file proves, how to run and extend them, and what still has to be measured before a pilot.
 
 ::: tip What you will learn
 - The layout of `prototype/tests/`, the fixtures in `conftest.py` and the regression tests for fixed bugs
@@ -19,7 +19,7 @@ All tests run offline in about ten seconds. ADR 0005 (`docs/adr/0005-adapters-an
 ```bash
 cd prototype
 pip install -r requirements-dev.txt
-pytest -q          # 680 passed
+pytest -q          # 725 passed
 ```
 
 ## How the suite is organised
@@ -58,6 +58,7 @@ pytest -q          # 680 passed
 | `tests/test_ucp_shopper.py` | 9 | The simulated AI shopping surface (`scripts/ucp_shopper.py`): the UCP journey step by step (discovery, session with two products, courier options, `requires_escalation` and `continue_url`, payment, `completed` with the order), one shop only, a variant that needs the seller's answer is not picked, a payment that never comes is a failure when one was expected, the banner says it is not Google AI Mode |
 | `tests/test_env_to_cloud.py` | 4 | `scripts/env_to_cloud.py`: plain settings reach gcloud intact, including a value that contains the usual separator (an e-mail address in `SUPPORT_CONTACT`) |
 | `tests/test_ucp_shop_carts.py` | 2 | A UCP cart on a shop's own address: another shop's line is unavailable, on create and on update |
+| `tests/test_ucp_order.py` | 45 | The UCP Order capability: the order entity and who may read it, events and adjustments, signed webhooks checked by an independent RFC 9421 verifier (ES256 and Ed25519), retry, give-up and ordering rules, SSRF pinning, the platform allow-list, startup checks, and the sandbox test mode (mock card, simulate-shipping, `PUT /orders`) |
 | `tests/test_demo_sandbox.py` | 39 | The judge sandbox (`DEMO_MODE`): it refuses to run with anything real behind it (real keys, prod, sign-up on), seeds a shop that works without setup, simulation steps touch only the demo seller, a visitor cannot empty the shop, what visitors publish disappears, the console is locked down and rate limited, and the deploy script keeps real keys out of it |
 | `tests/test_signup.py` | 46 | Sign-up in chat: the whole conversation, address offered then claimed, two shops racing for one name, lookalike and link/phone names refused, the pickup address parsed from one message, pending shop invisible and verified by an operator, the 72-hour hold, limits per hour and per number, off by default, prod needs an operator token |
 

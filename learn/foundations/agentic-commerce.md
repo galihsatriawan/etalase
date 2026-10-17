@@ -105,7 +105,7 @@ The ideas you need, from the official spec (version 2026-04-08 at `ucp.dev`):
 
 ### Etalase as a UCP business
 
-Etalase serves a valid UCP profile at `/.well-known/ucp` and implements the Checkout and Fulfillment capabilities and the buyer-consent extension over REST at `/ucp/v1`. From **`prototype/etalase/gateway/ucp.py`**:
+Etalase serves a valid UCP profile at `/.well-known/ucp` and implements the Checkout, Fulfillment and Order capabilities and the buyer-consent extension over REST at `/ucp/v1`. From **`prototype/etalase/gateway/ucp.py`**:
 
 ```python
 def ucp_profile(ctx):
@@ -224,7 +224,7 @@ Status: <Badge type="warning" text="Mocked in demo" />. The agent is built and r
 |---|---|---|---|
 | MCP | Main agent interface: search, shipping, checkout, status | `gateway/mcp_server.py`, `gateway/tools.py` | <Badge type="tip" text="Built" /> |
 | REST mirror | Same operations for non-MCP clients | `api/main.py` (`/agent/v1`) | <Badge type="tip" text="Built" /> |
-| UCP | Profile at `/.well-known/ucp` and Checkout, Fulfillment and buyer-consent over REST | `gateway/ucp.py` | <Badge type="tip" text="Built" /> (31 of 77 official tests pass; failures explained) |
+| UCP | Profile at `/.well-known/ucp` and Checkout, Fulfillment, Order and buyer-consent over REST | `gateway/ucp.py`, `gateway/ucp_order.py` | <Badge type="tip" text="Built" /> (31 of 77 official tests pass in production mode, 54 in sandbox test mode; failures explained) |
 | schema.org | JSON-LD per store | `gateway/discovery.py` | <Badge type="tip" text="Built" /> |
 | ADK + Gemini | Seller agent; demo buyer agent | `agents/seller_agent.py`, `agents/buyer_agent.py` | <Badge type="warning" text="Mocked in demo" /> |
 | Gemini structured output | Photos, voice and text to catalog JSON | `catalog/extractor.py` (`GeminiExtractor`) | <Badge type="warning" text="Mocked in demo" /> |

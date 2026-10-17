@@ -24,12 +24,13 @@ A business advertises itself at `/.well-known/ucp`. The platform finds the REST 
 
 | Endpoint | Purpose |
 |---|---|
-| `GET /.well-known/ucp` | Discovery profile: version, the `dev.ucp.shopping` REST service at `/ucp/v1`, the checkout and fulfillment capabilities, the buyer-consent extension, no payment handlers |
+| `GET /.well-known/ucp` | Discovery profile: version, the `dev.ucp.shopping` REST service at `/ucp/v1`, the checkout, fulfillment and order capabilities, the buyer-consent extension, the `signing_keys` that verify our webhooks, no payment handlers |
 | `POST /ucp/v1/checkout-sessions` | Create a session for one variant and a quantity |
 | `GET /ucp/v1/checkout-sessions/{id}` | Read it (the platform polls this after `complete`) |
 | `PUT /ucp/v1/checkout-sessions/{id}` | Send buyer, address and the chosen courier option |
 | `POST /ucp/v1/checkout-sessions/{id}/complete` | Reserve the stock and create the QRIS payment |
 | `POST /ucp/v1/checkout-sessions/{id}/cancel` | Give the stock back for an unpaid checkout |
+| `GET /ucp/v1/orders/{id}` | The order as the UCP `Order` entity, after payment and only for the platform that created the checkout. Changes are pushed to that platform as signed webhooks |
 | `GET /checkout/{id}` | The hosted payment page that `continue_url` points to. It shows the QRIS code and a live countdown, and swaps to "Paid" by itself when the payment arrives |
 | `GET /stores/{seller_id}/returns` | The seller's return policy as a plain page: the target of the `refund_policy` link that every checkout session carries |
 
@@ -37,7 +38,9 @@ All of it is in **`prototype/etalase/gateway/ucp.py`**; the app mounts it in `et
 
 Also implemented: the `dev.ucp.shopping.buyer_consent` extension (`buyer.consent` with analytics, preferences, marketing and sale_of_data is recorded on the session as the platform sends it and returned on every response; a request that sends consent replaces it, so it can be withdrawn, one that leaves it out keeps it; Etalase sends no marketing and sells no data, so nothing acts on it yet).
 
-Not implemented, so not advertised: payment handlers and AP2, cart, catalog, order and discount capabilities, UCP's MCP and A2A bindings, message signing, carts that mix shops, pickup.
+Also implemented: the **Order capability** ([ADR 0011](https://github.com/galihsatriawan/etalase/blob/main/docs/adr/0011-ucp-order-capability.md), `gateway/ucp_order.py` and `gateway/ucp_signing.py`). After payment the platform can read the order and receives a webhook each time it changes: paid, accepted, shipped with the waybill, delivered, returned, refunded. Each webhook is the **full order**, signed with RFC 9421 (ES256 or Ed25519) under a key listed in the profile's `signing_keys`, and sent only to a platform on the allow-list (`UCP_PLATFORMS`), through a connection pinned to a public address. Deliveries are stored, retried with a back-off and reported to the operator when given up. The official suite's Order tests need a sandbox-only test mode ([doc 16](https://github.com/galihsatriawan/etalase/blob/main/docs/16-ucp.md)).
+
+Not implemented, so not advertised: payment handlers and AP2, cart, catalog and discount capabilities, UCP's MCP and A2A bindings, verifying the signature of incoming requests, carts that mix shops, pickup.
 
 ## The journey
 
@@ -92,17 +95,18 @@ Closed checkouts (`completed`, `canceled`) answer `409` to update and complete, 
 2. **The official conformance suite against Etalase.** `python -m ucp_conformance.run` clones the official repos, starts Etalase with fixed demo items and runs all 17 test files.
 3. **The same suite against the official sample server** (`--target reference`) as a control.
 
-Result on 17 Oct 2026 (spec 2026-04-08, ucp-sdk 0.4.6):
+Result on 18 Oct 2026 (spec 2026-04-08, ucp-sdk 0.4.6):
 
 | Target | Passed | Failed | Skipped |
 |---|---|---|---|
 | Official sample server | 76 | 0 | 1 |
-| Etalase | 31 | 20 | 26 |
+| Etalase, production mode (QRIS only) | 31 | 26 | 20 |
+| Etalase, sandbox test mode (mock card, Order tests) | 54 | 3 | 20 |
 
-All 20 failures are accounted for in `prototype/ucp_conformance/expected_failures.json`, and the runner exits non-zero if an unlisted failure appears. They are: tests that pay with a card or AP2 and expect `completed` in the same call (8), tests of the order capability (6), discount tests that the suite does not skip when the capability is absent (2), and tests of the sample server's own simulation hooks (4). Read [UCP in docs/16](https://github.com/galihsatriawan/etalase/blob/main/docs/16-ucp.md) for the table.
+All failures are accounted for in `prototype/ucp_conformance/expected_failures.json` (production) and `expected_failures_test_mode.json`, and the runner exits non-zero if an unlisted failure appears. The 26 production failures are: tests that pay with a card or AP2 and expect `completed` in the same call (8), tests that need an order created by the suite's mock card or its simulation hooks (13), discount tests that the suite does not skip when the capability is absent (2), and the sample server's own simulation hooks (3). 23 of the 26 pass in test mode; the 3 test-mode failures are two discount tests and one that sends a raw card number. Read [UCP in docs/16](https://github.com/galihsatriawan/etalase/blob/main/docs/16-ucp.md) for the table.
 
 ::: warning What this does not prove
-The official suite never reaches Etalase's *completion* path, because it completes with a card. That path is covered by our own tests only. Nobody has tried it with Google's surfaces, and UCP checkout is not live for Indonesian businesses that we know of. Say "we implement the UCP checkout over REST and pass the applicable conformance tests", not "we are UCP certified" (there is no certification) and not "we work with AI Mode".
+In production mode the official suite never reaches Etalase's *completion* path, because it completes with a card; that path is covered by our own tests, and in test mode by the mock card. Test mode is a sandbox setting that production refuses to start with. Nobody has tried it with Google's surfaces, and UCP checkout is not live for Indonesian businesses that we know of. Say "we implement the UCP checkout over REST and pass the applicable conformance tests", not "we are UCP certified" (there is no certification) and not "we work with AI Mode".
 :::
 
 ## Try it by hand

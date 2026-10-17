@@ -71,7 +71,7 @@ The running prototype (mock payment and courier, synthetic product photos): the 
 cd prototype
 pip install -r requirements-dev.txt
 python scripts/demo.py          # full end-to-end story in the terminal
-pytest -q                       # 680 tests: oversell race, payments, webhook security, OTP abuse
+pytest -q                       # 725 tests: oversell race, payments, webhook security, OTP abuse
 uvicorn etalase.api.main:app --port 8080   # API, MCP at /mcp/, dashboard at /, docs at /docs
 ```
 
@@ -94,7 +94,7 @@ suite against Etalase, and `make e2e` / `make browser` play the whole story over
 | **Secret Manager** | Session secret, dev and webhook tokens, provider keys | Built (deploy script) |
 | **Firestore** | Transactional catalog, stock reservations and orders | Built; demo runs on the in-memory store |
 | **Pub/Sub, Cloud Tasks, Cloud Storage, Cloud KMS** | Events, per-order expiry, media, token encryption | Pilot (in-process equivalents today) |
-| **MCP / UCP / AP2** | MCP server; UCP business server (profile at `/.well-known/ucp`, Checkout over REST); AP2 payments | MCP and UCP built (official conformance suite: see [docs/16](docs/16-ucp.md)); AP2 roadmap |
+| **MCP / UCP / AP2** | MCP server; UCP business server (profile at `/.well-known/ucp`, Checkout and Order with signed webhooks over REST); AP2 payments | MCP and UCP built (official conformance suite: see [docs/16](docs/16-ucp.md)); AP2 roadmap |
 
 ## Judging criteria at a glance
 
@@ -150,7 +150,7 @@ It is published to GitHub Pages by `.github/workflows/learn.yml` (Settings → P
 ├── prototype/                    Python · FastAPI · ADK · MCP · Cloud Run
 │   ├── etalase/                  the application (code map in prototype/README.md)
 │   ├── scripts/                  demo.py, e2e_http.py, browser_check.py, deploy_cloud_run.sh
-│   ├── tests/                    680 tests
+│   ├── tests/                    725 tests
 │   ├── evals/                    labelled messages and the extraction scorer
 │   ├── ucp_conformance/          runner for Google's official UCP conformance suite
 │   └── Dockerfile

@@ -1,0 +1,5 @@
+{
+  "BusinessLogicTest.test_discount_flow": "discount capability not implemented (not advertised); the suite does not skip it",
+  "BusinessLogicTest.test_multiple_discounts_one_rejected": "discount capability not implemented (not advertised); the suite does not skip it",
+  "CardCredentialTest.test_card_credential_payment": "sends a raw card number (fpan); Etalase never takes card data, so QRIS is the only payment. Test mode takes the mock token only, so it fails there too."
+}

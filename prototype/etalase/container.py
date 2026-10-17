@@ -37,6 +37,7 @@ class AppContext:
     signup: object = None
     connector: object = None
     returns: object = None
+    ucp_orders: object = None
     auth: object = None
     seller_agent: object = None
     telegram: TelegramMessenger | None = None
@@ -48,13 +49,14 @@ class AppContext:
         out what is due. Order matters: a return that lapses this minute is paid out this minute."""
         # Each step already skips an order that raises; the guards here keep a failure in one step from stopping the others.
         empty = {"returns_auto_approved": [], "returns_lapsed": [], "returns_escalated": []}
-        result: dict = {"stock_reminders": [], "expired": [], "shipments_reconciled": [], **empty, "payouts_released": [], "addresses_released": []}
+        result: dict = {"stock_reminders": [], "expired": [], "shipments_reconciled": [], **empty, "payouts_released": [], "addresses_released": [], "ucp_webhooks": []}
         for key, step in (("stock_reminders", lambda: self.checkout.remind_stock_checks(when)),
                           ("expired", lambda: self.checkout.expire_due(when)),
                           ("shipments_reconciled", lambda: self.checkout.reconcile_shipments(when)),
                           ("timers", lambda: self.returns.sweep(when)),
                           ("payouts_released", lambda: self.checkout.release_due_payouts(when)),
-                          ("addresses_released", lambda: self.signup.sweep(when))):
+                          ("addresses_released", lambda: self.signup.sweep(when)),
+                          ("ucp_webhooks", lambda: self.ucp_orders.deliver_due(when))):
             try:
                 out = step()
             except Exception:
@@ -118,6 +120,8 @@ def build_context(settings: Settings | None = None, echo_messages: bool = False)
         ctx.seller_agent = SellerAgentRunner(ctx)
 
     notifications.register(ctx)
+    from .gateway import ucp_order
+    ucp_order.register(ctx)
     events.subscribe("order.paid", ctx.connector.deliver_order)
     # Pilot: page the on-call operator (Pub/Sub -> alert). Prototype: an ERROR log line, visible in Cloud Logging.
     events.subscribe("ops.manual_action", lambda e: log.error("MANUAL ACTION REQUIRED: %s for order %s",

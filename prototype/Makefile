@@ -2,7 +2,7 @@
 VENV := .venv
 PY   := $(if $(wildcard $(VENV)/bin/python),$(VENV)/bin/python,python3)
 
-.PHONY: help setup doctor doctor-offline eval eval-baseline test demo run judge e2e e2e-judge browser browser-judge deploy deploy-dry ucp-conformance ucp-reference ucp-server ucp-shopper academy
+.PHONY: help setup doctor doctor-offline eval eval-baseline test demo run judge e2e e2e-judge browser browser-judge deploy deploy-dry ucp-conformance ucp-conformance-test ucp-reference ucp-server ucp-shopper academy
 
 help:            ## list the targets
 	@grep -E '^[a-z0-9-]+:.*##' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  make %-18s %s\n", $$1, $$2}'
@@ -54,6 +54,9 @@ deploy-dry:      ## print every deploy step without changing anything  (PROJECT_
 
 ucp-conformance: ## run Google's official UCP conformance suite against Etalase (needs git, uv, network)
 	$(PY) -m ucp_conformance.run
+
+ucp-conformance-test: ## the same suite with the sandbox test mode (mock card, order webhooks): what the Order tests need
+	$(PY) -m ucp_conformance.run --mode test
 
 ucp-reference:   ## same suite against the official sample server: proves the suite itself works
 	$(PY) -m ucp_conformance.run --target reference

@@ -23,7 +23,7 @@ from ..adapters.telegram import parse_telegram_update
 from . import demo_console
 from ..connector.service import OrderStatusIn, ProductIn, StockIn
 from ..container import AppContext, build_context
-from ..gateway import discovery, pages, payout_policy, storefront, ucp as ucp_protocol
+from ..gateway import discovery, pages, payout_policy, storefront, ucp as ucp_protocol, ucp_order
 from ..gateway.hosts import ShopHostMiddleware, shop_of
 from ..gateway.mcp_server import build_mcp
 from ..gateway.tools import order_view
@@ -74,10 +74,20 @@ async def lifespan(app: FastAPI):
             except Exception:  # one bad order must not stop the job for everyone
                 log.exception("background run failed")
 
-    task = asyncio.create_task(expiry_loop())
+    async def webhook_loop():  # signed order webhooks to platforms: retries are seconds apart, so it runs more often than the job above
+        while True:
+            await asyncio.sleep(1)
+            try:
+                if await asyncio.to_thread(ctx.ucp_orders.pending):
+                    await asyncio.to_thread(ctx.ucp_orders.deliver_due)
+            except Exception:
+                log.exception("UCP webhook delivery failed")
+
+    tasks = [asyncio.create_task(expiry_loop()), asyncio.create_task(webhook_loop())]
     async with mcp.session_manager.run():
         yield
-    task.cancel()
+    for task in tasks:
+        task.cancel()
 
 
 app = FastAPI(title="Etalase API", version="0.1.0", lifespan=lifespan,
@@ -112,6 +122,9 @@ def ucp(request: Request):
 
 
 app.include_router(ucp_protocol.build_router(ctx, limits))   # /ucp/v1/checkout-sessions ... (UCP Checkout, REST)
+
+if ctx.settings.ucp_test_mode:      # sandbox only (refused elsewhere by security.validate_settings): see gateway/ucp_order.py
+    ucp_order.add_test_routes(app, ctx)
 if ctx.settings.demo_mode:
     app.include_router(demo_console.build_router(ctx, limits))   # /demo: the simulated seller phone
 

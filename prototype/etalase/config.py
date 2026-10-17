@@ -82,7 +82,7 @@ class Settings(BaseSettings):
     reservation_ttl_minutes: int = 15
     confirm_if_stale_days: int = 3
     confirm_if_available_lte: int = 2
-    seller_confirm_timeout_minutes: int = 60
+    seller_confirm_timeout_minutes: int = 30
     # A seller who has not answered a stock check gets one reminder this many minutes after it was sent (0 = no reminder).
     seller_confirm_reminder_minutes: int = 15
     max_qty_per_order: int = 10

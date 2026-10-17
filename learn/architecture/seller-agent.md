@@ -152,7 +152,7 @@ Button ids carry the action and, for orders, the order id: `publish`, `edit`, `c
 
 A button id arrives from outside, so it is untrusted. That is fine: every checkout method calls `_seller_order(seller_id, order_id)`, which raises "order not found" when the order belongs to someone else (see [Checkout and orders](/architecture/checkout-and-orders)). One `oos` button means two different things depending on the order state: before payment it rejects the stock check, after payment it rejects and refunds.
 
-The `confirm` branch never assumes the tap worked. A confirm-first order can expire (after 60 minutes) or be answered already before the seller taps **Available**, so the inbox checks the **returned** order. Only a confirmed order awaiting payment gets "Great, the buyer has been sent the QRIS payment code." Anything else gets `order_closed`, for example "This order is already expired, so nothing was sent to the buyer." (`test_late_available_tap_does_not_claim_payment_was_sent`). Telling a seller a buyer is paying when nobody is would make them hold stock for nothing.
+The `confirm` branch never assumes the tap worked. A confirm-first order can expire (after 30 minutes) or be answered already before the seller taps **Available**, so the inbox checks the **returned** order. Only a confirmed order awaiting payment gets "Great, the buyer has been sent the QRIS payment code." Anything else gets `order_closed`, for example "This order is already expired, so nothing was sent to the buyer." (`test_late_available_tap_does_not_claim_payment_was_sent`). Telling a seller a buyer is paying when nobody is would make them hold stock for nothing.
 
 ### 5. Media is buffered, not processed alone
 

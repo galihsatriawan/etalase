@@ -623,7 +623,7 @@ Why a new double instead of a stale copy: `seller_confirms_stock` reads the orde
 
 **Hints.**
 - Put a `Scheduler` protocol behind an adapter: an in-process default that does nothing (the loop stays as a safety net) and a Cloud Tasks one.
-- Schedule at checkout (instant: 15 min; confirm-first: 60 min) and **again** when the seller confirms, because `seller_confirms_stock` moves the deadline. The old task will fire early and must be a no-op: the `expire` callback already skips orders whose `expires_at` is later than now.
+- Schedule at checkout (instant: 15 min; confirm-first: 30 min) and **again** when the seller confirms, because `seller_confirms_stock` moves the deadline. The old task will fire early and must be a no-op: the `expire` callback already skips orders whose `expires_at` is later than now.
 - Name tasks deterministically (order id plus timestamp) so a retried checkout does not create duplicates.
 - Protect the new endpoint. The existing `/tasks/expire` uses `WEBHOOK_TOKEN`; Cloud Tasks can also send an OIDC token from a service account, which is stronger.
 - Create the queue once: `gcloud tasks queues create etalase-expiry --location=asia-southeast2`.

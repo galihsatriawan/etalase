@@ -112,7 +112,7 @@ def test_confirm_first_hold_follows_the_new_deadline(ctx, seller, product):
     ctx.catalog.update_stock(seller.id, "Navy", 2)
     order = ctx.checkout.create_checkout(product.id, navy.id, 1, BUYER)
     order = ctx.checkout.seller_confirms_stock(seller.id, order.id, available=True)
-    # the hold now ends with the QR code (15 min), not the 60-minute confirmation window
+    # the hold now ends with the QR code (15 min), not the 30-minute confirmation window
     assert ctx.checkout.expire_due(now() + timedelta(minutes=16)) == [order.id]
 
 

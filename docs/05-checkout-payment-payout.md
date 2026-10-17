@@ -10,7 +10,7 @@ stateDiagram-v2
   [*] --> AwaitingPayment: create_checkout (instant)
   AwaitingSellerConfirmation --> AwaitingPayment: seller taps Available
   AwaitingSellerConfirmation --> Rejected: seller taps Sold out
-  AwaitingSellerConfirmation --> Expired: no answer in 60 min (one reminder to the seller at 15 min)
+  AwaitingSellerConfirmation --> Expired: no answer in 30 min (one reminder to the seller at 15 min)
   AwaitingPayment --> Paid: payment webhook (instant)
   AwaitingPayment --> Accepted: payment webhook (seller already confirmed)
   AwaitingPayment --> Expired: unpaid after 15 min

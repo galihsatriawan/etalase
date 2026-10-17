@@ -200,6 +200,7 @@ Instead of `https://<service>/stores/sel_1a2b3c4d5e`, each shop can have `https:
    set this up from the sandbox: it is the same pattern as any wildcard SaaS domain, not verified against your account.
 4. `make doctor` resolves a random label under the domain and warns if the wildcard record is missing.
 5. Shops get an address from their name when created; a seller changes it in the dashboard (**Settings → Your shop address**). The old address stops working, so the dashboard says so.
+   The judge sandbox (`DEMO=1`) gives its demo shop `demo.<domain>` when `STORE_BASE_DOMAIN` is set (the name-based address if `demo` is taken).
 6. Each address is also that shop's agent surface: `https://rina.etalase.id/.well-known/ucp` is Rina's UCP profile (its endpoint is her address), and `/ucp/v1`, `/agent/v1` and `/mcp` on it see
    only her products and orders. Check it with `curl -s https://rina.etalase.id/.well-known/ucp`. The platform host still serves every shop.
 

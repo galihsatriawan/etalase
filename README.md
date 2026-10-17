@@ -19,7 +19,7 @@ Customer and Business Experiences**.
 ## Why
 
 - AI shopping is arriving in 2026 (Google's Universal Commerce Protocol, AP2, MCP), but real checkout inside an assistant is still narrow:
-  live in the US, started in Australia, and in Indonesia only discovery so far. Agents only see **structured catalogs**, so a seller who
+  live in the US, started with select retailers in Australia, and in Indonesia only discovery so far. Agents only see **structured catalogs**, so a seller who
   has none is invisible to them.
 - Southeast Asia's e-commerce reached about **US$185B in 2025**, and buying through chat apps is
   normal here. In Indonesia, **95% of e-commerce businesses use messaging apps to sell and 18% use marketplaces**

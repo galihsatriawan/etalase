@@ -31,7 +31,7 @@ These parts have real code paths, but the demo runs a stand-in. Each switches on
 
 | Part | Demo uses | Real adapter | What is still missing to go live |
 |---|---|---|---|
-| Catalog extraction <Badge type="warning" text="Mocked in demo" /> | `HeuristicExtractor` (text and CSV rules) | `GeminiExtractor` with Vertex AI or an API key | Live accuracy not measured yet (run `make eval` with a key); retries and an offline fallback exist, but no explicit request timeout |
+| Catalog extraction <Badge type="warning" text="Mocked in demo" /> | `HeuristicExtractor` (text and CSV rules) | `GeminiExtractor` with Vertex AI or an API key | Text accuracy measured once: 36/43 (84%) fully correct with Gemini 3.8 Flash on 43 labelled messages (target 90%); photos, voice and real seller messages not measured; retries and an offline fallback exist, but no explicit request timeout |
 | Seller chat <Badge type="warning" text="Mocked in demo" /> | Offline intent parser | ADK `LlmAgent` with five tools | Sessions in memory (`InMemorySessionService`); errors leave the seller with no reply |
 | Messaging <Badge type="warning" text="Mocked in demo" /> | `ConsoleMessenger` (outbox list) | `WhatsAppCloudMessenger` | Templates must be created and approved by you (the code sends them); authentication template for sign-in codes; per-message cost control; media types and the template payload are tested against the documented shape, not the live API |
 | Telegram channel <Badge type="warning" text="Mocked in demo" /> | `ConsoleMessenger` labels it "Telegram" in the outbox; tests stub the Bot API | `TelegramMessenger` (Bot API over httpx) | Never called against the live Bot API: create the bot in @BotFather, set `TELEGRAM_BOT_TOKEN` and `TELEGRAM_WEBHOOK_SECRET`, run `python -m etalase.adapters.telegram set-webhook <url>`. The numeric limits (4096 characters, 64 bytes of callback data, 20 MB downloads) are the documented ones but were not re-read on the day of the check |
@@ -131,7 +131,7 @@ depends on where sellers keep their catalogs, which nobody has measured. See `do
 
 ### AI quality
 
-- No extraction eval and no intent eval yet: the 90% and 95% targets in `docs/12-benchmark-plan.md` are unmeasured.
+- The extraction eval covers text only (Gemini 3.8 Flash: 84% of 43 cases fully correct, target 90%; `docs/12-benchmark-plan.md`). Photos and voice have no eval, and there is no intent eval yet, so the 95% intent target is unmeasured.
 - Gemini calls are retried and fall back to the offline rules, and a failing seller agent tells the seller to try again; there is still no explicit request timeout ([Exercise 10](/master/exercises#_10-fall-back-to-offline-rules-when-gemini-fails)).
 - Prompt-injection defences (the `content_note`, session-scoped tenant id, no money or order actions for the model) are mitigations without a red-team test.
 

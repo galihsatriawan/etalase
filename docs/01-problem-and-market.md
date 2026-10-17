@@ -70,7 +70,7 @@ Agents do not browse storefronts like people. They request **structured catalog 
 
 ## Why we can win
 
-1. **Input we found no one else handling:** catalogs built from photos, voice notes and chats with Gemini. How good the extraction is, and how many corrections sellers need, is not yet measured with Gemini (see [doc 12](12-benchmark-plan.md)).
+1. **Input we found no one else handling:** catalogs built from photos, voice notes and chats with Gemini. On 43 labelled text messages Gemini 3.8 Flash got 36 fully right (84%, against 49% for offline rules; our target is 90%). Photos, voice notes and the number of corrections real sellers need are not measured (see [doc 12](12-benchmark-plan.md)).
 2. **Output where sellers already work:** orders, confirmations and stock updates in WhatsApp.
 3. **Local rails:** QRIS and e-wallets through Xendit, 30+ couriers through Biteship.
 4. **Built for many markets:** one core with country packs, plus a Connector API for OMSs and website builders.

@@ -383,7 +383,7 @@ A claim like "Gemini turns photos into a catalog" needs a number behind it. The 
 | Baseline | Run `HeuristicExtractor` on the same text-only cases; the gap shows what Gemini adds |
 | Target | At least 90% of fields correct (`docs/12`), and under 15 seconds per product |
 
-**Status:** not run yet <Badge type="info" text="Roadmap" />. The deck's benchmark slide says "TBD" for extraction accuracy, and that is the honest answer until the eval exists. Building it is [Exercise 17](/master/exercises#_17-build-the-gemini-extraction-eval) and the first item on the [Known gaps](/master/known-gaps) AI-quality list. Until then, say: "The pipeline is built so that mistakes are visible (questions, readiness, Publish) and cheap (confirm-first); the accuracy number comes from the eval, which we have designed and not yet run."
+**Status:** run once, on text only <Badge type="warning" text="Partial" />. On 43 labelled messages Gemini 3.8 Flash got 36 fully right (84%) against the 90% target, and the offline rules 49%; `docs/12` lists the seven misses. Photos and voice have no eval yet ([Known gaps](/master/known-gaps), AI quality). Say: "The pipeline is built so that mistakes are visible (questions, readiness, Publish) and cheap (confirm-first); on text we measured 84%, below our 90% target, and photos and voice are not measured yet."
 
 ## Pitfalls
 
@@ -421,7 +421,7 @@ The offline parser returns `set_stock` Black = 0 with no hint. `find_variants` f
 5. Why is "Gemini returns JSON that matches our schema" not the same as "the catalog is correct"?
 
 ::: details Answer
-The schema guarantees the **shape**, not the **truth**. Gemini can still put a wrong number in a valid field or miss an ambiguity. That is why code normalises, the seller reviews and publishes, confirm-first protects uncertain stock, and a labelled eval (not yet run) is needed to measure field-level accuracy.
+The schema guarantees the **shape**, not the **truth**. Gemini can still put a wrong number in a valid field or miss an ambiguity. That is why code normalises, the seller reviews and publishes, confirm-first protects uncertain stock, and a labelled eval measures field-level accuracy (text only so far: 84% of cases fully correct).
 :::
 
 6. Which stock operations are safe to call twice, and what makes them so?

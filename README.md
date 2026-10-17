@@ -88,7 +88,7 @@ suite against Etalase, and `make e2e` / `make browser` play the whole story over
 
 | Technology | Used for | Status |
 |---|---|---|
-| **Gemini on Vertex AI** | Multimodal catalog extraction (photos + voice + text) with structured output; seller and buyer agents | Built; switches on with Vertex AI or an API key (offline parser otherwise). On 43 labelled text messages, 36 fully correct (84%) against 49% for the offline parser; photos and voice not measured |
+| **Gemini on Vertex AI** | Multimodal catalog extraction (photos + voice + text) with structured output; seller and buyer agents | Built; switches on with Vertex AI or an API key (offline parser otherwise). On 43 labelled text messages, 42 fully correct (98%) after a prompt fix made on those messages (36, or 84%, before it) against 21 for the offline parser; photos and voice not measured |
 | **Agent Development Kit (ADK)** | WhatsApp seller agent with tenant-scoped tools; demo buyer agent using `McpToolset` | Built |
 | **Cloud Run** | API, MCP server, webhooks, seller dashboard | Built (deploy script) |
 | **Cloud Load Balancing + Certificate Manager** | Shop addresses: a global HTTPS load balancer with one wildcard certificate in front of Cloud Run (`*.etalase.site`) | Built in the sandbox; steps in [SETUP.md](SETUP.md#7-shop-addresses-optional) |
@@ -165,7 +165,7 @@ Telegram, Xendit QRIS, Biteship, Firestore) is wired and switches on with creden
 with real traffic yet:** they are covered by contract tests written from the providers' documentation, not by live calls.
 
 Not yet known, and said plainly in the docs: whether a payout hold can be enforced at Xendit, how Bank Indonesia would classify
-holding a payout, how accurate Gemini extraction is on real seller messages (84% of 43 labelled text messages fully correct with Gemini, 49% for the offline baseline; photos, voice and real messages not measured),
+holding a payout, how accurate Gemini extraction is on real seller messages (98% of 43 labelled text messages fully correct with Gemini after a prompt fix made on those same messages, 84% before it, 49% for the offline baseline; photos, voice and real messages not measured),
 and whether sellers will pay a 4% commission and wait 72 to 168 hours (no seller has been interviewed). Details and the
 checks to run first are in [Market fit and direction](docs/17-market-fit-and-direction.md) and in
 [Security, privacy and compliance](docs/09-security-privacy-compliance.md#known-gaps-before-a-pilot).

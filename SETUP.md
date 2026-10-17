@@ -17,7 +17,7 @@ mock QRIS, mock courier rates, console instead of WhatsApp). What each key buys 
 
 | Section | Fill in | Without it | Needed for |
 |---|---|---|---|
-| [1. Gemini](#1-gemini-the-one-that-matters-most) | `GOOGLE_API_KEY` (or `GEMINI_API_KEY`) **or** a Google Cloud project | rule-based extraction (49% on our labelled set) | the Gen AI score: real extraction (84% on the same set), the seller and buyer agents |
+| [1. Gemini](#1-gemini-the-one-that-matters-most) | `GOOGLE_API_KEY` (or `GEMINI_API_KEY`) **or** a Google Cloud project | rule-based extraction (49% on our labelled set) | the Gen AI score: real extraction (98% on the same set after a prompt fix, 84% before it), the seller and buyer agents |
 | [2. Deploy](#2-deploy-to-cloud-run) | a Google Cloud project with billing | runs on your laptop only | the public prototype link the submission asks for |
 | [3. WhatsApp](#3-whatsapp-business-cloud-api) | 4 values + 6 message templates | orders print in the terminal | the "order lands in the seller's WhatsApp" demo |
 | [4. Xendit](#4-xendit-qris) | 2 values | mock QRIS | real QR codes |

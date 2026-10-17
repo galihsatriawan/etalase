@@ -217,7 +217,7 @@ See [`adr/`](adr/) for the reasoning behind the main choices:
 
 | Stage | Setup |
 |---|---|
-| Hackathon demo | One Cloud Run service (`asia-southeast2`), `STORE_BACKEND=memory`, one instance, Gemini on Vertex AI, mock or test-mode payment and shipping |
+| Hackathon demo | One Cloud Run service (`asia-southeast2`), `STORE_BACKEND=memory`, one instance, Gemini on Vertex AI, mock or test-mode payment and shipping. A Google HTTPS load balancer with a wildcard certificate serves the demo shop at `demo.etalase.site`; the Cloud Run URL works too |
 | Pilot | `STORE_BACKEND=firestore`, multiple instances, Pub/Sub for events, Cloud Tasks for reservation expiry, Secret Manager for keys, Cloud Storage for media |
 | Scale | Separate services for gateway, seller inbox and workers; per-country deployments where data residency requires it |
 

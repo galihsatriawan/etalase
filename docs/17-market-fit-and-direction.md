@@ -122,7 +122,7 @@ Two directions have two rules: seller ↔ Etalase can use one shared bot or numb
 | Risk raised | Our view |
 |---|---|
 | Too broad: WhatsApp, Instagram, UCP, MCP, payments, couriers at once | Agreed. The pitch should be one story: a WhatsApp seller sends photos, an agent buys, the order and money behave. Everything else is a footnote |
-| "Retail and commerce" is a crowded theme | Agreed. The difference is the seller who has no store system, and the money rules (hold, returns) that most demos skip |
+| "Retail and commerce" is a crowded theme | Agreed. The difference is the seller who runs on chat, with no store page or checkout of their own, and the money rules (hold, returns) that most demos skip |
 | UCP is not live in Indonesia | Verified, and we say so. MCP works for agents that are pointed at our server; UCP readiness is a specification exercise until Google opens Indonesia and adds a local payment handler |
 | WhatsApp message cost | Real and larger than first thought: since 1 Oct 2026 in-window replies are charged, which puts the per-order cost at 37–61% of the commission ([doc 10](10-business-model.md)). Fix: fewer, combined messages, a message meter, and a pricing structure with a minimum or a subscription |
 | Fixed per-seller costs | A possible xenPlatform account fee and Biteship's subscription make a pure 4% commission unprofitable below about 20 orders per seller per month. To test in interviews |

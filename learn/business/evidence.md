@@ -111,7 +111,7 @@ In Q&A, open this page, find the card, read the quote, then give the "If a judge
 - **Data year:** 2026 (PYMNTS Intelligence × Visa Acceptance Solutions, *2026 Global Digital Shopping Index: Merchant Edition*, article 22 Sep 2026).
 - **Source:** [PYMNTS](https://www.pymnts.com/smbs/2026/visa-says-small-merchants-could-move-faster-on-ai-shopping/)
 - **Nuance:** global merchant survey, not Indonesia-specific.
-- **If a judge asks** "Does that apply to Indonesia?": "It is a global survey. Our sellers have no store system at all, so they are likely below even the SMB average."
+- **If a judge asks** "Does that apply to Indonesia?": "It is a global survey. We have no Indonesian figure. A seller whose catalog lives in photos and chats probably has no structured product data, so we expect them to be at or below the SMB average, but that is an inference."
 
 ### 10. 15% of merchants have structured product data <Badge type="tip" text="Verified" />
 

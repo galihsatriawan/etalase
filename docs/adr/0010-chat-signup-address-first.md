@@ -4,7 +4,7 @@
 check it waits for is **not built**.
 
 ## Context
-The seller Etalase is for is one who sells in chat and has no store of their own ([doc 17](../17-market-fit-and-direction.md)). What we give such a seller is an address of their
+The seller Etalase is for is one who sells in chat and has no store of their own (some also list on a marketplace; what they lack is a store page and a checkout that a buyer or an agent can use) ([doc 17](../17-market-fit-and-direction.md)). What we give such a seller is an address of their
 own (`rina.<domain>`), products that agents can find and buy, and a catalog built from the photos and sentences they already send. The prototype could not give anyone that
 without us: sellers were created with a dev endpoint.
 

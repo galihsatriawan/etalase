@@ -94,8 +94,9 @@ class CountingAgent:
         return "ok"
 
 
-def gemini_ctx(budget):
-    ctx = build_context(Settings(etalase_env="dev", _env_file=None, google_api_key="k", seller_ai_calls_per_hour=budget))
+def gemini_ctx(budget, per_day=0):
+    ctx = build_context(Settings(etalase_env="dev", _env_file=None, google_api_key="k", seller_ai_calls_per_hour=budget,
+                                 seller_ai_calls_per_day=per_day))
     ctx.seller_agent = CountingAgent()
     return ctx
 
@@ -135,3 +136,25 @@ def test_offline_mode_is_never_limited(ctx):
     assert not ctx.settings.gemini_enabled
     for i in range(100):
         assert ctx.inbox._ai_allowed(seller.id)
+
+
+def test_a_daily_ceiling_stops_calls_even_when_every_hour_is_within_its_budget():
+    ctx = gemini_ctx(100, per_day=4)
+    seller = make_seller(ctx)
+    ctx.messenger.outbox.clear()
+    for i in range(7):
+        asyncio.run(ctx.inbox.handle_text(seller.id, f"hello {i}"))
+    assert ctx.seller_agent.calls == 4
+
+
+def test_a_call_refused_by_the_hourly_budget_does_not_use_up_the_daily_one():
+    ctx = gemini_ctx(2, per_day=5)
+    seller = make_seller(ctx)
+    for i in range(6):
+        asyncio.run(ctx.inbox.handle_text(seller.id, f"hello {i}"))
+    assert ctx.seller_agent.calls == 2
+    assert ctx.inbox._limits.count(f"ai-day:{seller.id}", 86400) == 2
+
+
+def test_no_daily_ceiling_by_default():
+    assert Settings(_env_file=None).seller_ai_calls_per_day == 0

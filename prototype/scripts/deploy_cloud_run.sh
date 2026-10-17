@@ -95,7 +95,7 @@ URL="https://${SERVICE}-${PROJECT_NUMBER}.${REGION}.run.app"
 # ---------------------------------------------------------------- your keys and settings from .env
 say "Keys and settings from $ENV_FILE (names only; values are never printed)"
 SYNC="$(python3 scripts/env_to_cloud.py --project "$PROJECT_ID" --env-file "$ENV_FILE" --gemini-auth "${GEMINI_AUTH:-auto}" \
-  ${DRY_RUN:+--dry-run} ${DEMO:+--demo --default SELLER_AI_CALLS_PER_HOUR=120 --fixed DEMO_MODE=true} \
+  ${DRY_RUN:+--dry-run} ${DEMO:+--demo --default SELLER_AI_CALLS_PER_HOUR=40 --default SELLER_AI_CALLS_PER_DAY=300 --fixed DEMO_MODE=true} \
   --default SELLER_LOCALE=en --default GEMINI_MODEL=gemini-3.8-flash --default GOOGLE_CLOUD_LOCATION=global \
   --fixed "ETALASE_ENV=${ENV_MODE}" --fixed "PUBLIC_BASE_URL=${URL}" --fixed "STORE_BACKEND=${STORE_BACKEND:-memory}" \
   --fixed "GOOGLE_CLOUD_PROJECT=${PROJECT_ID}")"

@@ -47,7 +47,15 @@ class SellerInbox:
         """The gate in front of anything that costs a Gemini call. Offline mode is free, so it is never limited."""
         if not self.ctx.settings.gemini_enabled:
             return True
-        return self._limits.allow(f"ai:{seller_id}", self.ctx.settings.seller_ai_calls_per_hour, 3600)
+        hourly, daily = self.ctx.settings.seller_ai_calls_per_hour, self.ctx.settings.seller_ai_calls_per_day
+        hour_key, day_key = f"ai:{seller_id}", f"ai-day:{seller_id}"
+        # Look at both windows first, so a refused call is not counted against the other one.
+        if self._limits.count(hour_key, 3600) >= hourly or (daily > 0 and self._limits.count(day_key, 86400) >= daily):
+            return False
+        self._limits.allow(hour_key, hourly, 3600)
+        if daily > 0:
+            self._limits.allow(day_key, daily, 86400)
+        return True
 
     def _duplicate(self, message_id: str) -> bool:
         if not message_id:

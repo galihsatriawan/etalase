@@ -4,6 +4,8 @@ You do not need an account, a WhatsApp number or an API key. The sandbox address
 
 The sandbox is the real application running with three things simulated, so that you can play the seller, the buyer and an AI agent in one browser: the WhatsApp chat, the QRIS payment and the courier. The table below says exactly what is real and what is not.
 
+To keep its running cost small, the sandbox limits how much AI it will run: a few dozen Gemini calls per hour and a few hundred per day for everyone together, and 25 typed messages per visitor per hour. If the chat answers *slow down* or the page says a limit was reached, wait a few minutes and try again; ordering, payment, MCP and UCP are not affected.
+
 ## Five minutes, step by step
 
 Open `/demo`. You are playing a seller (a made-up shop, "Toko Demo Rina"). The left side is her WhatsApp chat.

@@ -128,7 +128,7 @@ pytest -q
 ........................................................................ [ 74%]
 ........................................................................ [ 92%]
 .............................                                            [100%]
-731 passed in 15.0s
+735 passed in 15.0s
 ```
 
 `tests/conftest.py` removes the provider keys (`GOOGLE_API_KEY`, `WHATSAPP_*`, `XENDIT_*`, `BITESHIP_API_KEY`, `INSTAGRAM_*`, `TELEGRAM_*`), the tokens and URLs (`DEV_TOKEN`, `WEBHOOK_TOKEN`, `SESSION_SECRET`, `PUBLIC_BASE_URL`, `STORE_BASE_DOMAIN`) and a few others from the environment, then changes into `tests/`, so no `prototype/.env` is read either. The tests always run offline, whatever is in your shell or `.env`. [Testing](/ship/testing) walks through what they cover.
@@ -203,6 +203,7 @@ Other variables you will meet:
 | `ETALASE_MEDIA_DIR` | `./media` | Where downloaded WhatsApp media is saved |
 | `COMMISSION_RATE`, `RESERVATION_TTL_MINUTES`, `MAX_QTY_PER_ORDER`, `MAX_CHECKOUTS_PER_BUYER_PER_HOUR` | `0.04`, `15`, `10`, `5` | Business rules |
 | `SELLER_AI_CALLS_PER_HOUR` | `60` | Gemini calls one seller can trigger per hour (free-text turns and catalog builds) |
+| `SELLER_AI_CALLS_PER_DAY` | `0` (no ceiling) | The same per rolling 24 hours, so busy hours cannot add up to a large bill. The judge sandbox uses 300 |
 | `TELEGRAM_BOT_TOKEN`, `TELEGRAM_WEBHOOK_SECRET`, `TELEGRAM_BOT_USERNAME` | unset | The optional Telegram seller channel; the secret is 16 or more characters from `A-Z a-z 0-9 _ -`. Setup in `SETUP.md` section 3b |
 | `STORE_BASE_DOMAIN` | unset | A bare host such as `example.com`. When set, sellers can claim `shop.example.com`; path links keep working |
 

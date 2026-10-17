@@ -8,7 +8,7 @@ Code: `prototype/etalase/seller/`, `prototype/etalase/agents/seller_agent.py`.
 WhatsApp Cloud API webhook  ─►  parse_whatsapp_webhook  ─┐
 Telegram Bot API webhook    ─►  parse_telegram_update    ─┴►  SellerInbox.handle      (the sender is the channel address)
    │
-   ├─ unknown number        → registration link   (unknown Telegram chat: "/start <code>" links it, anything else gets one pointer)
+   ├─ unknown number        → registration link, not built yet   (unknown Telegram chat: "/start <code>" links it, anything else gets one pointer)
    ├─ button reply          → deterministic handler (Publish, Available, Sold out, Accept, Out of stock)
    ├─ photo / voice / file  → saved, grouped with the next description
    └─ text
@@ -75,7 +75,7 @@ All templates live in `seller/i18n.py` in English and Bahasa Indonesia (`SELLER_
 
 ## Channels: WhatsApp and Telegram
 
-WhatsApp is the default and the identity (sign-up, dashboard sign-in). A seller can also **link a Telegram chat** and choose it for orders, stock checks and payouts
+WhatsApp is the default and the identity (dashboard sign-in today; sign-up is designed, not built, see [doc 02](02-product.md#1-seller-onboarding-about-2-minutes)). A seller can also **link a Telegram chat** and choose it for orders, stock checks and payouts
 ([ADR 0008](adr/0008-seller-channels-and-shop-addresses.md)). The code is `seller/channels.py` and `adapters/telegram.py`.
 
 1. In the dashboard (Settings → Where Etalase messages you) the seller taps **Connect Telegram**. `POST /api/me/telegram/link` returns a signed code valid for 10 minutes and a

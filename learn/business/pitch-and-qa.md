@@ -154,6 +154,17 @@ Shopee brings its own listings to AI agents, and checkout continues on Shopee wi
 It is already moving there. Meta Business Agent answers buyers inside WhatsApp Business for free and recommends products from the seller's catalog; the press reports an Indonesian launch on 11 Aug 2026, though rollout, pricing and payment support in Indonesia are unconfirmed. In Indonesia WhatsApp's own payment feature only copies bank details. On the pages we read, Meta's agent does not build a catalog from photos, run QRIS checkout, reserve stock or open the catalog to third-party agents. If Meta adds payment or catalog intake, what remains for us is catalog quality, reserved stock and the payout hold, and we say so. We are a WhatsApp Cloud API customer, and if Meta opens agent features we plug in through the `Messenger` adapter.
 :::
 
+**Q9a. WhatsApp Business already has a catalog and a cart. What do you add?**
+
+::: details Answer
+Correct, and it is free. The app lets a seller type up to 500 items one at a time; each colour or size is its own item, there is no stock field, and a buyer's cart
+arrives as a chat message. WhatsApp does not process the payment, so the seller sends bank details and confirms by hand. We add what happens before and after that:
+the catalog is built from photos and voice notes instead of typing, stock is held while the buyer pays, QRIS is confirmed automatically, couriers are priced, and the
+payout waits for the return window. We do not sync with the WhatsApp catalog today: whether products typed in the app can be read through the API is unverified, and
+writing to it would need each seller's own WhatsApp account. Importing from a spreadsheet or Instagram is the next step. These facts come from vendor pages, not from
+Meta's own, and we say so.
+:::
+
 **Q10. Why won't Google do this itself?**
 
 ::: details Answer

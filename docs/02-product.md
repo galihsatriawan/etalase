@@ -38,7 +38,15 @@ Etalase turns a WhatsApp seller's product photos and chats into a storefront tha
 ## Key journeys
 
 ### 1. Seller onboarding (about 2 minutes)
-1. Seller registers with a WhatsApp number (identity and bank verification happen at the payment provider).
+
+> **Status: designed, not built.** The prototype has no sign-up. The demo creates the seller with `POST /dev/sellers` (marked `verified`, with a mock payout
+> account), and the bot's "Sign up at …" reply points to a dashboard that only signs in sellers who already exist. The target below is a hybrid: start in the
+> chat, finish identity and bank checks on the payment provider's link. Opening sign-up to any number needs limits first (shops created per hour, one shop per
+> number, a new shop not shown to agents until it is checked).
+
+1. Seller sends "hi" to the Etalase number. The message proves the number (the webhook is signed by Meta), so no code is needed, and the bot asks for a shop name.
+   Identity and bank verification happen at the payment provider through a link. Whether they must be finished before the first checkout (as the code enforces
+   today) or only before the first payout is not decided; it depends on what the provider allows.
 2. Sends product photos and one description, typed or as a voice note. Optionally connects Instagram
    (product posts are imported) or a spreadsheet. Only the WhatsApp number is required.
 3. Gets a summary: products, variants, stock, price, estimated weight, readiness score.

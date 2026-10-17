@@ -102,6 +102,13 @@ Fix: [Exercise 13](/master/exercises#_13-run-the-store-contract-against-the-fire
 
 There is no registration flow. An unknown number is told to sign up at the dashboard URL, but dashboard sign-in only works for sellers who already exist. Today sellers are created only through `/dev/sellers`, already marked as verified with a mock sub-account. The pilot needs registration, sub-account creation and KYC at the payment provider, and `create_checkout` already refuses sellers whose `kyc_status` is not `verified`.
 
+### Existing catalogs
+
+Nothing imports the catalog a seller already keeps in WhatsApp Business, and we do not promise to. Reading products typed into the app through the API is unverified, and
+writing to a seller's catalog needs the seller's own WhatsApp Business Account, which our shared-number design does not connect. The realistic import paths are photos and
+screenshots (a screenshot with many products is untested), Instagram (built, tested on samples), Google Sheets or CSV (roadmap) and the Connector API. Which one comes first
+depends on where sellers keep their catalogs, which nobody has measured. See `docs/17`.
+
 ### Messaging
 
 - An approved WhatsApp *authentication* template for sign-in codes. Order alerts already fall back to *utility* templates (you create them once); codes are free-form today.

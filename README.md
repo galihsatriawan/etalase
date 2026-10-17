@@ -164,7 +164,9 @@ and whether sellers will pay a 4% commission and wait 72 to 168 hours (no seller
 checks to run first are in [Market fit and direction](docs/17-market-fit-and-direction.md) and in
 [Security, privacy and compliance](docs/09-security-privacy-compliance.md#known-gaps-before-a-pilot).
 
-Instagram DM selling is roadmap, not built.
+Instagram DM selling is roadmap, not built. Seller sign-up and KYC are designed but not built: the demo seller is created by a dev endpoint
+([doc 02](docs/02-product.md#1-seller-onboarding-about-2-minutes)). Importing a seller's existing WhatsApp catalog is not built and not promised
+([doc 17](docs/17-market-fit-and-direction.md#what-about-the-catalog-a-seller-already-has)).
 
 ## Team
 

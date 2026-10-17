@@ -23,8 +23,11 @@
 
 - Roles: for buyer data Etalase acts for the seller and the transaction; roles and contracts to be
   defined (**verify**).
-- Gemini runs on Vertex AI in an Asia-Pacific region; customer data is not used to train models
-  under Google Cloud's terms (**verify** the current terms and region choice).
+- Gemini runs on Vertex AI. The default location is the **global endpoint**, because `gemini-3.8-flash` returned 404 in
+  `asia-southeast1` for our project (18 Oct 2026); Google's documentation says not to use the global endpoint when you have
+  ML processing location requirements. The sandbox holds made-up data only. For a pilot with real seller photos and buyer
+  data, choose a model and region that satisfy the location requirement (set `GOOGLE_CLOUD_LOCATION`). Customer data is not
+  used to train models under Google Cloud's terms (**verify** the current terms).
 - Data subject requests (access, correction, deletion) are handled per seller; an audit trail of stock
   and order changes is kept.
 

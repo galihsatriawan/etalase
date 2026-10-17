@@ -296,7 +296,7 @@ flowchart LR
   subgraph GCP["Google Cloud, asia-southeast2"]
     CR["Cloud Run service etalase, 1 instance, STORE_BACKEND=memory"]
     SM[Secret Manager]
-    VX["Vertex AI Gemini, asia-southeast1"]
+    VX["Vertex AI Gemini, global endpoint"]
     FS[(Firestore)]
   end
   SM --> CR

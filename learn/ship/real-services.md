@@ -74,7 +74,7 @@ Two ways to authenticate, both handled by `GeminiExtractor` in **`prototype/etal
 
 | | API key | Vertex AI |
 |---|---|---|
-| Set | `GOOGLE_API_KEY=...` | `GOOGLE_GENAI_USE_VERTEXAI=true`, `GOOGLE_CLOUD_PROJECT`, `GOOGLE_CLOUD_LOCATION` (default `asia-southeast1`) |
+| Set | `GOOGLE_API_KEY=...` | `GOOGLE_GENAI_USE_VERTEXAI=true`, `GOOGLE_CLOUD_PROJECT`, `GOOGLE_CLOUD_LOCATION` (default `global`) |
 | Credentials | The key | Application Default Credentials: `gcloud auth application-default login` locally, the service account on Cloud Run (needs `roles/aiplatform.user`) |
 | Best for | A quick local try | Cloud Run (what the deploy script uses), data-location control, Google Cloud billing |
 

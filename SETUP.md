@@ -50,8 +50,8 @@ Pick one.
 **B. Vertex AI (what the Cloud Run deploy uses when there is no key)**
 1. A Google Cloud project with billing enabled, and `gcloud services enable aiplatform.googleapis.com`.
 2. `gcloud auth application-default login`
-3. In `.env`: `GOOGLE_GENAI_USE_VERTEXAI=true`, `GOOGLE_CLOUD_PROJECT=<project id>`, `GOOGLE_CLOUD_LOCATION=asia-southeast1`.
-   If the doctor says the model is not found in that region, set `GOOGLE_CLOUD_LOCATION=global`.
+3. In `.env`: `GOOGLE_GENAI_USE_VERTEXAI=true`, `GOOGLE_CLOUD_PROJECT=<project id>`, `GOOGLE_CLOUD_LOCATION=global`.
+   `gemini-3.8-flash` is listed on Vertex AI's global endpoint; in `asia-southeast1` it returned 404 for our project (18 Oct 2026). The global endpoint does not fix where a request is processed: see [docs/09](docs/09-security-privacy-compliance.md) before using real seller data.
 
 **Model.** The default is `GEMINI_MODEL=gemini-3.8-flash`. Google now limits the older `gemini-2.5-*` models to people who
 already used them, so a new key may get "not found" on 2.5. Alternatives if you want to trade quality for cost:

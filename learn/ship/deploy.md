@@ -35,7 +35,7 @@ flowchart LR
   ar --> run["Cloud Run service etalase"]
   sm[Secret Manager] -->|"secrets as env vars"| run
   sa["Service account etalase-run"] -.->|"runs as"| run
-  run -->|"Gemini calls"| vx["Vertex AI asia-southeast1"]
+  run -->|"Gemini calls"| vx["Vertex AI (global endpoint)"]
   wa["WhatsApp, Xendit, Biteship"] -->|"webhooks"| run
   agent["Buyer AI agent"] -->|"MCP and REST"| run
 ```
@@ -192,7 +192,7 @@ PROJECT_NUMBER="$(gcloud projects describe "$PROJECT_ID" --format 'value(project
 URL="https://${SERVICE}-${PROJECT_NUMBER}.${REGION}.run.app"
 
 ENV_VARS="ETALASE_ENV=${ENV_MODE},PUBLIC_BASE_URL=${URL},STORE_BACKEND=${STORE_BACKEND:-memory}"
-ENV_VARS="${ENV_VARS},GOOGLE_GENAI_USE_VERTEXAI=true,GOOGLE_CLOUD_PROJECT=${PROJECT_ID},GOOGLE_CLOUD_LOCATION=${GOOGLE_CLOUD_LOCATION:-asia-southeast1}"
+ENV_VARS="${ENV_VARS},GOOGLE_GENAI_USE_VERTEXAI=true,GOOGLE_CLOUD_PROJECT=${PROJECT_ID},GOOGLE_CLOUD_LOCATION=${GOOGLE_CLOUD_LOCATION:-global}"
 ENV_VARS="${ENV_VARS},GEMINI_MODEL=${GEMINI_MODEL:-gemini-3.8-flash},SELLER_LOCALE=${SELLER_LOCALE:-en}"
 [[ -n "${WHATSAPP_PHONE_NUMBER_ID:-}" ]] && ENV_VARS="${ENV_VARS},WHATSAPP_PHONE_NUMBER_ID=${WHATSAPP_PHONE_NUMBER_ID}"
 [[ -n "${INSTAGRAM_APP_ID:-}" ]] && ENV_VARS="${ENV_VARS},INSTAGRAM_APP_ID=${INSTAGRAM_APP_ID}"
@@ -227,7 +227,7 @@ gcloud run deploy "$SERVICE" \
 | `--no-cpu-throttling` | "CPU always allocated". By default Cloud Run gives an instance CPU only while it handles requests, which would stall the 60-second expiry loop in `api/main.py` when nobody is calling. With this flag, holds expire on time even when the demo is idle. |
 | `--update-env-vars`, `--update-secrets` | Add or change only the listed variables and secrets, keeping everything else on the service. |
 | `STORE_BACKEND=memory` (default) | Data is lost on every restart or redeploy. Fine for a demo, not for a pilot. |
-| `GOOGLE_GENAI_USE_VERTEXAI=true` + project + `asia-southeast1` | Gemini on Vertex AI in Singapore, authenticated as the service account. No API key needed. |
+| `GOOGLE_GENAI_USE_VERTEXAI=true` + project + `global` | Gemini on Vertex AI (global endpoint), authenticated as the service account. No API key needed. |
 
 ::: tip Why `--update-*` instead of `--set-*`
 An earlier version used `--set-env-vars` and `--set-secrets`, which remove all existing variables and secrets first. Anything you had added by hand (a WhatsApp token, a phone number id) silently disappeared on the next deploy. `--update-*` merges instead. The flip side: removing a variable now needs `--remove-env-vars` or `--remove-secrets`.
@@ -290,7 +290,7 @@ flowchart TD
 ## Region choice
 
 - **Cloud Run in `asia-southeast2` (Jakarta):** closest to Indonesian sellers, buyers and providers, and keeps the order data in Indonesia.
-- **Gemini in `asia-southeast1` (Singapore):** the Vertex AI locations list we checked has no Jakarta column, which is why the script points Gemini elsewhere. Model availability per region changes; if `gemini-3.8-flash` is not found in Singapore, deploy with `GOOGLE_CLOUD_LOCATION=global` (Vertex AI has a global endpoint) and re-check the data-location implications in `docs/09`.
+- **Gemini location:** the first sandbox deploy used `asia-southeast1` (Singapore), and `gemini-3.8-flash` returned 404 there for our project (18 Oct 2026). The catalog builder then silently fell back to the offline rules while the `/demo` label still said `gemini`; the log line was "Gemini extraction failed". Setting `GOOGLE_CLOUD_LOCATION=global` fixed it, and it is now the default. The global endpoint does not fix where a request is processed, so re-check the data-location implications in `docs/09` before real seller data. Model availability per region changes: test with `curl` against the model's `:generateContent` URL before relying on a region.
 - Prices differ by endpoint for some models; the [business model page](/business/business-model) uses list prices.
 
 ## Register webhook URLs

@@ -263,6 +263,12 @@ Built: catalog building and readiness score, the MCP server and REST mirror, sto
 The demo deploy is deliberately one instance (`--max-instances 1` in `prototype/scripts/deploy_cloud_run.sh`) with the in-memory store, because rate limits, OTP codes and WhatsApp de-duplication are kept in memory. The pilot switches to `STORE_BACKEND=firestore`, moves that state to a shared store and lifts the instance cap. The MCP server itself is stateless. Details in [Known gaps](/master/known-gaps).
 :::
 
+**Q55. Why both MCP and UCP, and does Google's AI Mode buy from you?**
+
+::: details Answer
+No Google surface calls Etalase today. Google's Merchant Center onboarding for UCP checkout is a US-only rollout by invitation, with Australia and Canada expected in 2027 and Indonesia not mentioned ([Google](https://support.google.com/merchants/answer/16992327?hl=en), checked 18 Oct 2026). So there are three doors, and we say which one works when. MCP works today with any agent whose owner connects the server (Claude, a Gemini agent built with ADK), but nobody discovers it by themselves. UCP is the standard Google's surfaces use to find a business (`/.well-known/ucp`) and run a checkout with it, so when they open to Indonesian merchants, Etalase is already a UCP business: it passes 30 of the official conformance tests and the 21 failures are listed and explained ([doc 16](https://github.com/galihsatriawan/etalase/blob/main/docs/16-ucp.md)). The store link is for buyers without an agent. All three end in the same checkout, so UCP cost us one adapter, not a second product. `make ucp-shopper` plays a simulated surface over UCP from discovery to a completed order; it is our own client, not Google's.
+:::
+
 ### Payments and trust
 
 **Q26. Do you hold the buyer's money?**

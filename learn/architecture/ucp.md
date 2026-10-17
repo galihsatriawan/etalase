@@ -92,7 +92,7 @@ Closed checkouts (`completed`, `canceled`) answer `409` to update and complete, 
 2. **The official conformance suite against Etalase.** `python -m ucp_conformance.run` clones the official repos, starts Etalase with fixed demo items and runs all 17 test files.
 3. **The same suite against the official sample server** (`--target reference`) as a control.
 
-Result on 18 Oct 2026 (spec 2026-04-08, ucp-sdk 0.4.6):
+Result on 17 Oct 2026 (spec 2026-04-08, ucp-sdk 0.4.6):
 
 | Target | Passed | Failed | Skipped |
 |---|---|---|---|
